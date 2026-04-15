@@ -7,8 +7,20 @@ import os
 
 st.set_page_config(page_title="Dashboard Pilotage B2B - SMG", layout="wide", page_icon="📊")
 
-DATA_PATH = "C:/Users/hachk/OneDrive - Société Magasin Général (SMG)/Documents/hamadi/grands compte/hamadi/dashbord convention/table vente/2025"
-TDC_PATH = "C:/Users/hachk/OneDrive - Société Magasin Général (SMG)/Documents/hamadi/grands compte/hamadi/dashbord convention/table vente/2025/TDC CONVENTION 1.xlsm"
+GITHUB_RAW = "https://raw.githubusercontent.com/chkondali-dev/pilotage-b2b/main/"
+
+FILES = {
+    "vc": "Factures ventes enregistrées VC (4).xlsx",
+    "vc_credit": "Factures ventes enregistrées VC credit conso.xlsx",
+    "vc_edc": "Factures ventes enregistrées VC CONVENTION EDC.xlsx",
+    "conventions_signees": "TDC CONVENTION 1.xlsm",
+    "nb_client_2025": "TDC CONVENTION 1.xlsm",
+    "code_magasin": "Code MAGASIN Business Central.xlsx"
+}
+
+def load_from_url(filename):
+    url = GITHUB_RAW + filename
+    return pd.read_excel(url)
 
 def clean_columns(df):
     if df is not None and not df.empty:
@@ -20,47 +32,43 @@ def clean_columns(df):
 
 @st.cache_data
 def load_all_data():
-    files = {
-        "vc": "Factures ventes enregistrées VC (4).xlsx",
-        "vc_credit": "Factures ventes enregistrées VC credit conso.xlsx",
-    }
-    
     dfs = {}
-    for key, filename in files.items():
-        filepath = os.path.join(DATA_PATH, filename)
-        try:
-            df = pd.read_excel(filepath)
-            df = clean_columns(df)
-            dfs[key] = df
-        except Exception as e:
-            st.warning(f"Erreur: {filename}")
     
     try:
-        df = pd.read_excel(TDC_PATH, sheet_name="Conventions signées")
+        df = load_from_url(FILES["vc"])
         df = clean_columns(df)
-        dfs["conventions_signees"] = df
-    except:
-        pass
+        dfs["vc"] = df
+    except Exception as e:
+        st.warning(f"Erreur vc: {e}")
     
     try:
-        df = pd.read_excel(TDC_PATH, sheet_name="NB CLIENT 2025", header=1)
+        df = load_from_url(FILES["vc_credit"])
         df = clean_columns(df)
-        dfs["nb_client_2025"] = df
-    except:
-        pass
+        dfs["vc_credit"] = df
+    except Exception as e:
+        st.warning(f"Erreur vc_credit: {e}")
     
     try:
-        df = pd.read_excel(os.path.join(DATA_PATH, "Code MAGASIN Business Central.xlsx"))
-        dfs["code_magasin"] = clean_columns(df)
-    except:
-        pass
-    
-    try:
-        df = pd.read_excel(os.path.join(DATA_PATH, "Factures ventes enregistrées VC CONVENTION EDC.xlsx"))
-        dfs["vc_edc"] = clean_columns(df)
-        st.write(f"EDC chargé: {len(dfs['vc_edc'])} lignes")
+        df = load_from_url(FILES["vc_edc"])
+        df = clean_columns(df)
+        dfs["vc_edc"] = df
     except Exception as e:
         st.warning(f"Erreur EDC: {e}")
+    
+    try:
+        from io import BytesIO
+        url = GITHUB_RAW + FILES["conventions_signees"]
+        df = pd.read_excel(url, sheet_name=None)
+        if "Conventions signées" in df:
+            dfs["conventions_signees"] = clean_columns(df["Conventions signées"])
+    except Exception as e:
+        st.warning(f"Erreur conventions: {e}")
+    
+    try:
+        df = load_from_url(FILES["code_magasin"])
+        dfs["code_magasin"] = clean_columns(df)
+    except Exception as e:
+        st.warning(f"Erreur code_magasin: {e}")
     
     return dfs
 
@@ -117,6 +125,10 @@ with st.sidebar:
     
     st.markdown("---")
     st.caption("Filtres appliqués à tout le dashboard")
+
+if 'Année' not in df_vc.columns or df_vc.empty:
+    st.error("Aucune donnée chargée. Vérifiez les fichiers sur GitHub.")
+    st.stop()
 
 try:
     df_filt = df_vc[df_vc['Année'] == annee_sel].copy()
