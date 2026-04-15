@@ -4,18 +4,17 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime
 import os
-from urllib.parse import quote
 
 st.set_page_config(page_title="Dashboard Pilotage B2B - SMG", layout="wide", page_icon="📊")
 
 GITHUB_RAW = "https://raw.githubusercontent.com/chkondali-dev/pilotage-b2b/main/"
 
 FILES = {
-    "vc": quote("Factures ventes enregistrées VC (4).xlsx"),
-    "vc_credit": quote("Factures ventes enregistrées VC credit conso.xlsx"),
-    "vc_edc": quote("Factures ventes enregistrées VC CONVENTION EDC.xlsx"),
-    "conventions_signees": quote("TDC CONVENTION 1.xlsm"),
-    "code_magasin": quote("Code MAGASIN Business Central.xlsx")
+    "vc": "vc.xlsx",
+    "vc_credit": "vc_credit.xlsx",
+    "vc_edc": "vc_edc.xlsx",
+    "conventions_signees": "conventions.xlsm",
+    "code_magasin": "code_magasin.xlsx"
 }
 
 def load_from_url(filename):
