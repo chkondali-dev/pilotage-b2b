@@ -7,7 +7,7 @@ import os
 
 st.set_page_config(page_title="Dashboard Pilotage B2B - SMG", layout="wide", page_icon="📊")
 
-GITHUB_RAW = "https://raw.githubusercontent.com/chkondali-dev/pilotage-b2b/main/"
+GITHUB_RAW = "https://raw.githubusercontent.com/chkondali-dev/pilotage-b2b/main/2025/"
 
 FILES = {
     "vc": "vc.xlsx",
