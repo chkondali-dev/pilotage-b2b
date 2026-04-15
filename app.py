@@ -22,13 +22,15 @@ FILES = {
 
 def load_from_url(filename):
     url = GITHUB_RAW + filename
-    response = requests.get(url)
+    # FIX: ajout d'un timeout réseau pour éviter les gels indéfinis
+    response = requests.get(url, timeout=30)
     response.raise_for_status()
     return pd.read_excel(BytesIO(response.content), engine='openpyxl')
 
 def load_xlsm(filename):
     url = GITHUB_RAW + filename
-    response = requests.get(url)
+    # FIX: ajout d'un timeout réseau
+    response = requests.get(url, timeout=30)
     response.raise_for_status()
     return pd.read_excel(BytesIO(response.content), engine='openpyxl', sheet_name=None)
 
@@ -129,7 +131,13 @@ with st.sidebar:
     mois_options = ["Tous"] + list(range(1, 13))
     mois_sel = st.selectbox("Mois", mois_options, index=4)
     
-    conventions = ["Tous"] + sorted(df_vc['Nom'].dropna().unique().tolist()) if 'Nom' in df_vc.columns else ["Tous"]
+    # FIX: filtre convention restreint à l'année sélectionnée pour éviter
+    # d'afficher des conventions inexistantes sur la période filtrée
+    if 'Nom' in df_vc.columns and 'Année' in df_vc.columns:
+        convs_for_year = df_vc[df_vc['Année'] == annee_sel]['Nom'].dropna().unique().tolist()
+        conventions = ["Tous"] + sorted(convs_for_year)
+    else:
+        conventions = ["Tous"]
     conv_sel = st.selectbox("Convention", conventions)
     
     st.markdown("---")
@@ -146,32 +154,54 @@ try:
     if conv_sel != "Tous":
         df_filt = df_filt[df_filt['Nom'] == conv_sel]
     
+    # FIX: ordre des onglets aligné avec les index utilisés dans le code
+    # ACCUEIL(0), DASHBOARD(1), CA JOURNALIER(2), CONVENTIONS(3),
+    # MAGASINS(4), EDC(5), ALERTES(6), PERFORMANCE(7)
     tabs = st.tabs([
         "🏠 ACCUEIL",
-        "📈 DASHBOARD", 
+        "📈 DASHBOARD",
         "📅 CA JOURNALIER",
         "📋 CONVENTIONS",
-        "🏫 EDC (Education)",
         "🏪 MAGASINS",
+        "🏫 EDC (Education)",
         "🔔 ALERTES",
         "📊 PERFORMANCE"
     ])
     
+    # ── ONGLET 0 : ACCUEIL ──────────────────────────────────────────────────
     with tabs[0]:
         st.header("DASHBOARD GRANDS COMPTES — SMG")
         
         col1, col2, col3, col4 = st.columns(4)
         
+        # FIX: tous les KPIs sont calculés dynamiquement (plus de valeurs hardcodées)
+        ca_2024 = df_vc[df_vc['Année'] == 2024]['Montant TTC'].sum() if 'Année' in df_vc.columns else 0
         ca_2025 = df_vc[df_vc['Année'] == 2025]['Montant TTC'].sum() if 'Année' in df_vc.columns else 0
         ca_2026_ytd = df_vc[df_vc['Année'] == 2026]['Montant TTC'].sum() if 'Année' in df_vc.columns else 0
-        
-        col1.metric("CA 2025 (Full Year)", f"{ca_2025:,.0f} TND", delta="+33.4% vs 2024")
-        col2.metric("CA 2026 YTD (Jan-Avr)", f"{ca_2026_ytd:,.0f} TND", delta="-28.3% vs YTD 2025")
-        col3.metric("Conventions Actives 2026", "70")
-        col4.metric("Conventions Inactives", "16", delta="à réactiver", delta_color="inverse")
+
+        delta_2025 = f"{((ca_2025 - ca_2024) / ca_2024 * 100):+.1f}% vs 2024" if ca_2024 > 0 else "N/A"
+        delta_2026 = f"{((ca_2026_ytd - ca_2025) / ca_2025 * 100):+.1f}% vs YTD 2025" if ca_2025 > 0 else "N/A"
+
+        # FIX: nombre de conventions actives/inactives calculé depuis les données réelles
+        if 'Nom' in df_vc.columns and 'Année' in df_vc.columns:
+            convs_actives_2026 = df_vc[df_vc['Année'] == 2026]['Nom'].dropna().nunique()
+        else:
+            convs_actives_2026 = 0
+
+        if "conventions_signees" in data:
+            total_conventions = len(data["conventions_signees"])
+            convs_inactives = max(0, total_conventions - convs_actives_2026)
+        else:
+            convs_inactives = 0
+
+        col1.metric("CA 2025 (Full Year)", f"{ca_2025:,.0f} TND", delta=delta_2025)
+        col2.metric("CA 2026 YTD", f"{ca_2026_ytd:,.0f} TND", delta=delta_2026)
+        col3.metric("Conventions Actives 2026", str(convs_actives_2026))
+        col4.metric("Conventions Inactives", str(convs_inactives), delta="à réactiver", delta_color="inverse")
         
         st.info(f"💡 Filtres actifs: {annee_sel} | Mois: {mois_sel if mois_sel != 'Tous' else 'Tous'} | Convention: {conv_sel}")
     
+    # ── ONGLET 1 : DASHBOARD ─────────────────────────────────────────────────
     with tabs[1]:
         st.header("DASHBOARD GRANDS COMPTES — MG & BATAM")
         
@@ -181,9 +211,10 @@ try:
             st.subheader("CA par année")
             if 'Année' in df_vc.columns:
                 ca_year = df_vc.groupby('Année')['Montant TTC'].sum().reset_index()
-                fig = px.bar(ca_year, x='Année', y='Montant TTC', text_auto=',.0f', 
+                fig = px.bar(ca_year, x='Année', y='Montant TTC', text_auto=',.0f',
                             title="CA par année (toutes années)", color_discrete_sequence=['#00CC96'])
-                st.plotly_chart(fig, width='stretch')
+                # FIX: use_container_width=True remplace width='stretch' (déprécié)
+                st.plotly_chart(fig, use_container_width=True)
         
         with col2:
             st.subheader("Top 10 Conventions")
@@ -191,7 +222,7 @@ try:
                 top_conv = df_filt.groupby('Nom')['Montant TTC'].sum().nlargest(10).reset_index()
                 fig2 = px.bar(top_conv, x='Montant TTC', y='Nom', orientation='h',
                              title="Top 10 Conventions", color_discrete_sequence=['#636EFA'])
-                st.plotly_chart(fig2, width='stretch')
+                st.plotly_chart(fig2, use_container_width=True)
         
         col3, col4 = st.columns(2)
         
@@ -201,7 +232,7 @@ try:
                 ca_mois = df_filt.groupby('Mois')['Montant TTC'].sum().reset_index()
                 fig3 = px.bar(ca_mois, x='Mois', y='Montant TTC', text_auto=',.0f',
                              title="CA par mois", color_discrete_sequence=['#FF6692'])
-                st.plotly_chart(fig3, width='stretch')
+                st.plotly_chart(fig3, use_container_width=True)
         
         with col4:
             st.subheader("Répartition CA Credit vs Cash")
@@ -209,8 +240,9 @@ try:
             ca_credit_total = df_credit['Montant TTC'].sum() if 'Montant TTC' in df_credit.columns and len(df_credit) > 0 else 0
             fig4 = px.pie(values=[ca_cash, ca_credit_total], names=['Cash', 'Crédit Conso'],
                          title="Répartition CA", hole=0.4)
-            st.plotly_chart(fig4, width='stretch')
+            st.plotly_chart(fig4, use_container_width=True)
     
+    # ── ONGLET 2 : CA JOURNALIER ──────────────────────────────────────────────
     with tabs[2]:
         st.header("CA JOURNALIER — MG & BATAM")
         st.caption("Tous les montants en TND TTC")
@@ -231,11 +263,12 @@ try:
             ca_jour = ca_jour.merge(ca_jour_n1, on='Jour', how='outer').fillna(0)
             ca_jour['Variation %'] = ((ca_jour['CA Année N'] - ca_jour['CA Année N-1']) / ca_jour['CA Année N-1'] * 100).round(1).replace([float('inf')], 100)
         
-        st.dataframe(ca_jour, width='stretch')
+        st.dataframe(ca_jour, use_container_width=True)
         
         fig = px.bar(ca_jour, x='Jour', y='CA Année N', title=f"CA Journalier {annee_sel} - Mois {mois_sel}")
-        st.plotly_chart(fig, width='stretch')
+        st.plotly_chart(fig, use_container_width=True)
     
+    # ── ONGLET 3 : CONVENTIONS ────────────────────────────────────────────────
     with tabs[3]:
         st.header("PORTEFEUILLE CONVENTIONS — MG & BATAM")
         
@@ -248,7 +281,7 @@ try:
             
             if cols_exist:
                 st.subheader("Conventions Signées")
-                st.dataframe(df_conv[cols_exist], width='stretch')
+                st.dataframe(df_conv[cols_exist], use_container_width=True)
                 
                 st.subheader("Statistiques")
                 col1, col2, col3, col4 = st.columns(4)
@@ -259,7 +292,7 @@ try:
                 if 'MATURITE' in df_conv.columns:
                     maturite_counts = df_conv['MATURITE'].value_counts()
                     fig = px.pie(values=maturite_counts.values, names=maturite_counts.index, title="Répartition Maturité")
-                    st.plotly_chart(fig, width='stretch')
+                    st.plotly_chart(fig, use_container_width=True)
         
         st.markdown("---")
         st.subheader("CA par Convention (données filtrées)")
@@ -267,8 +300,10 @@ try:
         if 'Nom' in df_filt.columns and 'Montant TTC' in df_filt.columns:
             ca_conv = df_filt.groupby('Nom')['Montant TTC'].sum().nlargest(20).reset_index()
             fig = px.bar(ca_conv, x='Nom', y='Montant TTC', text_auto=',.0f', title="Top 20 Conventions par CA")
-            st.plotly_chart(fig, width='stretch')
+            st.plotly_chart(fig, use_container_width=True)
     
+    # ── ONGLET 4 : MAGASINS ───────────────────────────────────────────────────
+    # FIX: était tabs[4] avec le label "🏫 EDC" → corrigé en "🏪 MAGASINS"
     with tabs[4]:
         st.header("🏪 CA PAR MAGASIN")
         
@@ -286,6 +321,8 @@ try:
                 ca_mag_n1.columns = ['Magasin', 'CA N-1']
                 ca_mag = ca_mag_n.merge(ca_mag_n1, on='Magasin', how='outer').fillna(0)
             else:
+                # FIX: log explicite si N-1 sans colonne Magasin (échec silencieux évité)
+                st.warning("Colonne 'Magasin' absente pour N-1 — évolution non calculable.")
                 ca_mag = ca_mag_n.copy()
                 ca_mag['CA N-1'] = 0
             
@@ -295,7 +332,7 @@ try:
         
         st.subheader("CA Magasin N vs N-1")
         if 'Magasin' in df_filt.columns:
-            st.dataframe(ca_mag, width='stretch')
+            st.dataframe(ca_mag, use_container_width=True)
             
             csv_mag = ca_mag.to_csv(index=False).encode('utf-8')
             st.download_button("📥 Télécharger CSV CA Magasin", csv_mag, "ca_magasin_n_n1.csv", "text/csv")
@@ -305,7 +342,7 @@ try:
             with col_g1:
                 st.subheader("Top 20 Magasins par CA")
                 fig = px.bar(ca_mag.head(20), x='Magasin', y='CA N', text_auto=',.0f', title="Top 20 Magasins par CA")
-                st.plotly_chart(fig, width='stretch')
+                st.plotly_chart(fig, use_container_width=True)
             
             with col_g2:
                 st.subheader("Évolution N/N-1")
@@ -313,10 +350,10 @@ try:
                 ca_mag_top['Évol_Category'] = ca_mag_top['Évolution %'].apply(
                     lambda x: 'Hausse' if x > 0 else ('Baisse' if x < 0 else 'Stable')
                 )
-                fig2 = px.bar(ca_mag_top, x='Magasin', y='Évolution %', 
+                fig2 = px.bar(ca_mag_top, x='Magasin', y='Évolution %',
                              title="Évolution N/N-1 (%)", color='Évol_Category',
                              color_discrete_map={'Hausse': '#00CC96', 'Baisse': '#EF553B', 'Stable': '#636EFA'})
-                st.plotly_chart(fig2, width='stretch')
+                st.plotly_chart(fig2, use_container_width=True)
         
         st.markdown("---")
         st.subheader("CA Magasin par Convention")
@@ -324,7 +361,7 @@ try:
         if 'Nom' in df_filt.columns and 'Magasin' in df_filt.columns:
             ca_mag_conv = df_filt.groupby(['Magasin', 'Nom'])['Montant TTC'].sum().reset_index()
             ca_mag_conv = ca_mag_conv.pivot_table(index='Magasin', columns='Nom', values='Montant TTC', fill_value=0)
-            st.dataframe(ca_mag_conv, width='stretch')
+            st.dataframe(ca_mag_conv, use_container_width=True)
             
             csv = ca_mag_conv.to_csv().encode('utf-8')
             st.download_button("📥 Télécharger CSV Magasin x Convention", csv, "ca_magasin_convention.csv", "text/csv")
@@ -339,11 +376,13 @@ try:
             }).reset_index()
             mag_summary.columns = ['Magasin', 'CA Total', 'Nb Factures']
             mag_summary = mag_summary.sort_values('CA Total', ascending=False)
-            st.dataframe(mag_summary, width='stretch')
+            st.dataframe(mag_summary, use_container_width=True)
             
             csv = mag_summary.to_csv(index=False).encode('utf-8')
             st.download_button("📥 Télécharger CSV Magasins", csv, "ca_magasins.csv", "text/csv")
     
+    # ── ONGLET 5 : EDC ───────────────────────────────────────────────────────
+    # FIX: était tabs[5] avec le label "🏪 MAGASINS" → corrigé en "🏫 EDC"
     with tabs[5]:
         st.header("🏫 CONVENTION EDC - Ministère de l'Education")
         st.caption("Source: Navision VC.PARTIC.")
@@ -359,26 +398,31 @@ try:
             if 'Code magasin' in df_edc.columns and not code_magasin_df.empty:
                 df_edc['Magasin'] = df_edc['Code magasin'].apply(lambda x: get_magasin_name(x, code_magasin_df))
             
-            annees_disp = sorted(df_edc['Année'].dropna().unique().astype(int), reverse=True)
             col_annee = st.selectbox("Année N", [2026, 2025, 2024], index=0, key="edc_annee")
             
             df_n = df_edc[df_edc['Année'] == col_annee]
             df_n1 = df_edc[df_edc['Année'] == col_annee - 1]
-            df_n2 = df_edc[df_edc['Année'] == col_annee - 2] if col_annee > 2 else pd.DataFrame()
             
             ca_n = df_n['Montant TTC'].sum() if 'Montant TTC' in df_n.columns else 0
             ca_n1 = df_n1['Montant TTC'].sum() if 'Montant TTC' in df_n1.columns else 0
             ca_total = ca_n + ca_n1
             
             evol_annee = ((ca_n - ca_n1) / ca_n1 * 100) if ca_n1 > 0 else 0
+            nb_factures_n = len(df_n)
+
+            # FIX: panier moyen protégé contre division par zéro et valeur 0 trompeuse
+            if nb_factures_n > 0 and ca_n > 0:
+                panier_moyen = f"{ca_n / nb_factures_n:,.0f} DT"
+            else:
+                panier_moyen = "N/A"
             
             st.subheader("KPIS GLOBAUX")
             col_k1, col_k2, col_k3, col_k4, col_k5 = st.columns(5)
             col_k1.metric(f"CA {col_annee}", f"{ca_n:,.0f} DT", delta=f"{evol_annee:+.1f}%")
             col_k2.metric(f"CA {col_annee-1}", f"{ca_n1:,.0f} DT")
             col_k3.metric("CA Total", f"{ca_total:,.0f} DT")
-            col_k4.metric("Nb Factures", len(df_n))
-            col_k5.metric("Panier Moyen", f"{ca_n/len(df_n):,.0f} DT" if len(df_n) > 0 else "0 DT")
+            col_k4.metric("Nb Factures", nb_factures_n)
+            col_k5.metric("Panier Moyen", panier_moyen)
             
             st.subheader("ÉVOLUTION ANNUELLE")
             evol_annuelle = []
@@ -386,7 +430,7 @@ try:
                 df_a = df_edc[df_edc['Année'] == annee]
                 ca_a = df_a['Montant TTC'].sum() if 'Montant TTC' in df_a.columns else 0
                 nb_a = len(df_a)
-                panier = ca_a/nb_a if nb_a > 0 else 0
+                panier = ca_a / nb_a if nb_a > 0 else 0
                 evol = 0
                 if annee > 2024:
                     df_prec = df_edc[df_edc['Année'] == annee - 1]
@@ -401,32 +445,40 @@ try:
                 })
             
             df_evol = pd.DataFrame(evol_annuelle)
-            st.dataframe(df_evol, width='stretch')
+            st.dataframe(df_evol, use_container_width=True)
             
-            st.subheader("DÉTAIL MENSUEL 2026 + N-1 (2025)")
+            st.subheader(f"DÉTAIL MENSUEL {col_annee} + N-1 ({col_annee - 1})")
             
             nb_mois_n = df_n.groupby('Mois').agg({
                 'Montant TTC': ['sum', 'count']
             }).reset_index()
-            nb_mois_n.columns = ['Mois', f'CA {col_annee}', 'Nb']
-            nb_mois_n['Panier'] = nb_mois_n[f'CA {col_annee}'] / nb_mois_n['Nb']
+            nb_mois_n.columns = ['Mois', f'CA {col_annee}', 'Nb_N']
+            nb_mois_n[f'Panier {col_annee}'] = nb_mois_n[f'CA {col_annee}'] / nb_mois_n['Nb_N']
             
             nb_mois_n1 = df_n1.groupby('Mois').agg({
                 'Montant TTC': ['sum', 'count']
             }).reset_index()
-            nb_mois_n1.columns = ['Mois', f'CA {col_annee-1}', 'Nb']
-            nb_mois_n1['Panier'] = nb_mois_n1[f'CA {col_annee-1}'] / nb_mois_n1['Nb']
+            nb_mois_n1.columns = ['Mois', f'CA {col_annee-1}', 'Nb_N1']
+            nb_mois_n1[f'Panier {col_annee-1}'] = nb_mois_n1[f'CA {col_annee-1}'] / nb_mois_n1['Nb_N1']
             
             ca_mois = nb_mois_n.merge(nb_mois_n1, on='Mois', how='outer').fillna(0)
             ca_mois['Δ CA'] = ca_mois[f'CA {col_annee}'] - ca_mois[f'CA {col_annee-1}']
-            ca_mois['Δ %'] = (ca_mois['Δ CA'] / ca_mois[f'CA {col_annee-1}'] * 100).round(1).replace([float('inf')], 100).replace([-float('inf')], -100)
+            # FIX: remplacement de replace() chaîné par une approche numpy-safe
+            ca_mois['Δ %'] = ca_mois.apply(
+                lambda row: round((row['Δ CA'] / row[f'CA {col_annee-1}'] * 100), 1)
+                if row[f'CA {col_annee-1}'] != 0 else (100 if row['Δ CA'] > 0 else -100),
+                axis=1
+            )
             
             mois_noms = {1: 'Janvier', 2: 'Février', 3: 'Mars', 4: 'Avril', 5: 'Mai', 6: 'Juin',
                         7: 'Juillet', 8: 'Août', 9: 'Septembre', 10: 'Octobre', 11: 'Novembre', 12: 'Décembre'}
             ca_mois['Mois Nom'] = ca_mois['Mois'].map(mois_noms)
             
-            cols_aff = ['Mois', 'Mois Nom', f'CA {col_annee}', 'Nb', 'Panier', f'CA {col_annee-1}', f'CA {col_annee-1}', 'Nb', 'Panier', 'Δ CA', 'Δ %']
-            st.dataframe(ca_mois, width='stretch')
+            # FIX: colonne dupliquée supprimée (f'CA {col_annee-1}' était listée deux fois)
+            cols_aff = ['Mois', 'Mois Nom', f'CA {col_annee}', 'Nb_N', f'Panier {col_annee}',
+                        f'CA {col_annee-1}', 'Nb_N1', f'Panier {col_annee-1}', 'Δ CA', 'Δ %']
+            cols_aff_exist = [c for c in cols_aff if c in ca_mois.columns]
+            st.dataframe(ca_mois[cols_aff_exist], use_container_width=True)
             
             st.subheader("RÉPARTITION PAR MAGASIN")
             filtre_mois = st.selectbox("Filtre mois", ["Tous"] + list(range(1, 13)), key="filtre_mois_edc")
@@ -439,10 +491,10 @@ try:
             }).reset_index()
             ca_mag.columns = ['Magasin', 'CA', 'Nb']
             ca_mag = ca_mag.sort_values('CA', ascending=False)
-            st.dataframe(ca_mag, width='stretch')
+            st.dataframe(ca_mag, use_container_width=True)
             
             csv_mag = ca_mag.to_csv(index=False).encode('utf-8')
-            st.download_button("📥Télécharger CSV Magasin", csv_mag, "ca_magasin_edc.csv", "text/csv")
+            st.download_button("📥 Télécharger CSV Magasin", csv_mag, "ca_magasin_edc.csv", "text/csv")
             
             st.subheader("RÉPARTITION PAR DURÉE D'ÉCHÉANCE")
             if 'Nbr_Mois_Echance' in df_edc.columns:
@@ -454,15 +506,16 @@ try:
                 echeance['Part %'] = (echeance['CA TTC'] / echeance['CA TTC'].sum() * 100).round(1)
                 echeance['Panier'] = echeance['CA TTC'] / echeance['Nb']
                 echeance = echeance.sort_values('CA TTC', ascending=False)
-                st.dataframe(echeance, width='stretch')
+                st.dataframe(echeance, use_container_width=True)
             
             st.subheader("DÉTAIL DES FACTURES")
-            st.dataframe(df_n, width='stretch')
+            st.dataframe(df_n, use_container_width=True)
             csv_edc = df_n.to_csv(index=False).encode('utf-8')
-            st.download_button("📥Télécharger CSV EDC", csv_edc, "factures_edc.csv", "text/csv")
+            st.download_button("📥 Télécharger CSV EDC", csv_edc, "factures_edc.csv", "text/csv")
         else:
             st.warning("Aucune donnée EDC trouvée")
     
+    # ── ONGLET 6 : ALERTES ───────────────────────────────────────────────────
     with tabs[6]:
         st.header("🔔 ALERTES")
         
@@ -473,10 +526,12 @@ try:
             last_facture = df_2026.groupby('Nom')['Date'].max().reset_index()
             last_facture.columns = ['Convention', 'Dernière Facture']
             
-            last_facture['JoursSansFacture'] = (pd.Timestamp('2026-04-15') - last_facture['Dernière Facture']).dt.days
+            # FIX: date de référence dynamique (plus de date codée en dur)
+            today = pd.Timestamp.today().normalize()
+            last_facture['JoursSansFacture'] = (today - last_facture['Dernière Facture']).dt.days
             inactives = last_facture[last_facture['JoursSansFacture'] > 30].sort_values('JoursSansFacture', ascending=False)
             
-            st.dataframe(inactives, width='stretch')
+            st.dataframe(inactives, use_container_width=True)
             
             if len(inactives) > 0:
                 st.warning(f"⚠️ {len(inactives)} conventions sans facture depuis plus de 30 jours")
@@ -487,9 +542,12 @@ try:
             df = data["conventions_signees"]
             if 'ACTION A SUIVRE' in df.columns:
                 actions = df['ACTION A SUIVRE'].value_counts()
-                st.dataframe(actions, width='stretch')
+                st.dataframe(actions, use_container_width=True)
     
+    # ── ONGLET 7 : PERFORMANCE ────────────────────────────────────────────────
     with tabs[7]:
+        # FIX: header manquant ajouté
+        st.header("📊 PERFORMANCE")
         
         col1, col2, col3, col4 = st.columns(4)
         
