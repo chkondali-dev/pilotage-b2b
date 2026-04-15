@@ -4,18 +4,18 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime
 import os
+from urllib.parse import quote
 
 st.set_page_config(page_title="Dashboard Pilotage B2B - SMG", layout="wide", page_icon="📊")
 
 GITHUB_RAW = "https://raw.githubusercontent.com/chkondali-dev/pilotage-b2b/main/"
 
 FILES = {
-    "vc": "Factures ventes enregistrées VC (4).xlsx",
-    "vc_credit": "Factures ventes enregistrées VC credit conso.xlsx",
-    "vc_edc": "Factures ventes enregistrées VC CONVENTION EDC.xlsx",
-    "conventions_signees": "TDC CONVENTION 1.xlsm",
-    "nb_client_2025": "TDC CONVENTION 1.xlsm",
-    "code_magasin": "Code MAGASIN Business Central.xlsx"
+    "vc": quote("Factures ventes enregistrées VC (4).xlsx"),
+    "vc_credit": quote("Factures ventes enregistrées VC credit conso.xlsx"),
+    "vc_edc": quote("Factures ventes enregistrées VC CONVENTION EDC.xlsx"),
+    "conventions_signees": quote("TDC CONVENTION 1.xlsm"),
+    "code_magasin": quote("Code MAGASIN Business Central.xlsx")
 }
 
 def load_from_url(filename):
@@ -61,6 +61,8 @@ def load_all_data():
         df = pd.read_excel(url, sheet_name=None)
         if "Conventions signées" in df:
             dfs["conventions_signees"] = clean_columns(df["Conventions signées"])
+        elif "Conventions sign" in df:
+            dfs["conventions_signees"] = clean_columns(df["Conventions sign"])
     except Exception as e:
         st.warning(f"Erreur conventions: {e}")
     
