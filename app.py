@@ -19,6 +19,10 @@ FILES = {
 
 def load_from_url(filename):
     url = GITHUB_RAW + filename
+    if filename.endswith('.xlsx'):
+        return pd.read_excel(url, engine='openpyxl')
+    elif filename.endswith('.xlsm'):
+        return pd.read_excel(url, engine='openpyxl', sheet_name=None)
     return pd.read_excel(url)
 
 def clean_columns(df):
@@ -55,13 +59,11 @@ def load_all_data():
         st.warning(f"Erreur EDC: {e}")
     
     try:
-        from io import BytesIO
         url = GITHUB_RAW + FILES["conventions_signees"]
-        df = pd.read_excel(url, sheet_name=None)
-        if "Conventions signées" in df:
-            dfs["conventions_signees"] = clean_columns(df["Conventions signées"])
-        elif "Conventions sign" in df:
-            dfs["conventions_signees"] = clean_columns(df["Conventions sign"])
+        df = pd.read_excel(url, engine='openpyxl', sheet_name=None)
+        sheet_keys = list(df.keys())
+        if sheet_keys:
+            dfs["conventions_signees"] = clean_columns(df[sheet_keys[0]])
     except Exception as e:
         st.warning(f"Erreur conventions: {e}")
     
