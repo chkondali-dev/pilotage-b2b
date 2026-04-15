@@ -6,17 +6,18 @@ from datetime import datetime
 import os
 import requests
 from io import BytesIO
+from urllib.parse import quote
 
 st.set_page_config(page_title="Dashboard Pilotage B2B - SMG", layout="wide", page_icon="📊")
 
 GITHUB_RAW = "https://raw.githubusercontent.com/chkondali-dev/pilotage-b2b/main/2025/"
 
 FILES = {
-    "vc": "vc.xlsx",
-    "vc_credit": "vc_credit.xlsx",
-    "vc_edc": "vc_edc.xlsx",
-    "conventions_signees": "conventions.xlsm",
-    "code_magasin": "code_magasin.xlsx"
+    "vc": quote("Factures ventes enregistrées VC (4).xlsx"),
+    "vc_credit": quote("Factures ventes enregistrées VC credit conso.xlsx"),
+    "vc_edc": quote("Factures ventes enregistrées VC CONVENTION EDC.xlsx"),
+    "conventions_signees": quote("TDC CONVENTION 1.xlsm"),
+    "code_magasin": quote("Code MAGASIN Business Central.xlsx")
 }
 
 def load_from_url(filename):
@@ -24,6 +25,12 @@ def load_from_url(filename):
     response = requests.get(url)
     response.raise_for_status()
     return pd.read_excel(BytesIO(response.content), engine='openpyxl')
+
+def load_xlsm(filename):
+    url = GITHUB_RAW + filename
+    response = requests.get(url)
+    response.raise_for_status()
+    return pd.read_excel(BytesIO(response.content), engine='openpyxl', sheet_name=None)
 
 def clean_columns(df):
     if df is not None and not df.empty:
@@ -59,9 +66,7 @@ def load_all_data():
         st.warning(f"Erreur EDC: {e}")
     
     try:
-        url = GITHUB_RAW + FILES["conventions_signees"]
-        response = requests.get(url)
-        df = pd.read_excel(BytesIO(response.content), engine='openpyxl', sheet_name=None)
+        df = load_xlsm(FILES["conventions_signees"])
         sheet_keys = list(df.keys())
         if sheet_keys:
             dfs["conventions_signees"] = clean_columns(df[sheet_keys[0]])
