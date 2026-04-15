@@ -4,6 +4,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime
 import os
+import requests
+from io import BytesIO
 
 st.set_page_config(page_title="Dashboard Pilotage B2B - SMG", layout="wide", page_icon="📊")
 
@@ -19,11 +21,9 @@ FILES = {
 
 def load_from_url(filename):
     url = GITHUB_RAW + filename
-    if filename.endswith('.xlsx'):
-        return pd.read_excel(url, engine='openpyxl')
-    elif filename.endswith('.xlsm'):
-        return pd.read_excel(url, engine='openpyxl', sheet_name=None)
-    return pd.read_excel(url)
+    response = requests.get(url)
+    response.raise_for_status()
+    return pd.read_excel(BytesIO(response.content), engine='openpyxl')
 
 def clean_columns(df):
     if df is not None and not df.empty:
@@ -60,7 +60,8 @@ def load_all_data():
     
     try:
         url = GITHUB_RAW + FILES["conventions_signees"]
-        df = pd.read_excel(url, engine='openpyxl', sheet_name=None)
+        response = requests.get(url)
+        df = pd.read_excel(BytesIO(response.content), engine='openpyxl', sheet_name=None)
         sheet_keys = list(df.keys())
         if sheet_keys:
             dfs["conventions_signees"] = clean_columns(df[sheet_keys[0]])
