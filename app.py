@@ -11,6 +11,18 @@ from urllib.parse import quote
 st.set_page_config(page_title="Dashboard Pilotage B2B - SMG", layout="wide", page_icon="📊")
 
 GITHUB_RAW = "https://raw.githubusercontent.com/chkondali-dev/pilotage-b2b/main/2025/"
+GITHUB_RAW_IMAGES = "https://raw.githubusercontent.com/chkondali-dev/pilotage-b2b/main/"
+
+LOGO_MG_URL = GITHUB_RAW_IMAGES + "logo-1653837429.jpg"
+LOGO_BATAM_URL = GITHUB_RAW_IMAGES + "logo.svg"
+
+def load_image_from_url(url):
+    try:
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        return response.content
+    except:
+        return None
 
 FILES = {
     "vc": quote("Factures ventes enregistrées VC (4).xlsx"),
@@ -101,7 +113,6 @@ def get_magasin_name(code, code_magasin_df):
                         return match[name_col].values[0]
     return str(code)
 
-st.title("📊 DASHBOARD GRANDS COMPTES — SMG")
 st.caption("Source: VC.CONV. Business Central")
 
 if st.sidebar.button("🔄 Actualiser les données"):
@@ -172,9 +183,20 @@ try:
     with tabs[0]:
         st.header("DASHBOARD GRANDS COMPTES — SMG")
         
+        col_logo_g, col_titre, col_logo_d = st.columns([1, 4, 1])
+        with col_logo_g:
+            mg_img = load_image_from_url(LOGO_MG_URL)
+            if mg_img:
+                st.image(mg_img, width=180)
+        with col_logo_d:
+            batam_img = load_image_from_url(LOGO_BATAM_URL)
+            if batam_img:
+                st.image(batam_img, width=180)
+        
+        st.markdown("---")
+        
         col1, col2, col3, col4 = st.columns(4)
         
-        # FIX: tous les KPIs sont calculés dynamiquement (plus de valeurs hardcodées)
         ca_2024 = df_vc[df_vc['Année'] == 2024]['Montant TTC'].sum() if 'Année' in df_vc.columns else 0
         ca_2025 = df_vc[df_vc['Année'] == 2025]['Montant TTC'].sum() if 'Année' in df_vc.columns else 0
         ca_2026_ytd = df_vc[df_vc['Année'] == 2026]['Montant TTC'].sum() if 'Année' in df_vc.columns else 0
@@ -182,7 +204,6 @@ try:
         delta_2025 = f"{((ca_2025 - ca_2024) / ca_2024 * 100):+.1f}% vs 2024" if ca_2024 > 0 else "N/A"
         delta_2026 = f"{((ca_2026_ytd - ca_2025) / ca_2025 * 100):+.1f}% vs YTD 2025" if ca_2025 > 0 else "N/A"
 
-        # FIX: nombre de conventions actives/inactives calculé depuis les données réelles
         if 'Nom' in df_vc.columns and 'Année' in df_vc.columns:
             convs_actives_2026 = df_vc[df_vc['Année'] == 2026]['Nom'].dropna().nunique()
         else:
@@ -198,6 +219,156 @@ try:
         col2.metric("CA 2026 YTD", f"{ca_2026_ytd:,.0f} TND", delta=delta_2026)
         col3.metric("Conventions Actives 2026", str(convs_actives_2026))
         col4.metric("Conventions Inactives", str(convs_inactives), delta="à réactiver", delta_color="inverse")
+        
+        st.markdown("### 📈 CA Journalier N vs N-1")
+        
+        df_ca_jour_n = df_vc[df_vc['Année'] == annee_sel].copy()
+        df_ca_jour_n1 = df_vc[df_vc['Année'] == annee_sel - 1].copy()
+        
+        if mois_sel != "Tous":
+            df_ca_jour_n = df_ca_jour_n[df_ca_jour_n['Mois'] == mois_sel]
+            df_ca_jour_n1 = df_ca_jour_n1[df_ca_jour_n1['Mois'] == mois_sel]
+        
+        ca_par_jour_n = df_ca_jour_n.groupby('Jour')['Montant TTC'].sum().reset_index()
+        ca_par_jour_n.columns = ['Jour', 'CA N']
+        
+        ca_par_jour_n1 = df_ca_jour_n1.groupby('Jour')['Montant TTC'].sum().reset_index()
+        ca_par_jour_n1.columns = ['Jour', 'CA N-1']
+        
+        df_ca_comp = ca_par_jour_n.merge(ca_par_jour_n1, on='Jour', how='outer').fillna(0)
+        
+        fig_ca_jour = go.Figure()
+        fig_ca_jour.add_trace(go.Scatter(
+            x=df_ca_comp['Jour'], y=df_ca_comp['CA N'],
+            mode='lines+markers', name=f'CA {annee_sel}',
+            line=dict(color='#00CC96', width=3), marker=dict(size=8)
+        ))
+        fig_ca_jour.add_trace(go.Scatter(
+            x=df_ca_comp['Jour'], y=df_ca_comp['CA N-1'],
+            mode='lines+markers', name=f'CA {annee_sel - 1}',
+            line=dict(color='#EF553B', width=3, dash='dash'), marker=dict(size=8)
+        ))
+        fig_ca_jour.update_layout(
+            title=f"CA Journalier {annee_sel} vs {annee_sel - 1}",
+            xaxis_title="Jour du mois",
+            yaxis_title="Montant TTC (TND)",
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5),
+            template='plotly_white', height=400
+        )
+        st.plotly_chart(fig_ca_jour, use_container_width=True)
+        
+        st.markdown("---")
+        st.markdown("### 🏪 Top 3 / Flop 3 Magasins (VEILLE)")
+        
+        from datetime import datetime, timedelta
+        hier = datetime.now() - timedelta(days=1)
+        hier_date = pd.Timestamp(hier.strftime('%Y-%m-%d'))
+        
+        df_hier = df_vc[df_vc['Date'].dt.date == hier_date.date()].copy()
+        
+        if not df_hier.empty and 'Magasin' in df_hier.columns:
+            ca_mag_hier = df_hier.groupby('Magasin')['Montant TTC'].sum().reset_index()
+            ca_mag_hier = ca_mag_hier.sort_values('Montant TTC', ascending=False)
+            
+            top3 = ca_mag_hier.head(3)
+            flop3 = ca_mag_hier.tail(3)
+            
+            col_t, col_f = st.columns(2)
+            
+            with col_t:
+                st.markdown("#### 🏆 Top 3 Magasins (Hier)")
+                for i, (_, row) in enumerate(top3.iterrows(), 1):
+                    st.markdown(f"""
+                    <div style="background: linear-gradient(135deg, #00CC96 0%, #00A67E 100%); 
+                    padding: 20px; border-radius: 12px; margin-bottom: 10px; color: white;">
+                        <h3 style="margin:0;">#{i} {row['Magasin']}</h3>
+                        <p style="font-size: 24px; margin: 10px 0 0 0; font-weight: bold;">{row['Montant TTC']:,.0f} TND</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+            
+            with col_f:
+                st.markdown("#### 📉 Flop 3 Magasins (Hier)")
+                for i, (_, row) in enumerate(flop3.iterrows(), 1):
+                    st.markdown(f"""
+                    <div style="background: linear-gradient(135deg, #EF553B 0%, #D94030 100%); 
+                    padding: 20px; border-radius: 12px; margin-bottom: 10px; color: white;">
+                        <h3 style="margin:0;">#{i} {row['Magasin']}</h3>
+                        <p style="font-size: 24px; margin: 10px 0 0 0; font-weight: bold;">{row['Montant TTC']:,.0f} TND</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+        else:
+            st.info("Aucune donnée trouvée pour hier")
+        
+        st.markdown("---")
+        st.markdown("### 👥 Top 3 / Flop 3 Clients (MOIS EN COURS)")
+        
+        df_mois_en_cours = df_vc[df_vc['Année'] == annee_sel].copy()
+        if mois_sel != "Tous":
+            df_mois_en_cours = df_mois_en_cours[df_mois_en_cours['Mois'] == mois_sel]
+        
+        if 'Nom' in df_mois_en_cours.columns:
+            ca_cli = df_mois_en_cours.groupby('Nom')['Montant TTC'].sum().reset_index()
+            ca_cli = ca_cli.sort_values('Montant TTC', ascending=False)
+            
+            top3_cli = ca_cli.head(3)
+            flop3_cli = ca_cli.tail(3)
+            
+            col_tc, col_fc = st.columns(2)
+            
+            with col_tc:
+                st.markdown("#### 🏆 Top 3 Clients")
+                for i, (_, row) in enumerate(top3_cli.iterrows(), 1):
+                    st.markdown(f"""
+                    <div style="background: linear-gradient(135deg, #636EFA 0%, #4A52D6 100%); 
+                    padding: 20px; border-radius: 12px; margin-bottom: 10px; color: white;">
+                        <h3 style="margin:0;">#{i} {row['Nom']}</h3>
+                        <p style="font-size: 24px; margin: 10px 0 0 0; font-weight: bold;">{row['Montant TTC']:,.0f} TND</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+            
+            with col_fc:
+                st.markdown("#### 📉 Flop 3 Clients")
+                for i, (_, row) in enumerate(flop3_cli.iterrows(), 1):
+                    st.markdown(f"""
+                    <div style="background: linear-gradient(135deg, #AB63FA 0%, #8F42D6 100%); 
+                    padding: 20px; border-radius: 12px; margin-bottom: 10px; color: white;">
+                        <h3 style="margin:0;">#{i} {row['Nom']}</h3>
+                        <p style="font-size: 24px; margin: 10px 0 0 0; font-weight: bold;">{row['Montant TTC']:,.0f} TND</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+        
+        st.markdown("---")
+        st.markdown("### 📊 CA par Mois (3 derniers mois)")
+        
+        maintenant = pd.Timestamp.now()
+        mois_list = []
+        for i in range(2, -1, -1):
+            m = maintenant - pd.DateOffset(months=i)
+            mois_list.append((m.year, m.month))
+        
+        df_3m = df_vc[df_vc['Année'].isin([m[0] for m in mois_list])].copy()
+        df_3m = df_3m[(df_3m['Année'].astype(str) + '-' + df_3m['Mois'].astype(str).str.zfill(2)).isin(
+            [f"{m[0]}-{m[1]:02d}" for m in mois_list]
+        )]
+        
+        ca_3m = df_3m.groupby(['Année', 'Mois'])['Montant TTC'].sum().reset_index()
+        ca_3m['Mois Nom'] = ca_3m['Mois'].apply(lambda x: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'][x-1] if 1 <= x <= 12 else '')
+        ca_3m['Periode'] = ca_3m['Mois Nom'] + ' ' + ca_3m['Année'].astype(str)
+        ca_3m = ca_3m.sort_values(['Année', 'Mois'])
+        
+        fig_ca_3m = go.Figure()
+        fig_ca_3m.add_trace(go.Bar(
+            x=ca_3m['Periode'], y=ca_3m['Montant TTC'],
+            marker_color='#00CC96', text=ca_3m['Montant TTC'].apply(lambda x: f"{x:,.0f}"),
+            textposition='outside'
+        ))
+        fig_ca_3m.update_layout(
+            title="CA des 3 derniers mois",
+            xaxis_title="Mois",
+            yaxis_title="Montant TTC (TND)",
+            template='plotly_white', height=400
+        )
+        st.plotly_chart(fig_ca_3m, use_container_width=True)
         
         st.info(f"💡 Filtres actifs: {annee_sel} | Mois: {mois_sel if mois_sel != 'Tous' else 'Tous'} | Convention: {conv_sel}")
     
