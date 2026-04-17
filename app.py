@@ -127,11 +127,11 @@ col_logo1, col_logo2 = st.columns([1, 1])
 with col_logo1:
     mg_url = get_logo_url(LOGO_MG_URL)
     if mg_url:
-        st.image(mg_url, width=200)
+        st.image(mg_url, width=100)
 with col_logo2:
     batam_url = get_logo_url(LOGO_BATAM_URL)
     if batam_url:
-        st.image(batam_url, width=200)
+        st.image(batam_url, width=100)
 
 st.caption("Source: VC.CONV. Business Central")
 
