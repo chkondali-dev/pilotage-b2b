@@ -123,7 +123,7 @@ def get_magasin_name(code, code_magasin_df):
 
 st.title("📊 DASHBOARD GRANDS COMPTES — SMG")
 
-col_logo1, col_logo2 = st.columns([1, 1])
+col_logo1, col_logo2 = st.columns([6, 1])
 with col_logo1:
     mg_url = get_logo_url(LOGO_MG_URL)
     if mg_url:
