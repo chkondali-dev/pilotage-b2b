@@ -13,8 +13,15 @@ st.set_page_config(page_title="Dashboard Pilotage B2B - SMG", layout="wide", pag
 GITHUB_RAW = "https://raw.githubusercontent.com/chkondali-dev/pilotage-b2b/main/2025/"
 GITHUB_RAW_IMAGES = "https://raw.githubusercontent.com/chkondali-dev/pilotage-b2b/main/"
 
-LOGO_MG_URL = GITHUB_RAW_IMAGES + "logo-1653837429.jpg"
-LOGO_BATAM_URL = GITHUB_RAW_IMAGES + "logo.svg"
+LOGO_MG_URL = "C:/Users/hachk/OneDrive - Société Magasin Général (SMG)/Bureau/logo-1653837429.jpg"
+LOGO_BATAM_URL = "C:/Users/hachk/OneDrive - Société Magasin Général (SMG)/Bureau/logo.svg"
+
+def load_local_image(path):
+    try:
+        with open(path, 'rb') as f:
+            return f.read()
+    except:
+        return None
 
 def load_image_from_url(url):
     try:
@@ -23,6 +30,17 @@ def load_image_from_url(url):
         return response.content
     except:
         return None
+
+def get_logo_html(path, width=180):
+    try:
+        with open(path, 'rb') as f:
+            data = f.read()
+        import base64
+        b64 = base64.b64encode(data).decode()
+        mime = "image/jpeg" if path.endswith(".jpg") else "image/svg+xml" if path.endswith(".svg") else "image/png"
+        return f'<img src="data:{mime};base64,{b64}" width="{width}px"/>'
+    except Exception as e:
+        return ""
 
 FILES = {
     "vc": quote("Factures ventes enregistrées VC (4).xlsx"),
@@ -185,13 +203,9 @@ try:
         
         col_logo_g, col_titre, col_logo_d = st.columns([1, 4, 1])
         with col_logo_g:
-            mg_img = load_image_from_url(LOGO_MG_URL)
-            if mg_img:
-                st.image(mg_img, width=180)
+            st.markdown(get_logo_html(LOGO_MG_URL, 180), unsafe_allow_html=True)
         with col_logo_d:
-            batam_img = load_image_from_url(LOGO_BATAM_URL)
-            if batam_img:
-                st.image(batam_img, width=180)
+            st.markdown(get_logo_html(LOGO_BATAM_URL, 180), unsafe_allow_html=True)
         
         st.markdown("---")
         
