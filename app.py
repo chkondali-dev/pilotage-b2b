@@ -117,11 +117,11 @@ st.title("📊 DASHBOARD GRANDS COMPTES — SMG")
 
 col_logo1, col_logo2 = st.columns([1, 1])
 with col_logo1:
-    mg_img = load_local_image(LOGO_MG_URL)
+    mg_img = load_image_from_url(LOGO_MG_URL)
     if mg_img:
         st.image(mg_img, width=200)
 with col_logo2:
-    batam_img = load_local_image(LOGO_BATAM_URL)
+    batam_img = load_image_from_url(LOGO_BATAM_URL)
     if batam_img:
         st.image(batam_img, width=200)
 
