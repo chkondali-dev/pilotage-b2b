@@ -271,6 +271,7 @@ if conv_sel != "Tous":
 
 tabs = st.tabs([
     "🏠 ACCUEIL + DASHBOARD",
+    "📈 DASHBOARD GLOBAL",
     "📅 CA JOURNALIER",
     "📋 CONVENTIONS",
     "🏪 MAGASINS",
