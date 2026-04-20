@@ -578,13 +578,13 @@ with tabs[0]:
         if 'Année' in df_vc.columns:
             ca_year = df_vc.groupby('Année')['Montant TTC'].sum().reset_index()
             fig = plot_bar_with_labels(ca_year, 'Année', 'Montant TTC', "CA par année", COLORS['primary'])
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, key="home_ca_year")
     
     with col_g2:
         if 'Nom' in df_filt.columns:
             top_conv = df_filt.groupby('Nom')['Montant TTC'].sum().nlargest(10).reset_index()
             fig2 = plot_horizontal_bar(top_conv, 'Montant TTC', 'Nom', "Top 10 Conventions", color=COLORS['secondary'])
-            st.plotly_chart(fig2, use_container_width=True)
+            st.plotly_chart(fig2, use_container_width=True, key="home_top_conventions")
     
     st.markdown("")
     render_section_title("Comparaison temporelle")
@@ -596,7 +596,7 @@ with tabs[0]:
         if not df_comp.empty:
             fig3 = plot_comparison(df_comp, 'Mois Nom', 'CA N', 'CA N-1', 
                                f"CA Mensuel {annee_sel} vs {annee_sel-1}", "Mois", "TND")
-            st.plotly_chart(fig3, use_container_width=True)
+            st.plotly_chart(fig3, use_container_width=True, key="home_ca_compare")
     
     with col_g4:
         maintenant = pd.Timestamp.now()
@@ -618,7 +618,7 @@ with tabs[0]:
             ca_3m = pd.DataFrame()
         
         fig4 = plot_bar_with_labels(ca_3m, 'Periode', 'Montant TTC', "CA 3 derniers mois", COLORS['primary'])
-        st.plotly_chart(fig4, use_container_width=True)
+        st.plotly_chart(fig4, use_container_width=True, key="home_last_3_months")
     
     st.markdown("")
     render_section_title("Top 3 / Flop 3 clients du périmètre filtré")
@@ -656,14 +656,14 @@ with tabs[1]:
         if year_col:
             ca_year = df_vc.groupby(year_col)['Montant TTC'].sum().reset_index()
             fig = plot_bar_with_labels(ca_year, year_col, 'Montant TTC', "CA par année", COLORS['primary'])
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, key="global_ca_year")
 
     with col2:
         st.subheader("Top 10 Conventions")
         if 'Nom' in df_filt.columns:
             top_conv = df_filt.groupby('Nom')['Montant TTC'].sum().nlargest(10).reset_index()
             fig2 = plot_horizontal_bar(top_conv, 'Montant TTC', 'Nom', "Top 10 Conventions", color=COLORS['secondary'])
-            st.plotly_chart(fig2, use_container_width=True)
+            st.plotly_chart(fig2, use_container_width=True, key="global_top_conventions")
 
     col3, col4 = st.columns(2)
 
@@ -673,7 +673,7 @@ with tabs[1]:
         if not df_comp.empty:
             fig3 = plot_comparison(df_comp, 'Mois Nom', 'CA N', 'CA N-1',
                                    f"CA Mensuel {annee_sel} vs {annee_sel-1}", "Mois", "TND")
-            st.plotly_chart(fig3, use_container_width=True)
+            st.plotly_chart(fig3, use_container_width=True, key="global_ca_compare")
 
     with col4:
         st.subheader("CA 3 derniers mois")
@@ -695,7 +695,7 @@ with tabs[1]:
             ca_3m = pd.DataFrame()
 
         fig4 = plot_bar_with_labels(ca_3m, 'Periode', 'Montant TTC', "CA 3 derniers mois", COLORS['accent'])
-        st.plotly_chart(fig4, use_container_width=True)
+        st.plotly_chart(fig4, use_container_width=True, key="global_last_3_months")
 
 # ============================================================
 # ONGLET CA JOURNALIER (Graphique amélioré)
@@ -717,7 +717,7 @@ with tabs[2]:
     fig_jour = plot_comparison(df_jour, 'Jour', 'CA N', 'CA N-1', 
                            f"CA Journalier {annee_sel} vs {annee_sel-1}", "Jour", "TND")
     fig_jour.update_layout(xaxis=dict(tickmode='linear', dtick=1, tickangle=45))
-    st.plotly_chart(fig_jour, use_container_width=True)
+    st.plotly_chart(fig_jour, use_container_width=True, key="journalier_compare")
 
 # ============================================================
 # ONGLET CONVENTIONS (Avec sélection interactive)
@@ -756,7 +756,7 @@ with tabs[3]:
             if not df_comp_conv.empty:
                 fig = plot_comparison(df_comp_conv, 'Mois Nom', 'CA N', 'CA N-1',
                                 f"CA Mensuel {conv_select}", "Mois", "TND")
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True, key="convention_monthly_compare")
         
         with col2:
             st.markdown("#### CA Cumulé Annuel N vs N-1")
@@ -773,7 +773,7 @@ with tabs[3]:
             
             fig2 = plot_comparison(df_cumul, 'Mois Nom', 'CA Cumulé N', 'CA Cumulé N-1',
                                 f"CA Cumulé {conv_select}", "Mois", "TND")
-            st.plotly_chart(fig2, use_container_width=True)
+            st.plotly_chart(fig2, use_container_width=True, key="convention_cumulative_compare")
         
         col3, col4 = st.columns(2)
         
@@ -782,7 +782,7 @@ with tabs[3]:
             if 'Magasin' in df_conv_filt.columns:
                 mag_ca = df_conv_filt.groupby('Magasin')['Montant TTC'].sum().nlargest(10).reset_index()
                 fig3 = plot_horizontal_bar(mag_ca, 'Montant TTC', 'Magasin', "Top Magasins", color=COLORS['secondary'])
-                st.plotly_chart(fig3, use_container_width=True)
+                st.plotly_chart(fig3, use_container_width=True, key="convention_top_stores")
         
         with col4:
             st.markdown("#### Répartition Credit vs Cash")
@@ -790,7 +790,7 @@ with tabs[3]:
             ca_credit_total = df_credit[df_credit['Nom'] == conv_select]['Montant TTC'].sum() if 'Nom' in df_credit.columns else 0
             if ca_cash > 0 or ca_credit_total > 0:
                 fig4 = plot_pie([ca_cash, ca_credit_total], ['Cash', 'Crédit'], "Répartition CA")
-                st.plotly_chart(fig4, use_container_width=True)
+                st.plotly_chart(fig4, use_container_width=True, key="convention_cash_credit")
 
 # ============================================================
 # ONGLET MAGASINS
@@ -826,7 +826,7 @@ with tabs[4]:
         with col_g1:
             st.subheader("Top 20 Magasins")
             fig = plot_horizontal_bar(ca_mag.head(20), 'CA N', 'Magasin', "Top 20 Magasins", color=COLORS['primary'])
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, key="stores_top20")
         
         with col_g2:
             st.subheader("Évolution N/N-1")
@@ -837,7 +837,7 @@ with tabs[4]:
             fig2 = px.bar(ca_mag_top, x='Évolution %', y='Magasin', orientation='h',
                          title="Évolution N/N-1 (%)", color='Évol_Category',
                          color_discrete_map={'Hausse': COLORS['primary'], 'Baisse': COLORS['warning'], 'Stable': COLORS['secondary']})
-            st.plotly_chart(fig2, use_container_width=True)
+            st.plotly_chart(fig2, use_container_width=True, key="stores_evolution")
 
 # ============================================================
 # ONGLET EDC (Simplifié)
@@ -879,7 +879,7 @@ with tabs[5]:
                              text='Part %', color_discrete_sequence=[COLORS['primary']])
             fig_echeance.update_traces(textposition='outside')
             fig_echeance.update_layout(template='plotly_white', height=400)
-            st.plotly_chart(fig_echeance, use_container_width=True)
+            st.plotly_chart(fig_echeance, use_container_width=True, key="edc_echeance")
             
             st.dataframe(echeance, use_container_width=True)
     else:
