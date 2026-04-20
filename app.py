@@ -186,23 +186,27 @@ def plot_pie(data, names, title, colors=None):
     return fig
 
 def plot_horizontal_bar(df, x_col, y_col, title, top_n=10, color=COLORS['secondary']):
-    if df is None or (hasattr(df, 'empty') and df.empty) or (hasattr(df, 'shape') and df.shape[0] == 0):
+    try:
+        if df is None or len(df) == 0:
+            fig = go.Figure()
+            fig.update_layout(title=title, template='plotly_white', height=400)
+            return fig
+        df_copy = df.copy()
+        n = min(top_n, len(df_copy))
+        if n <= 0:
+            fig = go.Figure()
+            fig.update_layout(title=title, template='plotly_white', height=400)
+            return fig
+        df_top = df_copy.nlargest(n, x_col)
+        fig = px.bar(df_top, x=x_col, y=y_col, orientation='h', title=title, 
+                    color_discrete_sequence=[color])
+        fig.update_layout(template='plotly_white', height=400, yaxis=dict(autorange='reversed'))
+        fig.update_traces(textposition='outside')
+        return fig
+    except Exception as e:
         fig = go.Figure()
         fig.update_layout(title=title, template='plotly_white', height=400)
         return fig
-    df_copy = df.copy()
-    if df_copy.shape[0] < top_n:
-        top_n = df_copy.shape[0]
-    if top_n <= 0:
-        fig = go.Figure()
-        fig.update_layout(title=title, template='plotly_white', height=400)
-        return fig
-    df_top = df_copy.nlargest(top_n, x_col)
-    fig = px.bar(df_top, x=x_col, y=y_col, orientation='h', title=title, 
-                color_discrete_sequence=[color])
-    fig.update_layout(template='plotly_white', height=400, yaxis=dict(autorange='reversed'))
-    fig.update_traces(textposition='outside')
-    return fig
 
 # ============================================================
 # SECTION 4: UI LAYOUT
