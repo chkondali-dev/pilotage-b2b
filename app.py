@@ -103,6 +103,11 @@ def get_magasin_name(code, code_magasin_df):
                         return match[name_col].values[0]
     return str(code)
 
+def get_year_column(df):
+    if df is None or df.empty:
+        return None
+    return next((col for col in df.columns if 'Ann' in str(col)), None)
+
 # ============================================================
 # SECTION 2: DATA PROCESSING
 # ============================================================
@@ -600,6 +605,7 @@ with tabs[0]:
             m = maintenant - pd.DateOffset(months=i)
             mois_list.append((m.year, m.month))
         
+        year_col = get_year_column(df_vc)
         df_3m = df_vc[df_vc[year_col].isin([x[0] for x in mois_list])].copy() if year_col else pd.DataFrame()
         if year_col and not df_3m.empty:
             df_3m = df_3m[(df_3m[year_col].astype(str) + '-' + df_3m['Mois'].astype(str).str.zfill(2)).isin(
@@ -641,7 +647,7 @@ with tabs[0]:
 # ============================================================
 with tabs[1]:
     render_section_title("Dashboard global")
-    year_col = next((col for col in df_vc.columns if 'Ann' in col), None)
+    year_col = get_year_column(df_vc)
 
     col1, col2 = st.columns(2)
 
