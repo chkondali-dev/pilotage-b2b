@@ -270,8 +270,7 @@ if conv_sel != "Tous":
     df_filt = df_filt[df_filt['Nom'] == conv_sel]
 
 tabs = st.tabs([
-    "🏠 ACCUEIL + DASHBOARD",
-    "📈 DASHBOARD GLOBAL",
+    "🏠 ACCUEIL",
     "📅 CA JOURNALIER",
     "📋 CONVENTIONS",
     "🏪 MAGASINS",
@@ -385,56 +384,6 @@ with tabs[0]:
                     <p style="font-size: 24px; margin: 10px 0 0 0; font-weight: bold;">{row['Montant TTC']:,.0f} TND</p>
                 </div>
                 """, unsafe_allow_html=True)
-
-# ============================================================
-with tabs[1]:
-    st.header("DASHBOARD GLOBAL — MG & BATAM")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.subheader("CA par année")
-        if 'Année' in df_vc.columns:
-            ca_year = df_vc.groupby('Année')['Montant TTC'].sum().reset_index()
-            fig = plot_bar_with_labels(ca_year, 'Année', 'Montant TTC', "CA par année", COLORS['primary'])
-            st.plotly_chart(fig, use_container_width=True)
-    
-    with col2:
-        st.subheader("Top 10 Conventions")
-        if 'Nom' in df_filt.columns:
-            top_conv = df_filt.groupby('Nom')['Montant TTC'].sum().nlargest(10).reset_index()
-            fig2 = plot_horizontal_bar(top_conv, 'Montant TTC', 'Nom', "Top 10 Conventions", COLORS['secondary'])
-            st.plotly_chart(fig2, use_container_width=True)
-    
-    col3, col4 = st.columns(2)
-    
-    with col3:
-        st.subheader("CA Mensuel N vs N-1")
-        df_comp = compare_annees(df_vc, annee_sel, annee_sel - 1, mois_sel if mois_sel != "Tous" else None)
-        if not df_comp.empty:
-            fig3 = plot_comparison(df_comp, 'Mois Nom', 'CA N', 'CA N-1', 
-                               f"CA Mensuel {annee_sel} vs {annee_sel-1}", "Mois", "TND")
-            st.plotly_chart(fig3, use_container_width=True)
-    
-    with col4:
-        st.subheader("CA 3 derniers mois")
-        maintenant = pd.Timestamp.now()
-        mois_list = []
-        for i in range(2, -1, -1):
-            m = maintenant - pd.DateOffset(months=i)
-            mois_list.append((m.year, m.month))
-        
-        df_3m = df_vc[df_vc['Année'].isin([x[0] for x in mois_list])].copy()
-        df_3m = df_3m[(df_3m['Année'].astype(str) + '-' + df_3m['Mois'].astype(str).str.zfill(2)).isin(
-            [f"{x[0]}-{x[1]:02d}" for x in mois_list]
-        )]
-        
-        ca_3m = df_3m.groupby(['Année', 'Mois'])['Montant TTC'].sum().reset_index()
-        ca_3m['Periode'] = ca_3m['Mois'].map(MOIS_NOMS) + ' ' + ca_3m['Année'].astype(str)
-        ca_3m = ca_3m.sort_values(['Année', 'Mois'])
-        
-        fig4 = plot_bar_with_labels(ca_3m, 'Periode', 'Montant TTC', "CA 3 derniers mois", COLORS['primary'])
-        st.plotly_chart(fig4, use_container_width=True)
 
 # ============================================================
 # ONGLET CA JOURNALIER (Graphique amélioré)
