@@ -126,7 +126,7 @@ def get_ca_mensuel(df, annee, mois=None):
     return df_annee.groupby('Mois')['Montant TTC'].sum().reset_index()
 
 def compare_annees(df, annee_n, annee_n1, mois=None):
-    if df.empty or len(df) == 0:
+    if df is None or (hasattr(df, 'empty') and df.empty) or (hasattr(df, 'shape') and df.shape[0] == 0):
         return pd.DataFrame(columns=['Mois', 'CA N', 'CA N-1', 'Variation %', 'Mois Nom'])
     ca_n = get_ca_mensuel(df, annee_n, mois)
     ca_n1 = get_ca_mensuel(df, annee_n1, mois)
@@ -143,7 +143,7 @@ def compare_annees(df, annee_n, annee_n1, mois=None):
 # SECTION 3: VISUALIZATION
 # ============================================================
 def plot_bar_with_labels(df, x_col, y_col, title, color=COLORS['primary'], orientation='v'):
-    if df.empty or len(df) == 0:
+    if df is None or (hasattr(df, 'empty') and df.empty) or (hasattr(df, 'shape') and df.shape[0] == 0):
         fig = go.Figure()
         fig.update_layout(title=title, template='plotly_white', height=400)
         return fig
@@ -165,7 +165,7 @@ def plot_line_with_markers(x, y, name, color=COLORS['primary'], dash=None):
     )
 
 def plot_comparison(df, x_col, y_n, y_n1, title, xlabel, ylabel):
-    if df.empty or len(df) == 0:
+    if df is None or (hasattr(df, 'empty') and df.empty) or (hasattr(df, 'shape') and df.shape[0] == 0):
         fig = go.Figure()
         fig.update_layout(title=title, template='plotly_white', height=400)
         return fig
@@ -186,11 +186,18 @@ def plot_pie(data, names, title, colors=None):
     return fig
 
 def plot_horizontal_bar(df, x_col, y_col, title, top_n=10, color=COLORS['secondary']):
-    if df.empty or len(df) == 0:
+    if df is None or (hasattr(df, 'empty') and df.empty) or (hasattr(df, 'shape') and df.shape[0] == 0):
         fig = go.Figure()
         fig.update_layout(title=title, template='plotly_white', height=400)
         return fig
-    df_top = df.nlargest(top_n, x_col)
+    df_copy = df.copy()
+    if df_copy.shape[0] < top_n:
+        top_n = df_copy.shape[0]
+    if top_n <= 0:
+        fig = go.Figure()
+        fig.update_layout(title=title, template='plotly_white', height=400)
+        return fig
+    df_top = df_copy.nlargest(top_n, x_col)
     fig = px.bar(df_top, x=x_col, y=y_col, orientation='h', title=title, 
                 color_discrete_sequence=[color])
     fig.update_layout(template='plotly_white', height=400, yaxis=dict(autorange='reversed'))
