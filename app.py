@@ -3,34 +3,19 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime
-import os
 import requests
 from io import BytesIO
 from urllib.parse import quote
 
 st.set_page_config(page_title="Dashboard Pilotage B2B - SMG", layout="wide", page_icon="📊")
 
+# ============================================================
+# SECTION 1: CONFIGURATION & DATA LOADING
+# ============================================================
 GITHUB_RAW = "https://raw.githubusercontent.com/chkondali-dev/pilotage-b2b/main/2025/"
 GITHUB_RAW_IMAGES = "https://raw.githubusercontent.com/chkondali-dev/pilotage-b2b/main/"
-
 LOGO_MG_URL = GITHUB_RAW_IMAGES + "logo-1653837429.jpg"
 LOGO_BATAM_URL = GITHUB_RAW_IMAGES + "logo.svg"
-
-def load_image_from_url(url):
-    try:
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()
-        return response.content
-    except:
-        return None
-
-def get_logo_url(url):
-    try:
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()
-        return url
-    except:
-        return None
 
 FILES = {
     "vc": quote("Factures ventes enregistrées VC (4).xlsx"),
@@ -40,16 +25,33 @@ FILES = {
     "code_magasin": quote("Code MAGASIN Business Central.xlsx")
 }
 
+COLORS = {
+    'primary': '#00CC96',
+    'secondary': '#636EFA',
+    'accent': '#FF6692',
+    'warning': '#EF553B',
+    'purple': '#AB63FA'
+}
+
+MOIS_NOMS = {1: 'Jan', 2: 'Fév', 3: 'Mar', 4: 'Avr', 5: 'Mai', 6: 'Juin',
+             7: 'Juil', 8: 'Aoû', 9: 'Sep', 10: 'Oct', 11: 'Nov', 12: 'Déc'}
+
+def get_logo_url(url):
+    try:
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        return url
+    except:
+        return None
+
 def load_from_url(filename):
     url = GITHUB_RAW + filename
-    # FIX: ajout d'un timeout réseau pour éviter les gels indéfinis
     response = requests.get(url, timeout=30)
     response.raise_for_status()
     return pd.read_excel(BytesIO(response.content), engine='openpyxl')
 
 def load_xlsm(filename):
     url = GITHUB_RAW + filename
-    # FIX: ajout d'un timeout réseau
     response = requests.get(url, timeout=30)
     response.raise_for_status()
     return pd.read_excel(BytesIO(response.content), engine='openpyxl', sheet_name=None)
@@ -65,42 +67,18 @@ def clean_columns(df):
 @st.cache_data
 def load_all_data():
     dfs = {}
-    
-    try:
-        df = load_from_url(FILES["vc"])
-        df = clean_columns(df)
-        dfs["vc"] = df
-    except Exception as e:
-        st.warning(f"Erreur vc: {e}")
-    
-    try:
-        df = load_from_url(FILES["vc_credit"])
-        df = clean_columns(df)
-        dfs["vc_credit"] = df
-    except Exception as e:
-        st.warning(f"Erreur vc_credit: {e}")
-    
-    try:
-        df = load_from_url(FILES["vc_edc"])
-        df = clean_columns(df)
-        dfs["vc_edc"] = df
-    except Exception as e:
-        st.warning(f"Erreur EDC: {e}")
-    
-    try:
-        df = load_xlsm(FILES["conventions_signees"])
-        sheet_keys = list(df.keys())
-        if sheet_keys:
-            dfs["conventions_signees"] = clean_columns(df[sheet_keys[0]])
-    except Exception as e:
-        st.warning(f"Erreur conventions: {e}")
-    
-    try:
-        df = load_from_url(FILES["code_magasin"])
-        dfs["code_magasin"] = clean_columns(df)
-    except Exception as e:
-        st.warning(f"Erreur code_magasin: {e}")
-    
+    for key, filename in FILES.items():
+        try:
+            if filename == FILES["conventions_signees"]:
+                df = load_xlsm(filename)
+                sheet_keys = list(df.keys())
+                if sheet_keys:
+                    dfs[key] = clean_columns(df[sheet_keys[0]])
+            else:
+                df = load_from_url(filename)
+                dfs[key] = clean_columns(df)
+        except Exception as e:
+            st.warning(f"Erreur {key}: {e}")
     return dfs
 
 def get_magasin_name(code, code_magasin_df):
@@ -121,7 +99,92 @@ def get_magasin_name(code, code_magasin_df):
                         return match[name_col].values[0]
     return str(code)
 
-st.title("📊 DASHBOARD GRANDS COMPTES — SMG")
+# ============================================================
+# SECTION 2: DATA PROCESSING
+# ============================================================
+def process_data(df_vc, df_credit, code_magasin_df):
+    for df in [df_vc, df_credit]:
+        if 'Date comptabilisation' in df.columns:
+            df['Date'] = pd.to_datetime(df['Date comptabilisation'], errors='coerce')
+            df['Année'] = df['Date'].dt.year
+            df['Mois'] = df['Date'].dt.month
+            df['Jour'] = df['Date'].dt.day
+        if 'Code magasin' in df.columns and not code_magasin_df.empty:
+            df['Magasin'] = df['Code magasin'].apply(lambda x: get_magasin_name(x, code_magasin_df))
+    return df_vc, df_credit
+
+def get_ca_journalier(df, annee, mois=None):
+    df_annee = df[df['Année'] == annee].copy()
+    if mois and mois != "Tous":
+        df_annee = df_annee[df_annee['Mois'] == mois]
+    return df_annee.groupby('Jour')['Montant TTC'].sum().reset_index()
+
+def get_ca_mensuel(df, annee, mois=None):
+    df_annee = df[df['Année'] == annee].copy()
+    if mois and mois != "Tous":
+        df_annee = df_annee[df_annee['Mois'] == mois]
+    return df_annee.groupby('Mois')['Montant TTC'].sum().reset_index()
+
+def compare_annees(df, annee_n, annee_n1, mois=None):
+    ca_n = get_ca_mensuel(df, annee_n, mois)
+    ca_n1 = get_ca_mensuel(df, annee_n1, mois)
+    ca_n.columns = ['Mois', 'CA N']
+    ca_n1.columns = ['Mois', 'CA N-1']
+    df_comp = ca_n.merge(ca_n1, on='Mois', how='outer').fillna(0)
+    df_comp['Variation %'] = ((df_comp['CA N'] - df_comp['CA N-1']) / df_comp['CA N-1'].replace(0, 1) * 100).round(1)
+    df_comp['Mois Nom'] = df_comp['Mois'].map(MOIS_NOMS)
+    return df_comp
+
+# ============================================================
+# SECTION 3: VISUALIZATION
+# ============================================================
+def plot_bar_with_labels(df, x_col, y_col, title, color=COLORS['primary'], orientation='v'):
+    if orientation == 'h':
+        fig = px.bar(df, y=y_col, x=x_col, text_auto=',.0f', title=title, 
+                    color_discrete_sequence=[color], orientation='h')
+    else:
+        fig = px.bar(df, x=x_col, y=y_col, text_auto=',.0f', title=title, 
+                    color_discrete_sequence=[color])
+    fig.update_layout(template='plotly_white', height=400)
+    fig.update_traces(textposition='outside')
+    return fig
+
+def plot_line_with_markers(x, y, name, color=COLORS['primary'], dash=None):
+    return go.Scatter(
+        x=x, y=y, mode='lines+markers', name=name,
+        line=dict(color=color, width=3), marker=dict(size=8),
+        line_dash=dash
+    )
+
+def plot_comparison(df, x_col, y_n, y_n1, title, xlabel, ylabel):
+    fig = go.Figure()
+    fig.add_trace(plot_line_with_markers(df[x_col].values, df[y_n].values, 'N', COLORS['primary']))
+    fig.add_trace(plot_line_with_markers(df[x_col].values, df[y_n1].values, 'N-1', COLORS['warning'], 'dash'))
+    fig.update_layout(
+        title=title, xaxis_title=xlabel, yaxis_title=ylabel,
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5),
+        template='plotly_white', height=400
+    )
+    return fig
+
+def plot_pie(data, names, title, colors=None):
+    fig = px.pie(values=data, names=names, title=title, hole=0.4, 
+                color_discrete_sequence=colors or [COLORS['primary'], COLORS['secondary'], COLORS['accent']])
+    fig.update_layout(template='plotly_white', height=400)
+    return fig
+
+def plot_horizontal_bar(df, x_col, y_col, title, top_n=10, color=COLORS['secondary']):
+    df_top = df.nlargest(top_n, x_col)
+    fig = px.bar(df_top, x=x_col, y=y_col, orientation='h', title=title, 
+                color_discrete_sequence=[color])
+    fig.update_layout(template='plotly_white', height=400, yaxis=dict(autorange='reversed'))
+    fig.update_traces(textposition='outside')
+    return fig
+
+# ============================================================
+# SECTION 4: UI LAYOUT
+# ============================================================
+st.title("📊 DASHBOARD PILOTAGE B2B — SMG")
 
 col_logo1, col_logo2 = st.columns([6, 1])
 with col_logo1:
@@ -140,30 +203,25 @@ if st.sidebar.button("🔄 Actualiser les données"):
     st.rerun()
 
 data = load_all_data()
-
 df_vc = data.get("vc", pd.DataFrame())
 df_credit = data.get("vc_credit", pd.DataFrame())
+df_edc = data.get("vc_edc", pd.DataFrame())
+df_conventions = data.get("conventions_signees", pd.DataFrame())
 code_magasin_df = data.get("code_magasin", pd.DataFrame())
 
-for df in [df_vc, df_credit]:
-    if 'Date comptabilisation' in df.columns:
-        df['Date'] = pd.to_datetime(df['Date comptabilisation'], errors='coerce')
-        df['Année'] = df['Date'].dt.year
-        df['Mois'] = df['Date'].dt.month
-        df['Jour'] = df['Date'].dt.day
-    if 'Code magasin' in df.columns and not code_magasin_df.empty:
-        df['Magasin'] = df['Code magasin'].apply(lambda x: get_magasin_name(x, code_magasin_df))
+df_vc, df_credit = process_data(df_vc, df_credit, code_magasin_df)
+
+if 'Date comptabilisation' in df_edc.columns:
+    df_edc['Date'] = pd.to_datetime(df_edc['Date comptabilisation'], errors='coerce')
+    df_edc['Année'] = df_edc['Date'].dt.year
+    df_edc['Mois'] = df_edc['Date'].dt.month
 
 with st.sidebar:
     st.header("🔍 Filtres")
-    
     annee_sel = st.selectbox("Année", [2026, 2025, 2024, 2023], index=0)
-    
     mois_options = ["Tous"] + list(range(1, 13))
     mois_sel = st.selectbox("Mois", mois_options, index=4)
     
-    # FIX: filtre convention restreint à l'année sélectionnée pour éviter
-    # d'afficher des conventions inexistantes sur la période filtrée
     if 'Nom' in df_vc.columns and 'Année' in df_vc.columns:
         convs_for_year = df_vc[df_vc['Année'] == annee_sel]['Nom'].dropna().unique().tolist()
         conventions = ["Tous"] + sorted(convs_for_year)
@@ -178,582 +236,414 @@ if 'Année' not in df_vc.columns or df_vc.empty:
     st.error("Aucune donnée chargée. Vérifiez les fichiers sur GitHub.")
     st.stop()
 
-try:
-    df_filt = df_vc[df_vc['Année'] == annee_sel].copy()
-    if mois_sel != "Tous":
-        df_filt = df_filt[df_filt['Mois'] == mois_sel]
-    if conv_sel != "Tous":
-        df_filt = df_filt[df_filt['Nom'] == conv_sel]
+df_filt = df_vc[df_vc['Année'] == annee_sel].copy()
+if mois_sel != "Tous":
+    df_filt = df_filt[df_filt['Mois'] == mois_sel]
+if conv_sel != "Tous":
+    df_filt = df_filt[df_filt['Nom'] == conv_sel]
+
+tabs = st.tabs([
+    "🏠 ACCUEIL + DASHBOARD",
+    "📅 CA JOURNALIER",
+    "📋 CONVENTIONS",
+    "🏪 MAGASINS",
+    "🏫 EDC",
+    "🔔 ALERTES",
+    "📊 PERFORMANCE"
+])
+
+# ============================================================
+# ONGLET ACCUEIL (KPIs + Tableaux clés + Graphiques globaux)
+# ============================================================
+with tabs[0]:
+    st.header("DASHBOARD GRANDS COMPTES — SMG")
     
-    # FIX: ordre des onglets aligné avec les index utilisés dans le code
-    # ACCUEIL(0), DASHBOARD(1), CA JOURNALIER(2), CONVENTIONS(3),
-    # MAGASINS(4), EDC(5), ALERTES(6), PERFORMANCE(7)
-    tabs = st.tabs([
-        "🏠 ACCUEIL",
-        "📈 DASHBOARD",
-        "📅 CA JOURNALIER",
-        "📋 CONVENTIONS",
-        "🏪 MAGASINS",
-        "🏫 EDC (Education)",
-        "🔔 ALERTES",
-        "📊 PERFORMANCE"
-    ])
+    col1, col2, col3, col4 = st.columns(4)
     
-    # ── ONGLET 0 : ACCUEIL ──────────────────────────────────────────────────
-    with tabs[0]:
-        st.header("DASHBOARD GRANDS COMPTES — SMG")
-        
-        col1, col2, col3, col4 = st.columns(4)
-        
-        ca_2024 = df_vc[df_vc['Année'] == 2024]['Montant TTC'].sum() if 'Année' in df_vc.columns else 0
-        ca_2025 = df_vc[df_vc['Année'] == 2025]['Montant TTC'].sum() if 'Année' in df_vc.columns else 0
-        ca_2026_ytd = df_vc[df_vc['Année'] == 2026]['Montant TTC'].sum() if 'Année' in df_vc.columns else 0
+    ca_2024 = df_vc[df_vc['Année'] == 2024]['Montant TTC'].sum() if 'Année' in df_vc.columns else 0
+    ca_2025 = df_vc[df_vc['Année'] == 2025]['Montant TTC'].sum() if 'Année' in df_vc.columns else 0
+    ca_2026_ytd = df_vc[df_vc['Année'] == 2026]['Montant TTC'].sum() if 'Année' in df_vc.columns else 0
 
-        delta_2025 = f"{((ca_2025 - ca_2024) / ca_2024 * 100):+.1f}% vs 2024" if ca_2024 > 0 else "N/A"
-        delta_2026 = f"{((ca_2026_ytd - ca_2025) / ca_2025 * 100):+.1f}% vs YTD 2025" if ca_2025 > 0 else "N/A"
+    delta_2025 = f"{((ca_2025 - ca_2024) / ca_2024 * 100):+.1f}% vs 2024" if ca_2024 > 0 else "N/A"
+    delta_2026 = f"{((ca_2026_ytd - ca_2025) / ca_2025 * 100):+.1f}% vs YTD 2025" if ca_2025 > 0 else "N/A"
 
-        if 'Nom' in df_vc.columns and 'Année' in df_vc.columns:
-            convs_actives_2026 = df_vc[df_vc['Année'] == 2026]['Nom'].dropna().nunique()
-        else:
-            convs_actives_2026 = 0
+    convs_actives_2026 = df_vc[df_vc['Année'] == 2026]['Nom'].dropna().nunique() if 'Nom' in df_vc.columns else 0
+    total_conventions = len(df_conventions) if not df_conventions.empty else 0
+    convs_inactives = max(0, total_conventions - convs_actives_2026)
 
-        if "conventions_signees" in data:
-            total_conventions = len(data["conventions_signees"])
-            convs_inactives = max(0, total_conventions - convs_actives_2026)
-        else:
-            convs_inactives = 0
-
-        col1.metric("CA 2025 (Full Year)", f"{ca_2025:,.0f} TND", delta=delta_2025)
-        col2.metric("CA 2026 YTD", f"{ca_2026_ytd:,.0f} TND", delta=delta_2026)
-        col3.metric("Conventions Actives 2026", str(convs_actives_2026))
-        col4.metric("Conventions Inactives", str(convs_inactives), delta="à réactiver", delta_color="inverse")
-        
-        st.markdown("### 📈 CA Journalier N vs N-1")
-        
-        df_ca_jour_n = df_vc[df_vc['Année'] == annee_sel].copy()
-        df_ca_jour_n1 = df_vc[df_vc['Année'] == annee_sel - 1].copy()
-        
-        if mois_sel != "Tous":
-            df_ca_jour_n = df_ca_jour_n[df_ca_jour_n['Mois'] == mois_sel]
-            df_ca_jour_n1 = df_ca_jour_n1[df_ca_jour_n1['Mois'] == mois_sel]
-        
-        ca_par_jour_n = df_ca_jour_n.groupby('Jour')['Montant TTC'].sum().reset_index()
-        ca_par_jour_n.columns = ['Jour', 'CA N']
-        
-        ca_par_jour_n1 = df_ca_jour_n1.groupby('Jour')['Montant TTC'].sum().reset_index()
-        ca_par_jour_n1.columns = ['Jour', 'CA N-1']
-        
-        df_ca_comp = ca_par_jour_n.merge(ca_par_jour_n1, on='Jour', how='outer').fillna(0)
-        
-        fig_ca_jour = go.Figure()
-        fig_ca_jour.add_trace(go.Scatter(
-            x=df_ca_comp['Jour'], y=df_ca_comp['CA N'],
-            mode='lines+markers', name=f'CA {annee_sel}',
-            line=dict(color='#00CC96', width=3), marker=dict(size=8)
-        ))
-        fig_ca_jour.add_trace(go.Scatter(
-            x=df_ca_comp['Jour'], y=df_ca_comp['CA N-1'],
-            mode='lines+markers', name=f'CA {annee_sel - 1}',
-            line=dict(color='#EF553B', width=3, dash='dash'), marker=dict(size=8)
-        ))
-        fig_ca_jour.update_layout(
-            title=f"CA Journalier {annee_sel} vs {annee_sel - 1}",
-            xaxis_title="Jour du mois",
-            yaxis_title="Montant TTC (TND)",
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5),
-            template='plotly_white', height=400
-        )
-        st.plotly_chart(fig_ca_jour, use_container_width=True)
-        
-        st.markdown("---")
-        st.markdown("### 🏪 Top 3 / Flop 3 Magasins (VEILLE)")
-        
-        from datetime import datetime, timedelta
-        hier = datetime.now() - timedelta(days=1)
-        hier_date = pd.Timestamp(hier.strftime('%Y-%m-%d'))
-        
-        df_hier = df_vc[df_vc['Date'].dt.date == hier_date.date()].copy()
-        
-        if not df_hier.empty and 'Magasin' in df_hier.columns:
-            ca_mag_hier = df_hier.groupby('Magasin')['Montant TTC'].sum().reset_index()
-            ca_mag_hier = ca_mag_hier.sort_values('Montant TTC', ascending=False)
-            
-            top3 = ca_mag_hier.head(3)
-            flop3 = ca_mag_hier.tail(3)
-            
-            col_t, col_f = st.columns(2)
-            
-            with col_t:
-                st.markdown("#### 🏆 Top 3 Magasins (Hier)")
-                for i, (_, row) in enumerate(top3.iterrows(), 1):
-                    st.markdown(f"""
-                    <div style="background: linear-gradient(135deg, #00CC96 0%, #00A67E 100%); 
-                    padding: 20px; border-radius: 12px; margin-bottom: 10px; color: white;">
-                        <h3 style="margin:0;">#{i} {row['Magasin']}</h3>
-                        <p style="font-size: 24px; margin: 10px 0 0 0; font-weight: bold;">{row['Montant TTC']:,.0f} TND</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-            
-            with col_f:
-                st.markdown("#### 📉 Flop 3 Magasins (Hier)")
-                for i, (_, row) in enumerate(flop3.iterrows(), 1):
-                    st.markdown(f"""
-                    <div style="background: linear-gradient(135deg, #EF553B 0%, #D94030 100%); 
-                    padding: 20px; border-radius: 12px; margin-bottom: 10px; color: white;">
-                        <h3 style="margin:0;">#{i} {row['Magasin']}</h3>
-                        <p style="font-size: 24px; margin: 10px 0 0 0; font-weight: bold;">{row['Montant TTC']:,.0f} TND</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-        else:
-            st.info("Aucune donnée trouvée pour hier")
-        
-        st.markdown("---")
-        st.markdown("### 👥 Top 3 / Flop 3 Clients (MOIS EN COURS)")
-        
-        df_mois_en_cours = df_vc[df_vc['Année'] == annee_sel].copy()
-        if mois_sel != "Tous":
-            df_mois_en_cours = df_mois_en_cours[df_mois_en_cours['Mois'] == mois_sel]
-        
-        if 'Nom' in df_mois_en_cours.columns:
-            ca_cli = df_mois_en_cours.groupby('Nom')['Montant TTC'].sum().reset_index()
-            ca_cli = ca_cli.sort_values('Montant TTC', ascending=False)
-            
-            top3_cli = ca_cli.head(3)
-            flop3_cli = ca_cli.tail(3)
-            
-            col_tc, col_fc = st.columns(2)
-            
-            with col_tc:
-                st.markdown("#### 🏆 Top 3 Clients")
-                for i, (_, row) in enumerate(top3_cli.iterrows(), 1):
-                    st.markdown(f"""
-                    <div style="background: linear-gradient(135deg, #636EFA 0%, #4A52D6 100%); 
-                    padding: 20px; border-radius: 12px; margin-bottom: 10px; color: white;">
-                        <h3 style="margin:0;">#{i} {row['Nom']}</h3>
-                        <p style="font-size: 24px; margin: 10px 0 0 0; font-weight: bold;">{row['Montant TTC']:,.0f} TND</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-            
-            with col_fc:
-                st.markdown("#### 📉 Flop 3 Clients")
-                for i, (_, row) in enumerate(flop3_cli.iterrows(), 1):
-                    st.markdown(f"""
-                    <div style="background: linear-gradient(135deg, #AB63FA 0%, #8F42D6 100%); 
-                    padding: 20px; border-radius: 12px; margin-bottom: 10px; color: white;">
-                        <h3 style="margin:0;">#{i} {row['Nom']}</h3>
-                        <p style="font-size: 24px; margin: 10px 0 0 0; font-weight: bold;">{row['Montant TTC']:,.0f} TND</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-        
-        st.markdown("---")
-        st.markdown("### 📊 CA par Mois (3 derniers mois)")
-        
+    col1.metric("CA 2025", f"{ca_2025:,.0f} TND", delta=delta_2025)
+    col2.metric("CA 2026 YTD", f"{ca_2026_ytd:,.0f} TND", delta=delta_2026)
+    col3.metric("Conventions Actives", str(convs_actives_2026))
+    col4.metric("Conventions Inactives", str(convs_inactives), delta="à réactiver", delta_color="inverse")
+    
+    st.markdown("---")
+    st.subheader("CA par année & Top Conventions")
+    
+    col_g1, col_g2 = st.columns(2)
+    
+    with col_g1:
+        if 'Année' in df_vc.columns:
+            ca_year = df_vc.groupby('Année')['Montant TTC'].sum().reset_index()
+            fig = plot_bar_with_labels(ca_year, 'Année', 'Montant TTC', "CA par année", COLORS['primary'])
+            st.plotly_chart(fig, use_container_width=True)
+    
+    with col_g2:
+        if 'Nom' in df_filt.columns:
+            top_conv = df_filt.groupby('Nom')['Montant TTC'].sum().nlargest(10).reset_index()
+            fig2 = plot_horizontal_bar(top_conv, 'Montant TTC', 'Nom', "Top 10 Conventions", COLORS['secondary'])
+            st.plotly_chart(fig2, use_container_width=True)
+    
+    st.markdown("---")
+    st.subheader("CA Mensuel N vs N-1")
+    
+    col_g3, col_g4 = st.columns(2)
+    
+    with col_g3:
+        df_comp = compare_annees(df_vc, annee_sel, annee_sel - 1, mois_sel if mois_sel != "Tous" else None)
+        if not df_comp.empty:
+            fig3 = plot_comparison(df_comp, 'Mois Nom', 'CA N', 'CA N-1', 
+                               f"CA Mensuel {annee_sel} vs {annee_sel-1}", "Mois", "TND")
+            st.plotly_chart(fig3, use_container_width=True)
+    
+    with col_g4:
         maintenant = pd.Timestamp.now()
         mois_list = []
         for i in range(2, -1, -1):
             m = maintenant - pd.DateOffset(months=i)
             mois_list.append((m.year, m.month))
         
-        df_3m = df_vc[df_vc['Année'].isin([m[0] for m in mois_list])].copy()
+        df_3m = df_vc[df_vc['Année'].isin([x[0] for x in mois_list])].copy()
         df_3m = df_3m[(df_3m['Année'].astype(str) + '-' + df_3m['Mois'].astype(str).str.zfill(2)).isin(
-            [f"{m[0]}-{m[1]:02d}" for m in mois_list]
+            [f"{x[0]}-{x[1]:02d}" for x in mois_list]
         )]
         
         ca_3m = df_3m.groupby(['Année', 'Mois'])['Montant TTC'].sum().reset_index()
-        ca_3m['Mois Nom'] = ca_3m['Mois'].apply(lambda x: ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'][x-1] if 1 <= x <= 12 else '')
-        ca_3m['Periode'] = ca_3m['Mois Nom'] + ' ' + ca_3m['Année'].astype(str)
+        ca_3m['Periode'] = ca_3m['Mois'].map(MOIS_NOMS) + ' ' + ca_3m['Année'].astype(str)
         ca_3m = ca_3m.sort_values(['Année', 'Mois'])
         
-        fig_ca_3m = go.Figure()
-        fig_ca_3m.add_trace(go.Bar(
-            x=ca_3m['Periode'], y=ca_3m['Montant TTC'],
-            marker_color='#00CC96', text=ca_3m['Montant TTC'].apply(lambda x: f"{x:,.0f}"),
-            textposition='outside'
-        ))
-        fig_ca_3m.update_layout(
-            title="CA des 3 derniers mois",
-            xaxis_title="Mois",
-            yaxis_title="Montant TTC (TND)",
-            template='plotly_white', height=400
-        )
-        st.plotly_chart(fig_ca_3m, use_container_width=True)
-        
-        st.info(f"💡 Filtres actifs: {annee_sel} | Mois: {mois_sel if mois_sel != 'Tous' else 'Tous'} | Convention: {conv_sel}")
+        fig4 = plot_bar_with_labels(ca_3m, 'Periode', 'Montant TTC', "CA 3 derniers mois", COLORS['primary'])
+        st.plotly_chart(fig4, use_container_width=True)
     
-    # ── ONGLET 1 : DASHBOARD ─────────────────────────────────────────────────
-    with tabs[1]:
-        st.header("DASHBOARD GRANDS COMPTES — MG & BATAM")
+    st.markdown("---")
+    st.markdown("### 👥 Top 3 / Flop 3 Clients (MOIS EN COURS)")
+    
+    if 'Nom' in df_filt.columns:
+        ca_cli = df_filt.groupby('Nom')['Montant TTC'].sum().reset_index()
+        ca_cli = ca_cli.sort_values('Montant TTC', ascending=False)
+        
+        top3_cli = ca_cli.head(3)
+        flop3_cli = ca_cli.tail(3)
+        
+        col_tc, col_fc = st.columns(2)
+        
+        with col_tc:
+            st.markdown("#### 🏆 Top 3 Clients")
+            for i, (_, row) in enumerate(top3_cli.iterrows(), 1):
+                st.markdown(f"""
+                <div style="background: linear-gradient(135deg, #636EFA 0%, #4A52D6 100%); 
+                padding: 20px; border-radius: 12px; margin-bottom: 10px; color: white;">
+                    <h3 style="margin:0;">#{i} {row['Nom']}</h3>
+                    <p style="font-size: 24px; margin: 10px 0 0 0; font-weight: bold;">{row['Montant TTC']:,.0f} TND</p>
+                </div>
+                """, unsafe_allow_html=True)
+        
+        with col_fc:
+            st.markdown("#### 📉 Flop 3 Clients")
+            for i, (_, row) in enumerate(flop3_cli.iterrows(), 1):
+                st.markdown(f"""
+                <div style="background: linear-gradient(135deg, #AB63FA 0%, #8F42D6 100%); 
+                padding: 20px; border-radius: 12px; margin-bottom: 10px; color: white;">
+                    <h3 style="margin:0;">#{i} {row['Nom']}</h3>
+                    <p style="font-size: 24px; margin: 10px 0 0 0; font-weight: bold;">{row['Montant TTC']:,.0f} TND</p>
+                </div>
+                """, unsafe_allow_html=True)
+
+# ============================================================
+with tabs[1]:
+    st.header("DASHBOARD GLOBAL — MG & BATAM")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("CA par année")
+        if 'Année' in df_vc.columns:
+            ca_year = df_vc.groupby('Année')['Montant TTC'].sum().reset_index()
+            fig = plot_bar_with_labels(ca_year, 'Année', 'Montant TTC', "CA par année", COLORS['primary'])
+            st.plotly_chart(fig, use_container_width=True)
+    
+    with col2:
+        st.subheader("Top 10 Conventions")
+        if 'Nom' in df_filt.columns:
+            top_conv = df_filt.groupby('Nom')['Montant TTC'].sum().nlargest(10).reset_index()
+            fig2 = plot_horizontal_bar(top_conv, 'Montant TTC', 'Nom', "Top 10 Conventions", COLORS['secondary'])
+            st.plotly_chart(fig2, use_container_width=True)
+    
+    col3, col4 = st.columns(2)
+    
+    with col3:
+        st.subheader("CA Mensuel N vs N-1")
+        df_comp = compare_annees(df_vc, annee_sel, annee_sel - 1, mois_sel if mois_sel != "Tous" else None)
+        if not df_comp.empty:
+            fig3 = plot_comparison(df_comp, 'Mois Nom', 'CA N', 'CA N-1', 
+                               f"CA Mensuel {annee_sel} vs {annee_sel-1}", "Mois", "TND")
+            st.plotly_chart(fig3, use_container_width=True)
+    
+    with col4:
+        st.subheader("CA 3 derniers mois")
+        maintenant = pd.Timestamp.now()
+        mois_list = []
+        for i in range(2, -1, -1):
+            m = maintenant - pd.DateOffset(months=i)
+            mois_list.append((m.year, m.month))
+        
+        df_3m = df_vc[df_vc['Année'].isin([x[0] for x in mois_list])].copy()
+        df_3m = df_3m[(df_3m['Année'].astype(str) + '-' + df_3m['Mois'].astype(str).str.zfill(2)).isin(
+            [f"{x[0]}-{x[1]:02d}" for x in mois_list]
+        )]
+        
+        ca_3m = df_3m.groupby(['Année', 'Mois'])['Montant TTC'].sum().reset_index()
+        ca_3m['Periode'] = ca_3m['Mois'].map(MOIS_NOMS) + ' ' + ca_3m['Année'].astype(str)
+        ca_3m = ca_3m.sort_values(['Année', 'Mois'])
+        
+        fig4 = plot_bar_with_labels(ca_3m, 'Periode', 'Montant TTC', "CA 3 derniers mois", COLORS['primary'])
+        st.plotly_chart(fig4, use_container_width=True)
+
+# ============================================================
+# ONGLET CA JOURNALIER (Graphique amélioré)
+# ============================================================
+with tabs[2]:
+    st.header("CA JOURNALIER — MG & BATAM")
+    st.caption("Tous les montants en TND TTC")
+    
+    df_jour_n = get_ca_journalier(df_vc, annee_sel, mois_sel if mois_sel != "Tous" else None)
+    df_jour_n1 = get_ca_journalier(df_vc, annee_sel - 1, mois_sel if mois_sel != "Tous" else None)
+    
+    df_jour_n.columns = ['Jour', 'CA N']
+    df_jour_n1.columns = ['Jour', 'CA N-1']
+    df_jour = df_jour_n.merge(df_jour_n1, on='Jour', how='outer').fillna(0)
+    df_jour['Variation %'] = ((df_jour['CA N'] - df_jour['CA N-1']) / df_jour['CA N-1'].replace(0, 1) * 100).round(1)
+    
+    st.dataframe(df_jour, use_container_width=True)
+    
+    fig_jour = plot_comparison(df_jour, 'Jour', 'CA N', 'CA N-1', 
+                           f"CA Journalier {annee_sel} vs {annee_sel-1}", "Jour", "TND")
+    fig_jour.update_layout(xaxis=dict(tickmode='linear', dtick=1, tickangle=45))
+    st.plotly_chart(fig_jour, use_container_width=True)
+
+# ============================================================
+# ONGLET CONVENTIONS (Avec sélection interactive)
+# ============================================================
+with tabs[3]:
+    st.header("PORTEFEUILLE CONVENTIONS — MG & BATAM")
+    
+    if not df_conventions.empty:
+        df_conv = df_conventions.copy()
+        cols_disp = ['SOCIETES', 'Code BC', 'Effectifs', 'CA 2025', 'POTENTIEL', 'MATURITE', 'SCORE']
+        cols_exist = [c for c in cols_disp if c in df_conv.columns]
+        
+        if cols_exist:
+            st.subheader("Liste des Conventions")
+            st.dataframe(df_conv[cols_exist], use_container_width=True)
+            
+            col_stat1, col_stat2, col_stat3 = st.columns(3)
+            col_stat1.metric("Nb Conventions", len(df_conv))
+            col_stat2.metric("Effectif Total", f"{df_conv['Effectifs'].sum():,.0f}" if 'Effectifs' in df_conv.columns else "N/A")
+            col_stat3.metric("CA 2025", f"{df_conv['CA 2025'].sum():,.0f}" if 'CA 2025' in df_conv.columns else "N/A")
+    
+    st.markdown("---")
+    st.subheader("📊 Analyse par Convention")
+    
+    all_conventions = df_vc['Nom'].dropna().unique().tolist() if 'Nom' in df_vc.columns else []
+    conv_select = st.selectbox("Sélectionner une convention", sorted(all_conventions))
+    
+    if conv_select and conv_select != "Tous":
+        df_conv_filt = df_vc[df_vc['Nom'] == conv_select].copy()
         
         col1, col2 = st.columns(2)
         
         with col1:
-            st.subheader("CA par année")
-            if 'Année' in df_vc.columns:
-                ca_year = df_vc.groupby('Année')['Montant TTC'].sum().reset_index()
-                fig = px.bar(ca_year, x='Année', y='Montant TTC', text_auto=',.0f',
-                            title="CA par année (toutes années)", color_discrete_sequence=['#00CC96'])
-                # FIX: use_container_width=True remplace width='stretch' (déprécié)
+            st.markdown("#### CA Mensuel en cours vs N-1")
+            df_comp_conv = compare_annees(df_conv_filt, annee_sel, annee_sel - 1)
+            if not df_comp_conv.empty:
+                fig = plot_comparison(df_comp_conv, 'Mois Nom', 'CA N', 'CA N-1',
+                                f"CA Mensuel {conv_select}", "Mois", "TND")
                 st.plotly_chart(fig, use_container_width=True)
         
         with col2:
-            st.subheader("Top 10 Conventions")
-            if 'Nom' in df_filt.columns:
-                top_conv = df_filt.groupby('Nom')['Montant TTC'].sum().nlargest(10).reset_index()
-                fig2 = px.bar(top_conv, x='Montant TTC', y='Nom', orientation='h',
-                             title="Top 10 Conventions", color_discrete_sequence=['#636EFA'])
-                st.plotly_chart(fig2, use_container_width=True)
+            st.markdown("#### CA Cumulé Annuel N vs N-1")
+            df_annee_n = df_conv_filt[df_conv_filt['Année'] == annee_sel].sort_values('Mois')
+            df_annee_n1 = df_conv_filt[df_conv_filt['Année'] == annee_sel - 1].sort_values('Mois')
+            
+            df_annee_n['CA Cumulé N'] = df_annee_n.groupby('Mois')['Montant TTC'].sum().cumsum()
+            df_annee_n1['CA Cumulé N-1'] = df_annee_n1.groupby('Mois')['Montant TTC'].sum().cumsum()
+            
+            df_cumul = df_annee_n[['Mois', 'CA Cumulé N']].merge(
+                df_annee_n1[['Mois', 'CA Cumulé N-1']], on='Mois', how='outer'
+            ).fillna(0)
+            df_cumul['Mois Nom'] = df_cumul['Mois'].map(MOIS_NOMS)
+            
+            fig2 = plot_comparison(df_cumul, 'Mois Nom', 'CA Cumulé N', 'CA Cumulé N-1',
+                                f"CA Cumulé {conv_select}", "Mois", "TND")
+            st.plotly_chart(fig2, use_container_width=True)
         
         col3, col4 = st.columns(2)
         
         with col3:
-            st.subheader("CA par mois")
-            if 'Mois' in df_filt.columns:
-                ca_mois = df_filt.groupby('Mois')['Montant TTC'].sum().reset_index()
-                fig3 = px.bar(ca_mois, x='Mois', y='Montant TTC', text_auto=',.0f',
-                             title="CA par mois", color_discrete_sequence=['#FF6692'])
+            st.markdown("#### Top Magasins")
+            if 'Magasin' in df_conv_filt.columns:
+                mag_ca = df_conv_filt.groupby('Magasin')['Montant TTC'].sum().nlargest(10).reset_index()
+                fig3 = plot_horizontal_bar(mag_ca, 'Montant TTC', 'Magasin', "Top Magasins", COLORS['secondary'])
                 st.plotly_chart(fig3, use_container_width=True)
         
         with col4:
-            st.subheader("Répartition CA Credit vs Cash")
-            ca_cash = df_vc['Montant TTC'].sum() if 'Montant TTC' in df_vc.columns else 0
-            ca_credit_total = df_credit['Montant TTC'].sum() if 'Montant TTC' in df_credit.columns and len(df_credit) > 0 else 0
-            fig4 = px.pie(values=[ca_cash, ca_credit_total], names=['Cash', 'Crédit Conso'],
-                         title="Répartition CA", hole=0.4)
-            st.plotly_chart(fig4, use_container_width=True)
+            st.markdown("#### Répartition Credit vs Cash")
+            ca_cash = df_conv_filt['Montant TTC'].sum() if 'Montant TTC' in df_conv_filt.columns else 0
+            ca_credit_total = df_credit[df_credit['Nom'] == conv_select]['Montant TTC'].sum() if 'Nom' in df_credit.columns else 0
+            if ca_cash > 0 or ca_credit_total > 0:
+                fig4 = plot_pie([ca_cash, ca_credit_total], ['Cash', 'Crédit'], "Répartition CA")
+                st.plotly_chart(fig4, use_container_width=True)
+
+# ============================================================
+# ONGLET MAGASINS
+# ============================================================
+with tabs[4]:
+    st.header("🏪 CA PAR MAGASIN")
     
-    # ── ONGLET 2 : CA JOURNALIER ──────────────────────────────────────────────
-    with tabs[2]:
-        st.header("CA JOURNALIER — MG & BATAM")
-        st.caption("Tous les montants en TND TTC")
-        
-        df_jour = df_filt.copy()
-        
-        st.subheader("SECTION 1 — CA GLOBAL PAR JOUR")
-        
-        ca_jour = df_jour.groupby('Jour')['Montant TTC'].sum().reset_index()
-        ca_jour.columns = ['Jour', 'CA Année N']
-        
-        if annee_sel > 2024:
-            df_n1 = df_vc[(df_vc['Année'] == annee_sel - 1)]
-            if mois_sel != "Tous":
-                df_n1 = df_n1[df_n1['Mois'] == mois_sel]
-            ca_jour_n1 = df_n1.groupby('Jour')['Montant TTC'].sum().reset_index()
-            ca_jour_n1.columns = ['Jour', 'CA Année N-1']
-            ca_jour = ca_jour.merge(ca_jour_n1, on='Jour', how='outer').fillna(0)
-            ca_jour['Variation %'] = ((ca_jour['CA Année N'] - ca_jour['CA Année N-1']) / ca_jour['CA Année N-1'] * 100).round(1).replace([float('inf')], 100)
-        
-        st.dataframe(ca_jour, use_container_width=True)
-        
-        fig = px.bar(ca_jour, x='Jour', y='CA Année N', title=f"CA Journalier {annee_sel} - Mois {mois_sel}")
-        st.plotly_chart(fig, use_container_width=True)
+    df_n = df_filt.copy()
+    df_n1 = df_vc[(df_vc['Année'] == annee_sel - 1)]
+    if mois_sel != "Tous":
+        df_n1 = df_n1[df_n1['Mois'] == mois_sel]
     
-    # ── ONGLET 3 : CONVENTIONS ────────────────────────────────────────────────
-    with tabs[3]:
-        st.header("PORTEFEUILLE CONVENTIONS — MG & BATAM")
+    if 'Magasin' in df_n.columns:
+        ca_mag_n = df_n.groupby('Magasin')['Montant TTC'].sum().reset_index()
+        ca_mag_n.columns = ['Magasin', 'CA N']
         
-        if "conventions_signees" in data:
-            df = data["conventions_signees"]
-            
-            df_conv = df.copy()
-            cols_disp = ['SOCIETES', 'Code BC', 'Personne à contacter', 'N° TEL', 'EMAIL', 'Effectifs', 'CA 2025', 'POTENTIEL', 'MATURITE', 'SCORE', 'ACTION A SUIVRE']
-            cols_exist = [c for c in cols_disp if c in df_conv.columns]
-            
-            if cols_exist:
-                st.subheader("Conventions Signées")
-                st.dataframe(df_conv[cols_exist], use_container_width=True)
-                
-                st.subheader("Statistiques")
-                col1, col2, col3, col4 = st.columns(4)
-                col1.metric("Nb Conventions", len(df_conv))
-                col2.metric("Effectif Total", f"{df_conv['Effectifs'].sum():,.0f}" if 'Effectifs' in df_conv.columns else "N/A")
-                col3.metric("CA 2025", f"{df_conv['CA 2025'].sum():,.0f}" if 'CA 2025' in df_conv.columns else "N/A")
-                
-                if 'MATURITE' in df_conv.columns:
-                    maturite_counts = df_conv['MATURITE'].value_counts()
-                    fig = px.pie(values=maturite_counts.values, names=maturite_counts.index, title="Répartition Maturité")
-                    st.plotly_chart(fig, use_container_width=True)
+        if 'Magasin' in df_n1.columns:
+            ca_mag_n1 = df_n1.groupby('Magasin')['Montant TTC'].sum().reset_index()
+            ca_mag_n1.columns = ['Magasin', 'CA N-1']
+            ca_mag = ca_mag_n.merge(ca_mag_n1, on='Magasin', how='outer').fillna(0)
+        else:
+            ca_mag = ca_mag_n.copy()
+            ca_mag['CA N-1'] = 0
         
-        st.markdown("---")
-        st.subheader("CA par Convention (données filtrées)")
-        
-        if 'Nom' in df_filt.columns and 'Montant TTC' in df_filt.columns:
-            ca_conv = df_filt.groupby('Nom')['Montant TTC'].sum().nlargest(20).reset_index()
-            fig = px.bar(ca_conv, x='Nom', y='Montant TTC', text_auto=',.0f', title="Top 20 Conventions par CA")
-            st.plotly_chart(fig, use_container_width=True)
-    
-    # ── ONGLET 4 : MAGASINS ───────────────────────────────────────────────────
-    # FIX: était tabs[4] avec le label "🏫 EDC" → corrigé en "🏪 MAGASINS"
-    with tabs[4]:
-        st.header("🏪 CA PAR MAGASIN")
-        
-        df_n = df_filt.copy()
-        df_n1 = df_vc[(df_vc['Année'] == annee_sel - 1)]
-        if mois_sel != "Tous":
-            df_n1 = df_n1[df_n1['Mois'] == mois_sel]
-        
-        if 'Magasin' in df_n.columns:
-            ca_mag_n = df_n.groupby('Magasin')['Montant TTC'].sum().reset_index()
-            ca_mag_n.columns = ['Magasin', 'CA N']
-            
-            if 'Magasin' in df_n1.columns:
-                ca_mag_n1 = df_n1.groupby('Magasin')['Montant TTC'].sum().reset_index()
-                ca_mag_n1.columns = ['Magasin', 'CA N-1']
-                ca_mag = ca_mag_n.merge(ca_mag_n1, on='Magasin', how='outer').fillna(0)
-            else:
-                # FIX: log explicite si N-1 sans colonne Magasin (échec silencieux évité)
-                st.warning("Colonne 'Magasin' absente pour N-1 — évolution non calculable.")
-                ca_mag = ca_mag_n.copy()
-                ca_mag['CA N-1'] = 0
-            
-            ca_mag['Évolution %'] = ((ca_mag['CA N'] - ca_mag['CA N-1']) / ca_mag['CA N-1'] * 100).round(1).replace([float('inf')], 100).replace([-float('inf')], -100)
-            ca_mag['Évolution'] = ca_mag['CA N'] - ca_mag['CA N-1']
-            ca_mag = ca_mag.sort_values('CA N', ascending=False)
+        ca_mag['Évolution %'] = ((ca_mag['CA N'] - ca_mag['CA N-1']) / ca_mag['CA N-1'].replace(0, 1) * 100).round(1)
+        ca_mag = ca_mag.sort_values('CA N', ascending=False)
         
         st.subheader("CA Magasin N vs N-1")
-        if 'Magasin' in df_filt.columns:
-            st.dataframe(ca_mag, use_container_width=True)
-            
-            csv_mag = ca_mag.to_csv(index=False).encode('utf-8')
-            st.download_button("📥 Télécharger CSV CA Magasin", csv_mag, "ca_magasin_n_n1.csv", "text/csv")
-            
-            col_g1, col_g2 = st.columns(2)
-            
-            with col_g1:
-                st.subheader("Top 20 Magasins par CA")
-                fig = px.bar(ca_mag.head(20), x='Magasin', y='CA N', text_auto=',.0f', title="Top 20 Magasins par CA")
-                st.plotly_chart(fig, use_container_width=True)
-            
-            with col_g2:
-                st.subheader("Évolution N/N-1")
-                ca_mag_top = ca_mag.head(20).copy()
-                ca_mag_top['Évol_Category'] = ca_mag_top['Évolution %'].apply(
-                    lambda x: 'Hausse' if x > 0 else ('Baisse' if x < 0 else 'Stable')
-                )
-                fig2 = px.bar(ca_mag_top, x='Magasin', y='Évolution %',
-                             title="Évolution N/N-1 (%)", color='Évol_Category',
-                             color_discrete_map={'Hausse': '#00CC96', 'Baisse': '#EF553B', 'Stable': '#636EFA'})
-                st.plotly_chart(fig2, use_container_width=True)
+        st.dataframe(ca_mag, use_container_width=True)
         
-        st.markdown("---")
-        st.subheader("CA Magasin par Convention")
+        col_g1, col_g2 = st.columns(2)
         
-        if 'Nom' in df_filt.columns and 'Magasin' in df_filt.columns:
-            ca_mag_conv = df_filt.groupby(['Magasin', 'Nom'])['Montant TTC'].sum().reset_index()
-            ca_mag_conv = ca_mag_conv.pivot_table(index='Magasin', columns='Nom', values='Montant TTC', fill_value=0)
-            st.dataframe(ca_mag_conv, use_container_width=True)
-            
-            csv = ca_mag_conv.to_csv().encode('utf-8')
-            st.download_button("📥 Télécharger CSV Magasin x Convention", csv, "ca_magasin_convention.csv", "text/csv")
+        with col_g1:
+            st.subheader("Top 20 Magasins")
+            fig = plot_horizontal_bar(ca_mag.head(20), 'CA N', 'Magasin', "Top 20 Magasins", COLORS['primary'])
+            st.plotly_chart(fig, use_container_width=True)
         
-        st.markdown("---")
-        
-        st.subheader("Détails par magasin")
-        if 'Magasin' in df_filt.columns:
-            mag_summary = df_filt.groupby('Magasin').agg({
-                'Montant TTC': 'sum',
-                'N°': 'count'
-            }).reset_index()
-            mag_summary.columns = ['Magasin', 'CA Total', 'Nb Factures']
-            mag_summary = mag_summary.sort_values('CA Total', ascending=False)
-            st.dataframe(mag_summary, use_container_width=True)
-            
-            csv = mag_summary.to_csv(index=False).encode('utf-8')
-            st.download_button("📥 Télécharger CSV Magasins", csv, "ca_magasins.csv", "text/csv")
-    
-    # ── ONGLET 5 : EDC ───────────────────────────────────────────────────────
-    # FIX: était tabs[5] avec le label "🏪 MAGASINS" → corrigé en "🏫 EDC"
-    with tabs[5]:
-        st.header("🏫 CONVENTION EDC - Ministère de l'Education")
-        st.caption("Source: Navision VC.PARTIC.")
-        
-        df_edc = data.get("vc_edc", pd.DataFrame())
-        
-        if not df_edc.empty:
-            if 'Date comptabilisation' in df_edc.columns:
-                df_edc['Date'] = pd.to_datetime(df_edc['Date comptabilisation'], errors='coerce')
-                df_edc['Année'] = df_edc['Date'].dt.year
-                df_edc['Mois'] = df_edc['Date'].dt.month
-            
-            if 'Code magasin' in df_edc.columns and not code_magasin_df.empty:
-                df_edc['Magasin'] = df_edc['Code magasin'].apply(lambda x: get_magasin_name(x, code_magasin_df))
-            
-            col_annee = st.selectbox("Année N", [2026, 2025, 2024], index=0, key="edc_annee")
-            
-            df_n = df_edc[df_edc['Année'] == col_annee]
-            df_n1 = df_edc[df_edc['Année'] == col_annee - 1]
-            
-            ca_n = df_n['Montant TTC'].sum() if 'Montant TTC' in df_n.columns else 0
-            ca_n1 = df_n1['Montant TTC'].sum() if 'Montant TTC' in df_n1.columns else 0
-            ca_total = ca_n + ca_n1
-            
-            evol_annee = ((ca_n - ca_n1) / ca_n1 * 100) if ca_n1 > 0 else 0
-            nb_factures_n = len(df_n)
-
-            # FIX: panier moyen protégé contre division par zéro et valeur 0 trompeuse
-            if nb_factures_n > 0 and ca_n > 0:
-                panier_moyen = f"{ca_n / nb_factures_n:,.0f} DT"
-            else:
-                panier_moyen = "N/A"
-            
-            st.subheader("KPIS GLOBAUX")
-            col_k1, col_k2, col_k3, col_k4, col_k5 = st.columns(5)
-            col_k1.metric(f"CA {col_annee}", f"{ca_n:,.0f} DT", delta=f"{evol_annee:+.1f}%")
-            col_k2.metric(f"CA {col_annee-1}", f"{ca_n1:,.0f} DT")
-            col_k3.metric("CA Total", f"{ca_total:,.0f} DT")
-            col_k4.metric("Nb Factures", nb_factures_n)
-            col_k5.metric("Panier Moyen", panier_moyen)
-            
-            st.subheader("ÉVOLUTION ANNUELLE")
-            evol_annuelle = []
-            for annee in [2024, 2025, 2026]:
-                df_a = df_edc[df_edc['Année'] == annee]
-                ca_a = df_a['Montant TTC'].sum() if 'Montant TTC' in df_a.columns else 0
-                nb_a = len(df_a)
-                panier = ca_a / nb_a if nb_a > 0 else 0
-                evol = 0
-                if annee > 2024:
-                    df_prec = df_edc[df_edc['Année'] == annee - 1]
-                    ca_prec = df_prec['Montant TTC'].sum() if 'Montant TTC' in df_prec.columns else 0
-                    evol = ((ca_a - ca_prec) / ca_prec * 100) if ca_prec > 0 else 0
-                evol_annuelle.append({
-                    'Année': annee,
-                    'CA TTC': ca_a,
-                    'Nb': nb_a,
-                    'Panier': panier,
-                    'Évol CA': evol
-                })
-            
-            df_evol = pd.DataFrame(evol_annuelle)
-            st.dataframe(df_evol, use_container_width=True)
-            
-            st.subheader(f"DÉTAIL MENSUEL {col_annee} + N-1 ({col_annee - 1})")
-            
-            nb_mois_n = df_n.groupby('Mois').agg({
-                'Montant TTC': ['sum', 'count']
-            }).reset_index()
-            nb_mois_n.columns = ['Mois', f'CA {col_annee}', 'Nb_N']
-            nb_mois_n[f'Panier {col_annee}'] = nb_mois_n[f'CA {col_annee}'] / nb_mois_n['Nb_N']
-            
-            nb_mois_n1 = df_n1.groupby('Mois').agg({
-                'Montant TTC': ['sum', 'count']
-            }).reset_index()
-            nb_mois_n1.columns = ['Mois', f'CA {col_annee-1}', 'Nb_N1']
-            nb_mois_n1[f'Panier {col_annee-1}'] = nb_mois_n1[f'CA {col_annee-1}'] / nb_mois_n1['Nb_N1']
-            
-            ca_mois = nb_mois_n.merge(nb_mois_n1, on='Mois', how='outer').fillna(0)
-            ca_mois['Δ CA'] = ca_mois[f'CA {col_annee}'] - ca_mois[f'CA {col_annee-1}']
-            # FIX: remplacement de replace() chaîné par une approche numpy-safe
-            ca_mois['Δ %'] = ca_mois.apply(
-                lambda row: round((row['Δ CA'] / row[f'CA {col_annee-1}'] * 100), 1)
-                if row[f'CA {col_annee-1}'] != 0 else (100 if row['Δ CA'] > 0 else -100),
-                axis=1
+        with col_g2:
+            st.subheader("Évolution N/N-1")
+            ca_mag_top = ca_mag.head(20).copy()
+            ca_mag_top['Évol_Category'] = ca_mag_top['Évolution %'].apply(
+                lambda x: 'Hausse' if x > 0 else ('Baisse' if x < 0 else 'Stable')
             )
-            
-            mois_noms = {1: 'Janvier', 2: 'Février', 3: 'Mars', 4: 'Avril', 5: 'Mai', 6: 'Juin',
-                        7: 'Juillet', 8: 'Août', 9: 'Septembre', 10: 'Octobre', 11: 'Novembre', 12: 'Décembre'}
-            ca_mois['Mois Nom'] = ca_mois['Mois'].map(mois_noms)
-            
-            # FIX: colonne dupliquée supprimée (f'CA {col_annee-1}' était listée deux fois)
-            cols_aff = ['Mois', 'Mois Nom', f'CA {col_annee}', 'Nb_N', f'Panier {col_annee}',
-                        f'CA {col_annee-1}', 'Nb_N1', f'Panier {col_annee-1}', 'Δ CA', 'Δ %']
-            cols_aff_exist = [c for c in cols_aff if c in ca_mois.columns]
-            st.dataframe(ca_mois[cols_aff_exist], use_container_width=True)
-            
-            st.subheader("RÉPARTITION PAR MAGASIN")
-            filtre_mois = st.selectbox("Filtre mois", ["Tous"] + list(range(1, 13)), key="filtre_mois_edc")
-            
-            df_mag_filt = df_n if filtre_mois == "Tous" else df_n[df_n['Mois'] == filtre_mois]
-            
-            ca_mag = df_mag_filt.groupby('Magasin').agg({
+            fig2 = px.bar(ca_mag_top, x='Évolution %', y='Magasin', orientation='h',
+                         title="Évolution N/N-1 (%)", color='Évol_Category',
+                         color_discrete_map={'Hausse': COLORS['primary'], 'Baisse': COLORS['warning'], 'Stable': COLORS['secondary']})
+            st.plotly_chart(fig2, use_container_width=True)
+
+# ============================================================
+# ONGLET EDC (Simplifié)
+# ============================================================
+with tabs[5]:
+    st.header("🏫 CONVENTION EDC - Ministère de l'Education")
+    
+    if not df_edc.empty:
+        col_annee = st.selectbox("Année N", [2026, 2025, 2024], index=0, key="edc_annee")
+        
+        df_n = df_edc[df_edc['Année'] == col_annee]
+        df_n1 = df_edc[df_edc['Année'] == col_annee - 1]
+        
+        ca_n = df_n['Montant TTC'].sum() if 'Montant TTC' in df_n.columns else 0
+        ca_n1 = df_n1['Montant TTC'].sum() if 'Montant TTC' in df_n1.columns else 0
+        evol = ((ca_n - ca_n1) / ca_n1 * 100) if ca_n1 > 0 else 0
+        nb_factures = len(df_n)
+        panier = ca_n / nb_factures if nb_factures > 0 else 0
+        
+        col_k1, col_k2, col_k3, col_k4 = st.columns(4)
+        col_k1.metric(f"CA {col_annee}", f"{ca_n:,.0f} DT", delta=f"{evol:+.1f}%")
+        col_k2.metric(f"CA {col_annee-1}", f"{ca_n1:,.0f} DT")
+        col_k3.metric("Nb Factures", nb_factures)
+        col_k4.metric("Panier Moyen", f"{panier:,.0f} DT")
+        
+        st.markdown("---")
+        st.markdown("### 📊 Répartition par Durée d'Échéance")
+        
+        if 'Nbr_Mois_Echance' in df_edc.columns:
+            echeance = df_n.groupby('Nbr_Mois_Echance').agg({
                 'Montant TTC': 'sum',
                 'N°': 'count'
             }).reset_index()
-            ca_mag.columns = ['Magasin', 'CA', 'Nb']
-            ca_mag = ca_mag.sort_values('CA', ascending=False)
-            st.dataframe(ca_mag, use_container_width=True)
+            echeance.columns = ['Nb Mois', 'CA TTC', 'Nb']
+            echeance['Part %'] = (echeance['CA TTC'] / echeance['CA TTC'].sum() * 100).round(1)
+            echeance = echeance.sort_values('CA TTC', ascending=False)
             
-            csv_mag = ca_mag.to_csv(index=False).encode('utf-8')
-            st.download_button("📥 Télécharger CSV Magasin", csv_mag, "ca_magasin_edc.csv", "text/csv")
+            fig_echeance = px.bar(echeance, x='Nb Mois', y='CA TTC', title="Répartition par Échéance",
+                             text='Part %', color_discrete_sequence=[COLORS['primary']])
+            fig_echeance.update_traces(textposition='outside')
+            fig_echeance.update_layout(template='plotly_white', height=400)
+            st.plotly_chart(fig_echeance, use_container_width=True)
             
-            st.subheader("RÉPARTITION PAR DURÉE D'ÉCHÉANCE")
-            if 'Nbr_Mois_Echance' in df_edc.columns:
-                echeance = df_edc.groupby('Nbr_Mois_Echance').agg({
-                    'Montant TTC': 'sum',
-                    'N°': 'count'
-                }).reset_index()
-                echeance.columns = ['Nb Mois', 'CA TTC', 'Nb']
-                echeance['Part %'] = (echeance['CA TTC'] / echeance['CA TTC'].sum() * 100).round(1)
-                echeance['Panier'] = echeance['CA TTC'] / echeance['Nb']
-                echeance = echeance.sort_values('CA TTC', ascending=False)
-                st.dataframe(echeance, use_container_width=True)
-            
-            st.subheader("DÉTAIL DES FACTURES")
-            st.dataframe(df_n, use_container_width=True)
-            csv_edc = df_n.to_csv(index=False).encode('utf-8')
-            st.download_button("📥 Télécharger CSV EDC", csv_edc, "factures_edc.csv", "text/csv")
-        else:
-            st.warning("Aucune donnée EDC trouvée")
-    
-    # ── ONGLET 6 : ALERTES ───────────────────────────────────────────────────
-    with tabs[6]:
-        st.header("🔔 ALERTES")
-        
-        st.subheader("Conventions inactives à réactiver")
-        
-        if 'Nom' in df_vc.columns and 'Date' in df_vc.columns:
-            df_2026 = df_vc[df_vc['Année'] == 2026]
-            last_facture = df_2026.groupby('Nom')['Date'].max().reset_index()
-            last_facture.columns = ['Convention', 'Dernière Facture']
-            
-            # FIX: date de référence dynamique (plus de date codée en dur)
-            today = pd.Timestamp.today().normalize()
-            last_facture['JoursSansFacture'] = (today - last_facture['Dernière Facture']).dt.days
-            inactives = last_facture[last_facture['JoursSansFacture'] > 30].sort_values('JoursSansFacture', ascending=False)
-            
-            st.dataframe(inactives, use_container_width=True)
-            
-            if len(inactives) > 0:
-                st.warning(f"⚠️ {len(inactives)} conventions sans facture depuis plus de 30 jours")
-        
-        st.subheader("Suivi des Actions")
-        
-        if "conventions_signees" in data:
-            df = data["conventions_signees"]
-            if 'ACTION A SUIVRE' in df.columns:
-                actions = df['ACTION A SUIVRE'].value_counts()
-                st.dataframe(actions, use_container_width=True)
-    
-    # ── ONGLET 7 : PERFORMANCE ────────────────────────────────────────────────
-    with tabs[7]:
-        # FIX: header manquant ajouté
-        st.header("📊 PERFORMANCE")
-        
-        col1, col2, col3, col4 = st.columns(4)
-        
-        if 'Année' in df_vc.columns:
-            ca_2024 = df_vc[df_vc['Année'] == 2024]['Montant TTC'].sum()
-            ca_2025 = df_vc[df_vc['Année'] == 2025]['Montant TTC'].sum()
-            ca_2026 = df_vc[df_vc['Année'] == 2026]['Montant TTC'].sum()
-            
-            evol_25_24 = ((ca_2025 - ca_2024) / ca_2024 * 100) if ca_2024 > 0 else 0
-            evol_26_25 = ((ca_2026 - ca_2025) / ca_2025 * 100) if ca_2025 > 0 else 0
-            
-            col1.metric("CA 2024", f"{ca_2024:,.0f} TND")
-            col2.metric("CA 2025", f"{ca_2025:,.0f} TND", delta=f"{evol_25_24:+.1f}%")
-            col3.metric("CA 2026 YTD", f"{ca_2026:,.0f} TND", delta=f"{evol_26_25:+.1f}%")
-            col4.metric("Panier Moyen", f"{df_filt['Montant TTC'].mean() if len(df_filt) > 0 else 0:,.0f} TND")
-        
-        st.subheader("KPIs Données Filtrées")
-        col_k1, col_k2, col_k3, col_k4 = st.columns(4)
-        col_k1.metric("CA Filtré", f"{df_filt['Montant TTC'].sum():,.0f} TND")
-        col_k2.metric("Nb Factures", len(df_filt))
-        col_k3.metric("Nb Conventions", df_filt['Nom'].nunique() if 'Nom' in df_filt.columns else 0)
-        col_k4.metric("Nb Magasins", df_filt['Magasin'].nunique() if 'Magasin' in df_filt.columns else 0)
+            st.dataframe(echeance, use_container_width=True)
+    else:
+        st.warning("Aucune donnée EDC trouvée")
 
-except Exception as e:
-    st.error(f"Erreur: {e}")
-    import traceback
-    st.code(traceback.format_exc())
+# ============================================================
+# ONGLET ALERTES
+# ============================================================
+with tabs[6]:
+    st.header("🔔 ALERTES")
+    
+    if 'Nom' in df_vc.columns and 'Date' in df_vc.columns:
+        df_2026 = df_vc[df_vc['Année'] == 2026]
+        last_facture = df_2026.groupby('Nom')['Date'].max().reset_index()
+        last_facture.columns = ['Convention', 'Dernière Facture']
+        
+        today = pd.Timestamp.today().normalize()
+        last_facture['JoursSansFacture'] = (today - last_facture['Dernière Facture']).dt.days
+        inactives = last_facture[last_facture['JoursSansFacture'] > 30].sort_values('JoursSansFacture', ascending=False)
+        
+        st.subheader("Conventions inactives à réactiver (>30 jours)")
+        st.dataframe(inactives, use_container_width=True)
+        
+        if len(inactives) > 0:
+            st.warning(f"⚠️ {len(inactives)} conventions sans facture depuis plus de 30 jours")
+
+# ============================================================
+# ONGLET PERFORMANCE
+# ============================================================
+with tabs[7]:
+    st.header("📊 PERFORMANCE")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    if 'Année' in df_vc.columns:
+        ca_2024 = df_vc[df_vc['Année'] == 2024]['Montant TTC'].sum()
+        ca_2025 = df_vc[df_vc['Année'] == 2025]['Montant TTC'].sum()
+        ca_2026 = df_vc[df_vc['Année'] == 2026]['Montant TTC'].sum()
+        
+        evol_25_24 = ((ca_2025 - ca_2024) / ca_2024 * 100) if ca_2024 > 0 else 0
+        evol_26_25 = ((ca_2026 - ca_2025) / ca_2025 * 100) if ca_2025 > 0 else 0
+        
+        col1.metric("CA 2024", f"{ca_2024:,.0f} TND")
+        col2.metric("CA 2025", f"{ca_2025:,.0f} TND", delta=f"{evol_25_24:+.1f}%")
+        col3.metric("CA 2026 YTD", f"{ca_2026:,.0f} TND", delta=f"{evol_26_25:+.1f}%")
+        col4.metric("Panier Moyen", f"{df_filt['Montant TTC'].mean() if len(df_filt) > 0 else 0:,.0f} TND")
+    
+    st.subheader("KPIs Données Filtrées")
+    col_k1, col_k2, col_k3, col_k4 = st.columns(4)
+    col_k1.metric("CA Filtré", f"{df_filt['Montant TTC'].sum():,.0f} TND")
+    col_k2.metric("Nb Factures", len(df_filt))
+    col_k3.metric("Nb Conventions", df_filt['Nom'].nunique() if 'Nom' in df_filt.columns else 0)
+    col_k4.metric("Nb Magasins", df_filt['Magasin'].nunique() if 'Magasin' in df_filt.columns else 0)
 
 st.markdown("---")
 st.caption("Dashboard B2B SMG — Mis à jour automatiquement | Source: VC.CONV. Business Central")
