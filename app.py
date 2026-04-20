@@ -26,11 +26,15 @@ FILES = {
 }
 
 COLORS = {
-    'primary': '#00CC96',
-    'secondary': '#636EFA',
-    'accent': '#FF6692',
-    'warning': '#EF553B',
-    'purple': '#AB63FA'
+    'primary': '#0F766E',
+    'secondary': '#1D4ED8',
+    'accent': '#F59E0B',
+    'warning': '#DC2626',
+    'purple': '#4338CA',
+    'ink': '#0F172A',
+    'muted': '#64748B',
+    'surface': '#F8FAFC',
+    'border': '#E2E8F0'
 }
 
 MOIS_NOMS = {1: 'Jan', 2: 'Fév', 3: 'Mar', 4: 'Avr', 5: 'Mai', 6: 'Juin',
@@ -155,6 +159,7 @@ def plot_bar_with_labels(df, x_col, y_col, title, color=COLORS['primary'], orien
                     color_discrete_sequence=[color])
     fig.update_layout(template='plotly_white', height=400)
     fig.update_traces(textposition='outside')
+    style_figure(fig)
     return fig
 
 def plot_line_with_markers(x, y, name, color=COLORS['primary'], dash=None):
@@ -177,12 +182,14 @@ def plot_comparison(df, x_col, y_n, y_n1, title, xlabel, ylabel):
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5),
         template='plotly_white', height=400
     )
+    style_figure(fig)
     return fig
 
 def plot_pie(data, names, title, colors=None):
     fig = px.pie(values=data, names=names, title=title, hole=0.4, 
                 color_discrete_sequence=colors or [COLORS['primary'], COLORS['secondary'], COLORS['accent']])
     fig.update_layout(template='plotly_white', height=400)
+    style_figure(fig)
     return fig
 
 def plot_horizontal_bar(df, x_col, y_col, title, top_n=10, color=COLORS['secondary']):
@@ -202,28 +209,277 @@ def plot_horizontal_bar(df, x_col, y_col, title, top_n=10, color=COLORS['seconda
                     color_discrete_sequence=[color])
         fig.update_layout(template='plotly_white', height=400, yaxis=dict(autorange='reversed'))
         fig.update_traces(textposition='outside')
+        style_figure(fig)
         return fig
     except Exception as e:
         fig = go.Figure()
         fig.update_layout(title=title, template='plotly_white', height=400)
         return fig
 
+def style_figure(fig):
+    fig.update_layout(
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='white',
+        font=dict(color=COLORS['ink']),
+        title=dict(font=dict(size=18, color=COLORS['ink'])),
+        margin=dict(l=24, r=24, t=60, b=24)
+    )
+    fig.update_xaxes(showgrid=False, zeroline=False)
+    fig.update_yaxes(gridcolor='rgba(148, 163, 184, 0.18)', zeroline=False)
+
+def inject_custom_css():
+    st.markdown(f"""
+    <style>
+    .stApp {{
+        background:
+            radial-gradient(circle at top left, rgba(29, 78, 216, 0.10), transparent 30%),
+            radial-gradient(circle at top right, rgba(15, 118, 110, 0.12), transparent 26%),
+            linear-gradient(180deg, #f8fbff 0%, #f7fafc 48%, #eef5f9 100%);
+    }}
+    .block-container {{
+        padding-top: 1.2rem;
+        padding-bottom: 2.5rem;
+    }}
+    [data-testid="stSidebar"] {{
+        background: linear-gradient(180deg, #0f172a 0%, #172554 100%);
+        border-right: 1px solid rgba(255,255,255,0.06);
+    }}
+    [data-testid="stSidebar"] * {{
+        color: #E2E8F0;
+    }}
+    [data-testid="stSidebar"] .stButton button {{
+        background: linear-gradient(135deg, #14B8A6 0%, #0F766E 100%);
+        border: none;
+        border-radius: 12px;
+        font-weight: 600;
+    }}
+    [data-testid="stSidebar"] .stButton button:hover {{
+        background: linear-gradient(135deg, #0F766E 0%, #115E59 100%);
+    }}
+    .hero-panel {{
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(135deg, #0f172a 0%, #172554 52%, #0f766e 100%);
+        color: white;
+        padding: 1.4rem 1.6rem;
+        border-radius: 24px;
+        border: 1px solid rgba(255,255,255,0.08);
+        box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18);
+        margin-bottom: 1rem;
+    }}
+    .hero-panel::after {{
+        content: "";
+        position: absolute;
+        inset: auto -80px -90px auto;
+        width: 220px;
+        height: 220px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.08);
+    }}
+    .hero-kicker {{
+        display: inline-block;
+        margin-bottom: 0.8rem;
+        padding: 0.3rem 0.7rem;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.10);
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+    }}
+    .hero-title {{
+        margin: 0;
+        font-size: 2.2rem;
+        line-height: 1.05;
+        font-weight: 800;
+    }}
+    .hero-subtitle {{
+        margin: 0.65rem 0 0 0;
+        max-width: 780px;
+        color: rgba(255,255,255,0.82);
+        font-size: 1rem;
+    }}
+    .hero-meta {{
+        margin-top: 1rem;
+        display: flex;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+    }}
+    .hero-chip {{
+        padding: 0.45rem 0.8rem;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.12);
+        border: 1px solid rgba(255,255,255,0.08);
+        font-size: 0.86rem;
+    }}
+    .section-title {{
+        margin-top: 0.35rem;
+        margin-bottom: 0.8rem;
+        font-size: 1.15rem;
+        font-weight: 800;
+        color: {COLORS['ink']};
+    }}
+    .stat-card {{
+        background: rgba(255,255,255,0.88);
+        backdrop-filter: blur(10px);
+        border: 1px solid {COLORS['border']};
+        border-radius: 20px;
+        padding: 1rem 1.1rem;
+        box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
+        min-height: 132px;
+    }}
+    .stat-label {{
+        color: {COLORS['muted']};
+        font-size: 0.86rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        font-weight: 700;
+    }}
+    .stat-value {{
+        margin-top: 0.55rem;
+        color: {COLORS['ink']};
+        font-size: 1.8rem;
+        font-weight: 800;
+        line-height: 1.1;
+    }}
+    .stat-delta {{
+        margin-top: 0.5rem;
+        font-size: 0.95rem;
+        font-weight: 700;
+    }}
+    .delta-positive {{ color: {COLORS['primary']}; }}
+    .delta-negative {{ color: {COLORS['warning']}; }}
+    .delta-neutral {{ color: {COLORS['secondary']}; }}
+    .insight-card {{
+        background: linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(248,250,252,0.96) 100%);
+        border: 1px solid {COLORS['border']};
+        border-radius: 18px;
+        padding: 0.95rem 1.05rem;
+        margin-bottom: 0.8rem;
+        box-shadow: 0 10px 26px rgba(15, 23, 42, 0.05);
+    }}
+    .insight-rank {{
+        display: inline-block;
+        min-width: 38px;
+        padding: 0.2rem 0.55rem;
+        border-radius: 999px;
+        font-size: 0.76rem;
+        font-weight: 800;
+        color: white;
+        background: linear-gradient(135deg, #1D4ED8 0%, #4338CA 100%);
+    }}
+    .insight-rank.bad {{
+        background: linear-gradient(135deg, #F59E0B 0%, #DC2626 100%);
+    }}
+    .insight-name {{
+        margin-top: 0.7rem;
+        color: {COLORS['ink']};
+        font-weight: 700;
+        font-size: 1rem;
+    }}
+    .insight-value {{
+        margin-top: 0.3rem;
+        color: {COLORS['secondary']};
+        font-weight: 800;
+        font-size: 1.25rem;
+    }}
+    [data-testid="stTabs"] button[role="tab"] {{
+        height: 3rem;
+        border-radius: 14px;
+        padding: 0 1rem;
+        margin-right: 0.35rem;
+        background: rgba(255,255,255,0.65);
+        border: 1px solid rgba(148,163,184,0.18);
+    }}
+    [data-testid="stTabs"] button[aria-selected="true"] {{
+        background: linear-gradient(135deg, rgba(29,78,216,0.12) 0%, rgba(15,118,110,0.14) 100%);
+        border-color: rgba(29,78,216,0.22);
+    }}
+    [data-testid="stMetric"] {{
+        background: rgba(255,255,255,0.82);
+        border: 1px solid {COLORS['border']};
+        border-radius: 18px;
+        padding: 0.7rem 0.9rem;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+    }}
+    div[data-testid="stPlotlyChart"],
+    div[data-testid="stDataFrame"] {{
+        background: rgba(255,255,255,0.82);
+        border: 1px solid {COLORS['border']};
+        border-radius: 20px;
+        padding: 0.35rem;
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.05);
+    }}
+    </style>
+    """, unsafe_allow_html=True)
+
+def render_hero(title, subtitle, chips):
+    chips_html = "".join(f"<span class='hero-chip'>{chip}</span>" for chip in chips)
+    st.markdown(
+        f"""
+        <div class="hero-panel">
+            <div class="hero-kicker">PILOTAGE COMMERCIAL B2B</div>
+            <h1 class="hero-title">{title}</h1>
+            <p class="hero-subtitle">{subtitle}</p>
+            <div class="hero-meta">{chips_html}</div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+def render_section_title(title):
+    st.markdown(f"<div class='section-title'>{title}</div>", unsafe_allow_html=True)
+
+def render_stat_card(label, value, delta=None, tone='neutral'):
+    tone_class = {
+        'positive': 'delta-positive',
+        'negative': 'delta-negative',
+        'neutral': 'delta-neutral'
+    }.get(tone, 'delta-neutral')
+    delta_html = f"<div class='stat-delta {tone_class}'>{delta}</div>" if delta else ""
+    st.markdown(
+        f"""
+        <div class="stat-card">
+            <div class="stat-label">{label}</div>
+            <div class="stat-value">{value}</div>
+            {delta_html}
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+def render_rank_card(rank, name, value, variant='top'):
+    badge_class = "insight-rank" if variant == 'top' else "insight-rank bad"
+    st.markdown(
+        f"""
+        <div class="insight-card">
+            <span class="{badge_class}">#{rank}</span>
+            <div class="insight-name">{name}</div>
+            <div class="insight-value">{value}</div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
 # ============================================================
 # SECTION 4: UI LAYOUT
 # ============================================================
-st.title("📊 DASHBOARD PILOTAGE B2B — SMG")
+inject_custom_css()
 
-col_logo1, col_logo2 = st.columns([6, 1])
+col_brand, col_logo1, col_logo2 = st.columns([8, 1, 1])
+with col_brand:
+    render_hero(
+        "Dashboard Pilotage B2B",
+        "Une lecture plus claire des performances commerciales, des conventions actives et des signaux d'alerte pour SMG.",
+        ["Source VC.CONV. Business Central", "Vue direction commerciale", "Suivi multi-onglets"]
+    )
 with col_logo1:
     mg_url = get_logo_url(LOGO_MG_URL)
     if mg_url:
-        st.image(mg_url, width=100)
+        st.image(mg_url, width=92)
 with col_logo2:
     batam_url = get_logo_url(LOGO_BATAM_URL)
     if batam_url:
-        st.image(batam_url, width=100)
-
-st.caption("Source: VC.CONV. Business Central")
+        st.image(batam_url, width=92)
 
 if st.sidebar.button("🔄 Actualiser les données"):
     st.cache_data.clear()
@@ -271,6 +527,7 @@ if conv_sel != "Tous":
 
 tabs = st.tabs([
     "🏠 ACCUEIL",
+    "📈 DASHBOARD GLOBAL",
     "📅 CA JOURNALIER",
     "📋 CONVENTIONS",
     "🏪 MAGASINS",
@@ -283,7 +540,7 @@ tabs = st.tabs([
 # ONGLET ACCUEIL (KPIs + Tableaux clés + Graphiques globaux)
 # ============================================================
 with tabs[0]:
-    st.header("DASHBOARD GRANDS COMPTES — SMG")
+    render_section_title("Vue exécutive")
     
     col1, col2, col3, col4 = st.columns(4)
     
@@ -298,13 +555,17 @@ with tabs[0]:
     total_conventions = len(df_conventions) if not df_conventions.empty else 0
     convs_inactives = max(0, total_conventions - convs_actives_2026)
 
-    col1.metric("CA 2025", f"{ca_2025:,.0f} TND", delta=delta_2025)
-    col2.metric("CA 2026 YTD", f"{ca_2026_ytd:,.0f} TND", delta=delta_2026)
-    col3.metric("Conventions Actives", str(convs_actives_2026))
-    col4.metric("Conventions Inactives", str(convs_inactives), delta="à réactiver", delta_color="inverse")
-    
-    st.markdown("---")
-    st.subheader("CA par année & Top Conventions")
+    with col1:
+        render_stat_card("CA 2025", f"{ca_2025:,.0f} TND", delta_2025, 'positive' if ca_2025 >= ca_2024 else 'negative')
+    with col2:
+        render_stat_card("CA 2026 YTD", f"{ca_2026_ytd:,.0f} TND", delta_2026, 'positive' if ca_2026_ytd >= ca_2025 else 'negative')
+    with col3:
+        render_stat_card("Conventions actives", str(convs_actives_2026), "Portefeuille actif", 'neutral')
+    with col4:
+        render_stat_card("Conventions inactives", str(convs_inactives), "À réactiver", 'negative' if convs_inactives > 0 else 'positive')
+
+    st.markdown("")
+    render_section_title("Lecture rapide du chiffre d'affaires")
     
     col_g1, col_g2 = st.columns(2)
     
@@ -317,11 +578,11 @@ with tabs[0]:
     with col_g2:
         if 'Nom' in df_filt.columns:
             top_conv = df_filt.groupby('Nom')['Montant TTC'].sum().nlargest(10).reset_index()
-            fig2 = plot_horizontal_bar(top_conv, 'Montant TTC', 'Nom', "Top 10 Conventions", COLORS['secondary'])
+            fig2 = plot_horizontal_bar(top_conv, 'Montant TTC', 'Nom', "Top 10 Conventions", color=COLORS['secondary'])
             st.plotly_chart(fig2, use_container_width=True)
     
-    st.markdown("---")
-    st.subheader("CA Mensuel N vs N-1")
+    st.markdown("")
+    render_section_title("Comparaison temporelle")
     
     col_g3, col_g4 = st.columns(2)
     
@@ -339,20 +600,22 @@ with tabs[0]:
             m = maintenant - pd.DateOffset(months=i)
             mois_list.append((m.year, m.month))
         
-        df_3m = df_vc[df_vc['Année'].isin([x[0] for x in mois_list])].copy()
-        df_3m = df_3m[(df_3m['Année'].astype(str) + '-' + df_3m['Mois'].astype(str).str.zfill(2)).isin(
-            [f"{x[0]}-{x[1]:02d}" for x in mois_list]
-        )]
-        
-        ca_3m = df_3m.groupby(['Année', 'Mois'])['Montant TTC'].sum().reset_index()
-        ca_3m['Periode'] = ca_3m['Mois'].map(MOIS_NOMS) + ' ' + ca_3m['Année'].astype(str)
-        ca_3m = ca_3m.sort_values(['Année', 'Mois'])
+        df_3m = df_vc[df_vc[year_col].isin([x[0] for x in mois_list])].copy() if year_col else pd.DataFrame()
+        if year_col and not df_3m.empty:
+            df_3m = df_3m[(df_3m[year_col].astype(str) + '-' + df_3m['Mois'].astype(str).str.zfill(2)).isin(
+                [f"{x[0]}-{x[1]:02d}" for x in mois_list]
+            )]
+            ca_3m = df_3m.groupby([year_col, 'Mois'])['Montant TTC'].sum().reset_index()
+            ca_3m['Periode'] = ca_3m['Mois'].map(MOIS_NOMS) + ' ' + ca_3m[year_col].astype(str)
+            ca_3m = ca_3m.sort_values([year_col, 'Mois'])
+        else:
+            ca_3m = pd.DataFrame()
         
         fig4 = plot_bar_with_labels(ca_3m, 'Periode', 'Montant TTC', "CA 3 derniers mois", COLORS['primary'])
         st.plotly_chart(fig4, use_container_width=True)
     
-    st.markdown("---")
-    st.markdown("### 👥 Top 3 / Flop 3 Clients (MOIS EN COURS)")
+    st.markdown("")
+    render_section_title("Top 3 / Flop 3 clients du périmètre filtré")
     
     if 'Nom' in df_filt.columns:
         ca_cli = df_filt.groupby('Nom')['Montant TTC'].sum().reset_index()
@@ -362,28 +625,71 @@ with tabs[0]:
         flop3_cli = ca_cli.tail(3)
         
         col_tc, col_fc = st.columns(2)
-        
+
         with col_tc:
-            st.markdown("#### 🏆 Top 3 Clients")
+            st.markdown("#### Top 3 Clients")
             for i, (_, row) in enumerate(top3_cli.iterrows(), 1):
-                st.markdown(f"""
-                <div style="background: linear-gradient(135deg, #636EFA 0%, #4A52D6 100%); 
-                padding: 20px; border-radius: 12px; margin-bottom: 10px; color: white;">
-                    <h3 style="margin:0;">#{i} {row['Nom']}</h3>
-                    <p style="font-size: 24px; margin: 10px 0 0 0; font-weight: bold;">{row['Montant TTC']:,.0f} TND</p>
-                </div>
-                """, unsafe_allow_html=True)
-        
+                render_rank_card(i, row['Nom'], f"{row['Montant TTC']:,.0f} TND", 'top')
+
         with col_fc:
-            st.markdown("#### 📉 Flop 3 Clients")
+            st.markdown("#### Flop 3 Clients")
             for i, (_, row) in enumerate(flop3_cli.iterrows(), 1):
-                st.markdown(f"""
-                <div style="background: linear-gradient(135deg, #AB63FA 0%, #8F42D6 100%); 
-                padding: 20px; border-radius: 12px; margin-bottom: 10px; color: white;">
-                    <h3 style="margin:0;">#{i} {row['Nom']}</h3>
-                    <p style="font-size: 24px; margin: 10px 0 0 0; font-weight: bold;">{row['Montant TTC']:,.0f} TND</p>
-                </div>
-                """, unsafe_allow_html=True)
+                render_rank_card(i, row['Nom'], f"{row['Montant TTC']:,.0f} TND", 'flop')
+
+# ============================================================
+# ONGLET DASHBOARD GLOBAL
+# ============================================================
+with tabs[1]:
+    render_section_title("Dashboard global")
+    year_col = next((col for col in df_vc.columns if 'Ann' in col), None)
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.subheader("CA par année")
+        if year_col:
+            ca_year = df_vc.groupby(year_col)['Montant TTC'].sum().reset_index()
+            fig = plot_bar_with_labels(ca_year, year_col, 'Montant TTC', "CA par année", COLORS['primary'])
+            st.plotly_chart(fig, use_container_width=True)
+
+    with col2:
+        st.subheader("Top 10 Conventions")
+        if 'Nom' in df_filt.columns:
+            top_conv = df_filt.groupby('Nom')['Montant TTC'].sum().nlargest(10).reset_index()
+            fig2 = plot_horizontal_bar(top_conv, 'Montant TTC', 'Nom', "Top 10 Conventions", color=COLORS['secondary'])
+            st.plotly_chart(fig2, use_container_width=True)
+
+    col3, col4 = st.columns(2)
+
+    with col3:
+        st.subheader("CA mensuel N vs N-1")
+        df_comp = compare_annees(df_vc, annee_sel, annee_sel - 1, mois_sel if mois_sel != "Tous" else None)
+        if not df_comp.empty:
+            fig3 = plot_comparison(df_comp, 'Mois Nom', 'CA N', 'CA N-1',
+                                   f"CA Mensuel {annee_sel} vs {annee_sel-1}", "Mois", "TND")
+            st.plotly_chart(fig3, use_container_width=True)
+
+    with col4:
+        st.subheader("CA 3 derniers mois")
+        maintenant = pd.Timestamp.now()
+        mois_list = []
+        for i in range(2, -1, -1):
+            m = maintenant - pd.DateOffset(months=i)
+            mois_list.append((m.year, m.month))
+
+        df_3m = df_vc[df_vc[year_col].isin([x[0] for x in mois_list])].copy() if year_col else pd.DataFrame()
+        if year_col and not df_3m.empty:
+            df_3m = df_3m[(df_3m[year_col].astype(str) + '-' + df_3m['Mois'].astype(str).str.zfill(2)).isin(
+                [f"{x[0]}-{x[1]:02d}" for x in mois_list]
+            )]
+            ca_3m = df_3m.groupby([year_col, 'Mois'])['Montant TTC'].sum().reset_index()
+            ca_3m['Periode'] = ca_3m['Mois'].map(MOIS_NOMS) + ' ' + ca_3m[year_col].astype(str)
+            ca_3m = ca_3m.sort_values([year_col, 'Mois'])
+        else:
+            ca_3m = pd.DataFrame()
+
+        fig4 = plot_bar_with_labels(ca_3m, 'Periode', 'Montant TTC', "CA 3 derniers mois", COLORS['accent'])
+        st.plotly_chart(fig4, use_container_width=True)
 
 # ============================================================
 # ONGLET CA JOURNALIER (Graphique amélioré)
@@ -469,7 +775,7 @@ with tabs[3]:
             st.markdown("#### Top Magasins")
             if 'Magasin' in df_conv_filt.columns:
                 mag_ca = df_conv_filt.groupby('Magasin')['Montant TTC'].sum().nlargest(10).reset_index()
-                fig3 = plot_horizontal_bar(mag_ca, 'Montant TTC', 'Magasin', "Top Magasins", COLORS['secondary'])
+                fig3 = plot_horizontal_bar(mag_ca, 'Montant TTC', 'Magasin', "Top Magasins", color=COLORS['secondary'])
                 st.plotly_chart(fig3, use_container_width=True)
         
         with col4:
@@ -513,7 +819,7 @@ with tabs[4]:
         
         with col_g1:
             st.subheader("Top 20 Magasins")
-            fig = plot_horizontal_bar(ca_mag.head(20), 'CA N', 'Magasin', "Top 20 Magasins", COLORS['primary'])
+            fig = plot_horizontal_bar(ca_mag.head(20), 'CA N', 'Magasin', "Top 20 Magasins", color=COLORS['primary'])
             st.plotly_chart(fig, use_container_width=True)
         
         with col_g2:
