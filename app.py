@@ -462,7 +462,8 @@ def chart_scatter_risk(
 
 def chart_gauge(value: float, ref: float, title: str, h: int = 260) -> go.Figure:
     """Jauge d'atteinte CA N vs N-1."""
-    pct   = min(max((value / ref * 100) if ref > 0 else 0, 0), 150)
+    ref_safe = ref if ref > 0 else max(value, 1)
+    pct   = min(max((value / ref_safe * 100) if ref_safe > 0 else 0, 0), 150)
     color = C["green"] if pct >= 100 else (C["amber"] if pct >= 70 else C["red"])
     fig = go.Figure(go.Indicator(
         mode="gauge+number+delta",
@@ -470,23 +471,24 @@ def chart_gauge(value: float, ref: float, title: str, h: int = 260) -> go.Figure
         delta=dict(reference=ref, relative=True, valueformat=".1%"),
         title=dict(text=title, font=dict(size=13)),
         gauge=dict(
-            axis=dict(range=[0, ref * 1.5], tickformat=",.0f"),
+            axis=dict(range=[0, ref_safe * 1.5], tickformat=",.0f"),
             bar=dict(color=color, thickness=0.28),
             bgcolor="white",
             borderwidth=0,
             steps=[
-                dict(range=[0,         ref * 0.7],  color="rgba(220,38,38,0.06)"),
-                dict(range=[ref * 0.7, ref],         color="rgba(217,119,6,0.06)"),
-                dict(range=[ref,       ref * 1.5],   color="rgba(5,150,105,0.08)"),
+                dict(range=[0,              ref_safe * 0.7], color="rgba(220,38,38,0.06)"),
+                dict(range=[ref_safe * 0.7, ref_safe],       color="rgba(217,119,6,0.06)"),
+                dict(range=[ref_safe,       ref_safe * 1.5], color="rgba(5,150,105,0.08)"),
             ],
             threshold=dict(
                 line=dict(color=C["muted"], width=2),
-                thickness=0.8, value=ref,
+                thickness=0.8, value=ref_safe,
             ),
         ),
         number=dict(suffix=" TND", valueformat=",.0f"),
     ))
-    fig.update_layout(**_BASE, height=h, margin=dict(l=20, r=20, t=40, b=10))
+    gauge_layout = {**_BASE, "height": h, "margin": dict(l=20, r=20, t=40, b=10)}
+    fig.update_layout(**gauge_layout)
     return fig
 
 
