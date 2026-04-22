@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Recherche - CRM SMG{% endblock %}
+{% block content %}
+<div class="container-fluid">
+    <h2 class="mb-4">Recherche</h2>
+    
+    <div class="card p-3 mb-4">
+        <form method="get" class="d-flex gap-2">
+            <input type="text" name="q" class="form-control" placeholder="Rechercher par nom, prénom, téléphone, email..." value="{{ query }}">
+            <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Rechercher</button>
+        </form>
+    </div>
+    
+    {% if query %}
+    <div class="card">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Nom</th>
+                    <th>Prénom</th>
+                    <th>Téléphone</th>
+                    <th>Email</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for _, client in clients.iterrows() %}
+                <tr>
+                    <td>{{ client.Nom }}</td>
+                    <td>{{ client.Prenom }}</td>
+                    <td>{{ client.Telephone }}</td>
+                    <td>{{ client.Email }}</td>
+                    <td>
+                        <a href="{{ url_for('client_detail', client_id=client.ID) }}" class="btn btn-sm btn-primary">Voir</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% if clients.empty %}
+        <p class="text-center py-4 text-muted">Aucun résultat pour "{{ query }}"</p>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

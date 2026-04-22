@@ -1,0 +1,54 @@
+{
+  "title": "Analyse CA Avril 2026 - SMG",
+  "style": "gradient-modern",
+  "style_guidelines": {
+    "color_palette": "Deep navy (#0f172a) to purple (#7c3aed) gradient, white text, gold accent (#f59e0b)",
+    "typography": "Bold sans-serif headlines (48-64pt), clean body text (18-24pt), high contrast",
+    "layout": "Clean professional layout, centered titles, generous whitespace"
+  },
+  "aspect_ratio": "16:9",
+  "slides": [
+    {
+      "slide_number": 1,
+      "type": "title",
+      "title": "Analyse Commerciale Avril 2026",
+      "subtitle": "Chiffre d'Affaires VC - Période: 01-21 Avril 2026 vs 2025"
+    },
+    {
+      "slide_number": 2,
+      "type": "content",
+      "title": "Analyse Globale",
+      "key_points": ["CA N: 914 037 € (+25.4%)", "CA N-1: 729 166 €", "Panier moyen: +12.2%"]
+    },
+    {
+      "slide_number": 3,
+      "type": "content",
+      "title": "Top 5 Magasins",
+      "key_points": ["Magasin 111: +164.4%", "Magasin 116: +40.0%", "Magasin 311: +4.6%", "Magasin 409: +7.4%", "Magasin 140: +10.1%"]
+    },
+    {
+      "slide_number": 4,
+      "type": "content",
+      "title": "Flop 5 Magasins",
+      "key_points": ["Magasin 143: -87.3%", "Magasin 511: -37.8%", "Magasin 313: -37.3%", "Magasin 524: -43.9%", "Magasin 215: -23.0%"]
+    },
+    {
+      "slide_number": 5,
+      "type": "content",
+      "title": "Analyse par Convention",
+      "key_points": ["VC.CONV.: +4.0% (550k€)", "VC.CONSO.: +74.8% (345k€)", "VC.PARTIC.: +639% (18k€)"]
+    },
+    {
+      "slide_number": 6,
+      "type": "content",
+      "title": "Synthèse & Enseignements",
+      "key_points": ["Croissance globale +25.4%", "Magasin 111 star (+110k€)", "Polarisation réseau", "VC.CONSO. moteur croissance"]
+    },
+    {
+      "slide_number": 7,
+      "type": "content",
+      "title": "Plan d'Action",
+      "key_points": ["Diagnostic urgent Magasin 143", "Consolider Magasin 111", "Relancer VC.CONV.", "Action boutiques 511/313"]
+    }
+  ]
+}

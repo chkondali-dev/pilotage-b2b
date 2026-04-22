@@ -1,0 +1,53 @@
+COLUMNS:
+  Unnamed: 0
+  Unnamed: 1
+  Unnamed: 2
+  Unnamed: 3
+  Unnamed: 4
+  Unnamed: 5
+  Unnamed: 6
+  Unnamed: 7
+  Unnamed: 8
+  Unnamed: 9
+  Unnamed: 10
+  Unnamed: 11
+  Unnamed: 12
+  Unnamed: 13
+  Unnamed: 14
+  Unnamed: 15
+  Unnamed: 16
+  Unnamed: 17
+  Unnamed: 18
+  Unnamed: 19
+  Unnamed: 20
+  Unnamed: 21
+  Unnamed: 22
+  Unnamed: 23
+  Unnamed: 24
+  Unnamed: 25
+  Unnamed: 26
+  Unnamed: 27
+  Unnamed: 28
+  Unnamed: 29
+  Unnamed: 30
+  Unnamed: 31
+  Unnamed: 32
+  Unnamed: 33
+  Unnamed: 34
+
+NON_EMPTY_ROWS:
+ROW_0:  
+ROW_1: Colonne1, conventions en cours, Nbr d'effectifs, coordonnées, contacts, Commentaires, EMAIL, RANKING, prise de contact, date prise de contact, validation client, date validation client, juridique, date juridique, finance
+ROW_2: 4, TIS CIRCUITS, 650, Ahlem Ajmi , 50543878, demande d'organiser une réunion à ben Arous, ahlem.ajmi@allcircuits.com, 🌟🌟🌟, True, 2025-07-02 00:00:00, True, 2025-06-11 00:00:00, True, 2025-06-11 00:00:00, True
+ROW_3: 30, L'amicale de Vitalait, 700, Nizar, 27445341, en attente de confirmation d'une réunion, Sellami.KACEM@vitalait.net, 🌟🌟🌟, True, 2025-06-11 00:00:00, True, 2025-06-12 00:00:00, True, 2025-06-12 00:00:00, True
+ROW_4: commune de sidi bou said, walid nefzi, 93009074, w.nefzi@commune-sidibousaid.gov.tn, 🌟, True, 2025-06-12 00:00:00, True, 2025-06-16 00:00:00, True, 2025-06-16 00:00:00, True, 2025-06-24 00:00:00, Vrai_x000D_
+[20/08/2025 09:03] Vrai, 2025-08-20 00:00:00
+ROW_5: 38, NOUVELAIR , Najah CHAALALI , 29923033, reclamation.bagage@nouvelair.com, 🌟, True, 2025-06-12 00:00:00, True, 2025-06-24 00:00:00, False, True, 2025-07-11 00:00:00, False, En cours
+ROW_6: 31, Association des controleurs de CNSS, 700, Med salah, 22177815, La proposition a été envoyée et nous attendons la confirmation de la date de la réunion, après que les membres de l'amicale se seront réunis entre eux, atccnss2021@gmail.com, True, 2025-06-23 00:00:00, True, 2025-07-10 00:00:00, False, True, 2025-07-10 00:00:00, False
+ROW_7: centre technique de la chimie , 38, WAHID OUERGHI - DAF, 51087823, wahid.ouerghi@ctc.tn, True, 2025-06-18 00:00:00, True, 2025-07-10 00:00:00, True, 2025-07-10 00:00:00, En cours, nvx prospect, _x000D_
+[20/06/2025 11:55] contact_x000D_
+[10/07/2025 14:29] radhi a refuser_x000D_
+[11/07/2025 10:47] radhi a bloquer_x000D_
+[22/07/2025 09:00]  , 1
+ROW_8: 37, L'amicale de delice, 1500, mohamed nejib sakka, 98107908, REUNION LA SEMAINE PROCHAINE, Mohamednejib.sakka@groupedelice.com.tn, 🌟, True, 2025-06-24 00:00:00, True, 2025-07-11 00:00:00, False, False, False
+ROW_9: 12, L'amicale des enseignants d'éducation physique(aeeps), 3000, Mahdi Nebli, 94301828, en attente du dossier juridique: Engagement par l'amicale, aeeps2020@gmail.com, 🌟, True, 2025-06-12 00:00:00, True, 2025-07-11 00:00:00, False, False, False
