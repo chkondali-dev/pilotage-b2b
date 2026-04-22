@@ -31,8 +31,9 @@ from pathlib import Path
 
 # ==================== CONFIGURATION ====================
 # À MODIFIER SELON VOS PARAMÈTRES
-LOCAL_FOLDER = r"C:\Users\hachk\OneDrive - Société Magasin Général (SMG)\Bureau\2025"
+LOCAL_FOLDER = r"C:\Users\hachk\OneDrive - Société Magasin Général (SMG)\Documents\hamadi\grands compte\hamadi\dashbord convention\table vente\2025"
 GITHUB_REPO = "chkondali-dev/pilotage-b2b"
+TARGET_FOLDER = r"C:\Users\hachk\pilotage_b2b\2025"
 COMMIT_MESSAGE = f"Auto-sync {datetime.now().strftime('%Y-%m-%d %H:%M')}"
 
 # Extensions de fichiers à synchroniser
@@ -124,11 +125,28 @@ def upload_file(file_path, repo, token):
         return False, str(e)
 
 def run_git_sync(folder_path, repo):
-    """Méthode alternative avec git CLI."""
-    print(f"\n📂 Synchronisation du dossier: {folder_path}")
+    """Metthode alternative avec git CLI."""
+    import shutil
     
-    # Se déplacer dans le dossier
-    os.chdir(folder_path)
+    # Copier les fichiers vers le repo local
+    print(f"\n📂 Copie des fichiers vers le repo local...")
+    
+    # Creer le dossier cible si besoin
+    os.makedirs(TARGET_FOLDER, exist_ok=True)
+    
+    # Copier tous les fichiers
+    files_copied = 0
+    for f in Path(folder_path).glob("*"):
+        if f.is_file() and f.suffix in ['.xlsx', '.xlsm', '.csv']:
+            dest = Path(TARGET_FOLDER) / f.name
+            shutil.copy2(f, dest)
+            print(f"   -> {f.name}")
+            files_copied += 1
+    
+    print(f"   {files_copied} fichiers copies")
+    
+    # Se deplacer dans le repo
+    os.chdir(TARGET_FOLDER)
     
     # Configurer git si besoin
     subprocess.run(['git', 'config', '--global', 'user.email', 'sync@automatique.com'], capture_output=True)
