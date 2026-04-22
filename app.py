@@ -856,9 +856,10 @@ credit_public_groups = (
 
 # ── Compteurs risques ─────────────────────────────────────────
 if not risk_mat.empty:
-    nb_declin_fort = len(risk_mat[risk_mat["Statut"] == "🔴 Déclin fort"])
-    nb_inactif_cv  = len(risk_mat[risk_mat["Statut"] == "🔴 Inactif"])
-    nb_croissance  = len(risk_mat[risk_mat["Statut"].isin(["🟢 Croissance", "🟢 Nouveau"])])
+    statuts = risk_mat["Statut"].value_counts()
+    nb_declin_fort = statuts.get("DECLIN", 0) + statuts.get("DECLIN LEGER", 0)
+    nb_inactif_cv  = statuts.get("INACTIF", 0)
+    nb_croissance = statuts.get("CROISSANCE", 0) + statuts.get("NOUVEAU", 0)
 else:
     nb_declin_fort = nb_inactif_cv = nb_croissance = 0
 
@@ -1506,7 +1507,7 @@ with tabs[6]:
 
     if not risk_mat.empty:
         declining = risk_mat[
-            risk_mat["Statut"].isin(["🔴 Déclin fort", "🟡 Déclin"])
+            risk_mat["Statut"].isin(["DECLIN", "DECLIN LEGER"])
         ].copy()
         declining["Perte TND"] = (declining["CA N-1"] - declining["CA N"]).clip(lower=0)
         declining = declining.sort_values("Perte TND", ascending=False)
@@ -1535,7 +1536,7 @@ with tabs[6]:
 
     if not risk_mat.empty:
         opps = (
-            risk_mat[risk_mat["Statut"].isin(["🟢 Croissance", "🟢 Nouveau"])]
+            risk_mat[risk_mat["Statut"].isin(["CROISSANCE", "NOUVEAU"])]
             .sort_values("CA N", ascending=False)
             .head(10)
         )
