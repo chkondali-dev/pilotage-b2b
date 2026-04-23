@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Clients - CRM SMG{% endblock %}
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Liste des Clients</h2>
+        <a href="{{ url_for('add_client') }}" class="btn btn-primary"><i class="fas fa-plus me-2"></i>Nouveau Client</a>
+    </div>
+    
+    <div class="card p-3 mb-4">
+        <form method="get" class="d-flex gap-2">
+            <input type="text" name="search" class="form-control" placeholder="Rechercher par nom, prénom, téléphone..." value="{{ search }}">
+            <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i></button>
+        </form>
+    </div>
+    
+    <div class="card">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nom</th>
+                    <th>Prénom</th>
+                    <th>Téléphone</th>
+                    <th>Email</th>
+                    <th>Effectifs</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for _, client in clients.iterrows() %}
+                <tr>
+                    <td>{{ client.ID }}</td>
+                    <td>{{ client.Nom }}</td>
+                    <td>{{ client.Prenom }}</td>
+                    <td>{{ client.Telephone }}</td>
+                    <td>{{ client.Email }}</td>
+                    <td>{{ client.Effectifs }}</td>
+                    <td>
+                        <a href="{{ url_for('client_detail', client_id=client.ID) }}" class="btn btn-sm btn-primary">Voir</a>
+                        <a href="{{ url_for('edit_client', client_id=client.ID) }}" class="btn btn-sm btn-warning">Modifier</a>
+                        <a href="{{ url_for('delete_client', client_id=client.ID) }}" class="btn btn-sm btn-danger" onclick="return confirm('Êtes-vous sûr?')">Supprimer</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% if clients.empty %}
+        <p class="text-center py-4 text-muted">Aucun client trouvé</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
