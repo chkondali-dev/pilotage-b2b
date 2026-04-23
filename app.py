@@ -34,7 +34,11 @@ def load_excel(url):
     try:
         r = requests.get(url, timeout=30)
         if r.status_code == 200:
-            return pd.read_excel(BytesIO(r.content))
+            df = pd.read_excel(BytesIO(r.content), dtype=str)
+            for col in df.columns:
+                if col.startswith('Unnamed'):
+                    df = df.drop(columns=[col])
+            return df
     except Exception as e:
         st.error(f"Erreur chargement: {e}")
     return None
