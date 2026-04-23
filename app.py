@@ -1365,12 +1365,17 @@ with tabs[6]:
         st.warning("⚠️ Aucune donnée disponible.")
     else:
         df_consol["Année"]  = df_consol["_date"].dt.year
+        df_consol["Mois"]   = df_consol["_date"].dt.month
         df_consol["JMois"]  = df_consol["_date"].dt.to_period("M").astype(str)
 
         all_magasins = sorted(df_consol["_magasin"].dropna().unique().tolist())
+        all_mois     = sorted(df_consol["Mois"].dropna().unique().tolist())
         with st.sidebar:
             st.markdown("### Filtres")
             mag_sel = st.multiselect("Magasin(s)", all_magasins, default=[], format_func=lambda x: str(x))
+            mois_sel_pm = st.multiselect("Mois", all_mois,
+                                          default=all_mois,
+                                          format_func=lambda x: MOIS.get(x, str(x)))
             min_d = df_consol["_date"].min()
             max_d = df_consol["_date"].max()
             date_range = st.date_input("Période", value=(min_d.date(), max_d.date())) if pd.notna(min_d) else None
@@ -1382,6 +1387,8 @@ with tabs[6]:
         df_f = df_consol.copy()
         if mag_sel:
             df_f = df_f[df_f["_magasin"].isin(mag_sel)]
+        if mois_sel_pm:
+            df_f = df_f[df_f["Mois"].isin(mois_sel_pm)]
         if date_deb and date_fin:
             df_f = df_f[(df_f["_date"] >= pd.Timestamp(date_deb)) & (df_f["_date"] <= pd.Timestamp(date_fin))]
         df_f["_ca"] = pd.to_numeric(df_f["_ca"], errors="coerce")
@@ -1413,6 +1420,21 @@ with tabs[6]:
                 an1 = an - 1
                 d   = df_t[df_t["Année"].isin([an, an1])].groupby(["JMois", "Année"])["_ca"].sum().reset_index()
                 return d
+
+            section("CA par type — même période")
+            df_periode = df_f[df_f["Année"] == int(annee_sel)]
+            ca_type_per = df_periode.groupby("_type")["_ca"].sum().reset_index()
+            ca_type_per.columns = ["Type", "CA"]
+            if not ca_type_per.empty:
+                ca_type_per["%"] = (ca_type_per["CA"] / ca_type_per["CA"].sum() * 100).round(1)
+                pc1, pc2 = st.columns([1, 1])
+                with pc1:
+                    fig_pie_per = px.pie(ca_type_per, values="CA", names="Type", hole=0.4,
+                                         color_discrete_sequence=[C["blue"], C["green"], C["purple"]])
+                    fig_pie_per.update_layout(margin=dict(l=20, r=20, t=30, b=20))
+                    st.plotly_chart(fig_pie_per, width="stretch")
+                with pc2:
+                    st.dataframe(ca_type_per.rename(columns={"CA": "CA (TND)"}), width="stretch", use_container_width=True)
 
             col_types = st.columns(3)
             for idx, type_lbl in enumerate(TYPE_LABELS):
