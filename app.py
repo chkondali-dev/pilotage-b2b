@@ -1424,7 +1424,7 @@ with tabs[6]:
                         continue
 
                     n, n1, ev, nb, pan = _type_kpi(df_t)
-                    k1, k2, k3, k4 = st.columns(2)
+                    k1, k2, k3, k4 = st.columns(4)
                     k1.metric(f"CA {annee_sel}", f"{n:,.0f} TND", f"{ev:+.1f}%")
                     k2.metric(f"CA {annee_sel-1}", f"{n1:,.0f} TND")
                     k3.metric("Transactions", nb)
