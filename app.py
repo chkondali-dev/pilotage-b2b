@@ -1351,19 +1351,20 @@ with tabs[6]:
             df["_date"]   = pd.to_datetime(df[date_col], errors="coerce")
             df["_ca"]     = pd.to_numeric(df[ca_col], errors="coerce")
             df["_type"]   = src
-            if mag_col:
-                df["_magasin"] = df[mag_col].astype(str)
-            return df[["_date", "_ca", "_type", "_magasin", "Nom"] + list(df.columns)]
-        return pd.DataFrame()
+            df["_magasin"] = df[mag_col].astype(str) if mag_col else ""
+            return df[["_date", "_ca", "_type", "_magasin"]]
 
-    df_all_list = []
+    df_consol_list = []
     for key, label in TYPE_MAP.items():
         src = {"vc": df_vc_tmp, "vc_credit": df_cr_tmp, "vc_edc": df_edc_tmp}.get(key, pd.DataFrame())
         prepped = _prep_source(src, label)
         if not prepped.empty:
-            df_all_list.append(prepped)
+            df_consol_list.append(prepped)
 
-    df_consol = pd.concat(df_all_list, ignore_index=True) if df_all_list else pd.DataFrame()
+    if df_consol_list:
+        df_consol = pd.concat(df_consol_list, ignore_index=True, copy=False)[["_date", "_ca", "_type", "_magasin"]]
+    else:
+        df_consol = pd.DataFrame()
 
     if df_consol.empty:
         st.warning("⚠️ Aucune donnée disponible pour le pilotage par magasin.")
