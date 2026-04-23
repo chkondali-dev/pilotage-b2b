@@ -18,11 +18,11 @@ GITHUB_RAW = "https://raw.githubusercontent.com/chkondali-dev/pilotage-b2b/main/
 LOCAL_DATA = r"C:\Users\hachk\pilotage_b2b\2025"
 
 FILES = {
-    "vc": os.path.join(LOCAL_DATA, "Factures ventes enregistrees VC (4).xlsx"),
-    "vc_credit": os.path.join(LOCAL_DATA, "Factures ventes enregistrees VC credit conso.xlsx"),
-    "vc_edc": os.path.join(LOCAL_DATA, "Factures ventes enregistrees VC CONVENTION EDC.xlsx"),
-    "conventions": os.path.join(LOCAL_DATA, "TDC CONVENTION 1.xlsm"),
-    "code_magasin": os.path.join(LOCAL_DATA, "Code MAGASIN Business Central.xlsx"),
+    "vc": os.path.join(LOCAL_DATA, [f for f in os.listdir(LOCAL_DATA) if 'VC (4)' in f][0]),
+    "vc_credit": os.path.join(LOCAL_DATA, [f for f in os.listdir(LOCAL_DATA) if 'VC credit' in f][0]),
+    "vc_edc": os.path.join(LOCAL_DATA, [f for f in os.listdir(LOCAL_DATA) if 'VC CONVENTION EDC' in f][0]),
+    "conventions": os.path.join(LOCAL_DATA, [f for f in os.listdir(LOCAL_DATA) if 'TDC CONVENTION' in f][0]),
+    "code_magasin": os.path.join(LOCAL_DATA, [f for f in os.listdir(LOCAL_DATA) if 'Code MAGASIN' in f][0]),
 }
 
 COLORS = {
@@ -31,21 +31,19 @@ COLORS = {
 }
 
 @st.cache_data(ttl=3600)
-def load_excel(url_or_path):
+def load_excel(filepath):
     try:
-        if url_or_path.startswith('http'):
-            r = requests.get(url_or_path, timeout=30)
-            if r.status_code == 200:
-                df = pd.read_excel(BytesIO(r.content), engine='openpyxl')
-        else:
-            df = pd.read_excel(url_or_path, engine='openpyxl')
+        if not os.path.exists(filepath):
+            st.error(f"Fichier non trouve: {filepath}")
+            return None
+        df = pd.read_excel(filepath, engine='openpyxl')
         for col in df.columns:
             if str(col).startswith('Unnamed'):
                 df = df.drop(columns=[col])
         return df
     except Exception as e:
-        st.error(f"Erreur chargement: {e}")
-    return None
+        st.error(f"Erreur chargement {filepath}: {e}")
+        return None
 
 def load_all_data():
     with st.spinner("Chargement des donnees..."):
