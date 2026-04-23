@@ -5,6 +5,7 @@ Refactored: architecture modulaire, BI décisionnel, visualisation executive
 
 import streamlit as st
 import pandas as pd
+import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 import requests
@@ -115,8 +116,14 @@ def _map_magasins(df: pd.DataFrame, code_df: pd.DataFrame) -> pd.DataFrame:
     REMPLACE l'ancien get_magasin_name() appelé row-by-row via apply(lambda).
     Gain : O(1) merge vs O(n) dict lookups.
     """
-    if code_df.empty or "Code magasin" not in df.columns:
+    if code_df.empty:
         return df
+    
+    # Trouver colonne code dans le df source (plus flexible)
+    code_col_src = next((c for c in df.columns if "code" in c.lower() and "magasin" in c.lower()), None)
+    if not code_col_src:
+        return df
+    
     code_df = code_df.copy()
     code_df.columns = [c.strip() for c in code_df.columns]
     # Cherche la colonne code en premier
@@ -135,9 +142,9 @@ def _map_magasins(df: pd.DataFrame, code_df: pd.DataFrame) -> pd.DataFrame:
     mapping = code_df.set_index(code_col)[name_col].to_dict()
     df = df.copy()
     df["Magasin"] = (
-        df["Code magasin"].astype(str).str.strip()
+        df[code_col_src].astype(str).str.strip()
         .map(mapping)
-        .fillna(df["Code magasin"].astype(str))
+        .fillna(df[code_col_src].astype(str))
     )
     return df
 
@@ -213,6 +220,7 @@ def convention_risk_matrix(df_vc: pd.DataFrame, annee_n: int) -> pd.DataFrame:
     """
     Matrice risque / opportunité par convention.
     Classifie chaque convention selon CA et évolution N/N-1.
+    Version vectorisée pour performance.
     """
     if df_vc.empty or "Nom" not in df_vc.columns:
         return pd.DataFrame()
@@ -223,20 +231,23 @@ def convention_risk_matrix(df_vc: pd.DataFrame, annee_n: int) -> pd.DataFrame:
         (mat["CA N"] - mat["CA N-1"]) / mat["CA N-1"].replace(0, 1) * 100
     ).round(1)
 
-    def _classify(row):
-        if row["CA N"] == 0 and row["CA N-1"] == 0:
-            return "⚫ Aucun historique"
-        if row["CA N"] == 0:
-            return "🔴 Inactif"
-        if row["CA N-1"] == 0:
-            return "🟢 Nouveau"
-        if row["Évolution %"] <= -20:
-            return "🔴 Déclin fort"
-        if row["Évolution %"] < 0:
-            return "🟡 Déclin"
-        return "🟢 Croissance"
-
-    mat["Statut"] = mat.apply(_classify, axis=1)
+    # Vectorisation au lieu de apply() pour performance
+    conditions = [
+        (mat["CA N"] == 0) & (mat["CA N-1"] == 0),
+        mat["CA N"] == 0,
+        mat["CA N-1"] == 0,
+        mat["Évolution %"] <= -20,
+        mat["Évolution %"] < 0,
+    ]
+    choices = [
+        "⚫ Aucun historique",
+        "🔴 Inactif",
+        "🟢 Nouveau",
+        "🔴 Déclin fort",
+        "🟡 Déclin",
+    ]
+    mat["Statut"] = np.select(conditions, choices, default="🟢 Croissance")
+    
     return mat.sort_values("CA N", ascending=False)
 
 
@@ -288,7 +299,7 @@ def _empty(title: str, h: int = 380) -> go.Figure:
         xref="paper", yref="paper", x=0.5, y=0.5,
         showarrow=False, font=dict(color=C["muted"], size=14),
     )
-    return _base(fig.update_layout(title=title), h)
+    return _base(fig, h)
 
 
 def chart_bar(
@@ -395,6 +406,10 @@ def chart_waterfall(
     df_sorted = df_years.sort_values(year_col)
     years  = df_sorted[year_col].astype(str).tolist()
     vals   = df_sorted[val_col].tolist()
+    
+    if not vals or len(vals) < 1:
+        return _empty(title, h)
+    
     deltas = [vals[0]] + [vals[i] - vals[i - 1] for i in range(1, len(vals))]
     measure = ["absolute"] + ["relative"] * (len(deltas) - 1)
     texts = [f"{v/1e3:.0f}k" for v in deltas]
@@ -429,7 +444,7 @@ def chart_scatter_risk(
         "🟢 Croissance":     C["green"],
         "⚫ Aucun historique": C["muted"],
     }
-    max_ca = df["CA N"].max() or 1
+    max_ca = max(df["CA N"].max(), 1)  # Évite division par zéro
     fig = go.Figure()
     for statut, grp in df.groupby("Statut"):
         fig.add_trace(go.Scatter(
