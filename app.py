@@ -7,21 +7,22 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+import os
 import requests
 from io import BytesIO
-from urllib.parse import quote
 from datetime import datetime, timedelta
 
 st.set_page_config(page_title="Pilotage B2B - SMG", layout="wide", page_icon="📊")
 
 GITHUB_RAW = "https://raw.githubusercontent.com/chkondali-dev/pilotage-b2b/main/"
+LOCAL_DATA = r"C:\Users\hachk\pilotage_b2b\2025"
 
 FILES = {
-    "vc": quote("Factures ventes enregistrees VC (4).xlsx"),
-    "vc_credit": quote("Factures ventes enregistrees VC credit conso.xlsx"),
-    "vc_edc": quote("Factures ventes enregistrees VC CONVENTION EDC.xlsx"),
-    "conventions": quote("TDC CONVENTION 1.xlsm"),
-    "code_magasin": quote("Code MAGASIN Business Central.xlsx"),
+    "vc": os.path.join(LOCAL_DATA, "Factures ventes enregistrees VC (4).xlsx"),
+    "vc_credit": os.path.join(LOCAL_DATA, "Factures ventes enregistrees VC credit conso.xlsx"),
+    "vc_edc": os.path.join(LOCAL_DATA, "Factures ventes enregistrees VC CONVENTION EDC.xlsx"),
+    "conventions": os.path.join(LOCAL_DATA, "TDC CONVENTION 1.xlsm"),
+    "code_magasin": os.path.join(LOCAL_DATA, "Code MAGASIN Business Central.xlsx"),
 }
 
 COLORS = {
@@ -30,15 +31,18 @@ COLORS = {
 }
 
 @st.cache_data(ttl=3600)
-def load_excel(url):
+def load_excel(url_or_path):
     try:
-        r = requests.get(url, timeout=30)
-        if r.status_code == 200:
-            df = pd.read_excel(BytesIO(r.content), dtype=str)
-            for col in df.columns:
-                if col.startswith('Unnamed'):
-                    df = df.drop(columns=[col])
-            return df
+        if url_or_path.startswith('http'):
+            r = requests.get(url_or_path, timeout=30)
+            if r.status_code == 200:
+                df = pd.read_excel(BytesIO(r.content), engine='openpyxl')
+        else:
+            df = pd.read_excel(url_or_path, engine='openpyxl')
+        for col in df.columns:
+            if str(col).startswith('Unnamed'):
+                df = df.drop(columns=[col])
+        return df
     except Exception as e:
         st.error(f"Erreur chargement: {e}")
     return None
@@ -46,9 +50,8 @@ def load_excel(url):
 def load_all_data():
     with st.spinner("Chargement des donnees..."):
         dfs = {}
-        for name, filename in FILES.items():
-            url = GITHUB_RAW + filename
-            df = load_excel(url)
+        for name, filepath in FILES.items():
+            df = load_excel(filepath)
             if df is not None:
                 dfs[name] = df
         return dfs
