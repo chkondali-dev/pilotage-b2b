@@ -486,7 +486,7 @@ def chart_gauge(value: float, ref: float, title: str, h: int = 260) -> go.Figure
         ),
         number=dict(suffix=" TND", valueformat=",.0f"),
     ))
-    fig.update_layout(**_BASE, height=h, margin=dict(l=20, r=20, t=40, b=10))
+    fig.update_layout(template="plotly_white", height=h, margin=dict(l=20, r=20, t=40, b=10))
     return fig
 
 
