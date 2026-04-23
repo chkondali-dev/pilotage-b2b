@@ -805,6 +805,10 @@ nb_actives  = df_vc[df_vc["Année"] == annee_sel]["Nom"].dropna().nunique() \
 nb_total    = len(df_conv) if not df_conv.empty else 0
 nb_inact    = len(df_inactive)
 panier_moy  = df_filt["Montant TTC"].mean() if len(df_filt) > 0 else 0
+nb_transactions = len(df_filt) if len(df_filt) > 0 else 0
+panier_min = df_filt["Montant TTC"].min() if len(df_filt) > 0 else 0
+panier_max = df_filt["Montant TTC"].max() if len(df_filt) > 0 else 0
+panier_median = df_filt["Montant TTC"].median() if len(df_filt) > 0 else 0
 
 # ── Compteurs risques ─────────────────────────────────────────
 if not risk_mat.empty:
@@ -856,6 +860,14 @@ with tabs[0]:
         delta_color="inverse" if nb_inact > 0 else "off",
     )
     k5.metric("Panier moyen", f"{panier_moy:,.0f} TND")
+
+    # ── Statistiques journalières ────────────────────────────
+    section("Statistiques journalières")
+    s1, s2, s3, s4 = st.columns(4)
+    s1.metric("Nb transactions", nb_transactions)
+    s2.metric("Panier min", f"{panier_min:,.0f} TND")
+    s3.metric("Panier max", f"{panier_max:,.0f} TND")
+    s4.metric("Panier médian", f"{panier_median:,.0f} TND")
 
     # ── Évolution CA ──────────────────────────────────────────
     section("Évolution du chiffre d'affaires")
