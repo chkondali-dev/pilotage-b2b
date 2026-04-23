@@ -867,14 +867,14 @@ with tabs[0]:
         )
         fig_wf = chart_waterfall(ca_by_year, "Année", "Montant TTC",
                                   "CA par année — Waterfall évolution")
-        st.plotly_chart(fig_wf, use_container_width=True)
+        st.plotly_chart(fig_wf, width="stretch")
 
     with col_b:
         fig_gb = chart_grouped_bar(
             df_comp, "Mois Nom", "CA N", "CA N-1",
             f"CA Mensuel — {annee_sel} vs {annee_sel-1}", annee_sel,
         )
-        st.plotly_chart(fig_gb, use_container_width=True)
+        st.plotly_chart(fig_gb, width="stretch")
 
     # ── Portefeuille conventions ───────────────────────────────
     section("Portefeuille conventions — Performance")
@@ -886,14 +886,14 @@ with tabs[0]:
             top10, "Montant TTC", "Nom",
             f"Top 10 conventions — {annee_sel}", C["blue"], h=400, orientation="h",
         )
-        st.plotly_chart(fig_t10, use_container_width=True)
+        st.plotly_chart(fig_t10, width="stretch")
 
     with col_d:
         fig_var = chart_variation_bar(
             risk_mat.head(20), "Nom", "Évolution %",
             f"Évolution N/N-1 — Top 20 conventions", h=400,
         )
-        st.plotly_chart(fig_var, use_container_width=True)
+        st.plotly_chart(fig_var, width="stretch")
 
     # ── Carte risque + Top/Flop ────────────────────────────────
     section("Signaux décisionnels — Risques & Opportunités")
@@ -904,7 +904,7 @@ with tabs[0]:
             risk_mat.head(35), annee_sel,
             "Carte risque / opportunité — Toutes les conventions", h=400,
         )
-        st.plotly_chart(fig_sc, use_container_width=True)
+        st.plotly_chart(fig_sc, width="stretch")
 
     if "Nom" in df_filt.columns and len(df_filt) > 0:
         ca_cli = df_filt.groupby("Nom")["Montant TTC"].sum()
@@ -935,7 +935,7 @@ with tabs[1]:
             df_comp, "Mois Nom", "CA N", "CA N-1",
             f"Tendance mensuelle {annee_sel} vs {annee_sel-1}", annee_sel,
         )
-        st.plotly_chart(fig_line, use_container_width=True)
+        st.plotly_chart(fig_line, width="stretch")
 
     with col_t2:
         # Variation mensuelle — barres vertes/rouges
@@ -943,7 +943,7 @@ with tabs[1]:
             df_comp, "Mois Nom", "Variation %",
             f"Variation mensuelle % — {annee_sel} vs {annee_sel-1}",
         )
-        st.plotly_chart(fig_mvar, use_container_width=True)
+        st.plotly_chart(fig_mvar, width="stretch")
 
     # ── CA Journalier ──────────────────────────────────────────
     section("CA Journalier")
@@ -963,7 +963,7 @@ with tabs[1]:
         f"CA Journalier — {annee_sel} vs {annee_sel-1}", annee_sel, h=380,
     )
     fig_jour.update_xaxes(dtick=1, tickangle=45)
-    st.plotly_chart(fig_jour, use_container_width=True)
+    st.plotly_chart(fig_jour, width="stretch")
 
     # ── Rolling 3 mois + Jauge ─────────────────────────────────
     section("3 derniers mois glissants")
@@ -974,18 +974,18 @@ with tabs[1]:
             df_3m, "Periode", "Montant TTC",
             "CA Rolling 3 mois", C["blue"],
         )
-        st.plotly_chart(fig_3m, use_container_width=True)
+        st.plotly_chart(fig_3m, width="stretch")
 
     with col_r2:
         fig_gauge = chart_gauge(ca_n, ca_n1, f"Atteinte {annee_sel} vs {annee_sel-1}")
-        st.plotly_chart(fig_gauge, use_container_width=True)
+        st.plotly_chart(fig_gauge, width="stretch")
 
     # Données brutes en expander (aucun tableau visible par défaut)
     with st.expander("📄 Données brutes — CA Journalier"):
         df_jour["Variation %"] = (
             (df_jour["CA N"] - df_jour["CA N-1"]) / df_jour["CA N-1"].replace(0, 1) * 100
         ).round(1)
-        st.dataframe(df_jour, use_container_width=True)
+        st.dataframe(df_jour, width="stretch")
 
 
 # ══════════════════════════════════════════════════════════════
@@ -1000,7 +1000,7 @@ with tabs[2]:
         risk_mat, annee_sel,
         f"Matrice risque / opportunité — Portefeuille complet {annee_sel}", h=500,
     )
-    st.plotly_chart(fig_risk_full, use_container_width=True)
+    st.plotly_chart(fig_risk_full, width="stretch")
 
     with st.expander("📊 Tableau de pilotage conventions"):
         if not risk_mat.empty:
@@ -1008,7 +1008,7 @@ with tabs[2]:
                 "CA N":  f"CA {annee_sel}",
                 "CA N-1": f"CA {annee_sel-1}",
             })
-            st.dataframe(disp, use_container_width=True)
+            st.dataframe(disp, width="stretch")
 
     # ── Analyse individuelle ─���─���───────────────────────────────
     section("Analyse individuelle par convention")
@@ -1042,7 +1042,7 @@ with tabs[2]:
                 df_cv_comp, "Mois Nom", "CA N", "CA N-1",
                 f"CA Mensuel — {conv_detail}", annee_sel,
             )
-            st.plotly_chart(fig_cv_g, use_container_width=True)
+            st.plotly_chart(fig_cv_g, width="stretch")
 
         with col_cv2:
             # Cumulé
@@ -1058,7 +1058,7 @@ with tabs[2]:
                 df_cum, "Mois Nom", "CA Cum N", "CA Cum N-1",
                 f"CA Cumulé — {conv_detail}", annee_sel,
             )
-            st.plotly_chart(fig_cum, use_container_width=True)
+            st.plotly_chart(fig_cum, width="stretch")
 
         col_cv3, col_cv4 = st.columns(2)
         with col_cv3:
@@ -1072,7 +1072,7 @@ with tabs[2]:
                     mag, "Montant TTC", "Magasin",
                     "Top Magasins", C["purple"], h=360, orientation="h",
                 )
-                st.plotly_chart(fig_mag_cv, use_container_width=True)
+                st.plotly_chart(fig_mag_cv, width="stretch")
 
         with col_cv4:
             ca_cash   = df_cv[df_cv["Année"] == annee_sel]["Montant TTC"].sum()
@@ -1085,7 +1085,7 @@ with tabs[2]:
                     [ca_cash, ca_credit], ["Cash", "Crédit"],
                     f"Cash vs Crédit — {conv_detail}",
                 )
-                st.plotly_chart(fig_pie_cv, use_container_width=True)
+                st.plotly_chart(fig_pie_cv, width="stretch")
 
     # TDC conventions signées
     if not df_conv.empty:
@@ -1101,7 +1101,7 @@ with tabs[2]:
                 c_kpi3.metric("CA 2025 portefeuille",
                                f"{pd.to_numeric(df_conv['CA 2025'], errors='coerce').sum():,.0f} TND"
                                if "CA 2025" in df_conv.columns else "N/A")
-                st.dataframe(df_conv[cols_ok], use_container_width=True)
+                st.dataframe(df_conv[cols_ok], width="stretch")
 
 
 # ══════════════════════════════════════════════════════════════
@@ -1139,19 +1139,19 @@ with tabs[3]:
                 ca_mag.head(20), "CA N", "Magasin",
                 f"Top 20 magasins — CA {annee_sel}", C["blue"], h=520, orientation="h",
             )
-            st.plotly_chart(fig_mt, use_container_width=True)
+            st.plotly_chart(fig_mt, width="stretch")
 
         with col_m2:
             fig_mv = chart_variation_bar(
                 ca_mag.head(20), "Magasin", "Évolution %",
                 f"Évolution N/N-1 — Top 20 magasins", h=520,
             )
-            st.plotly_chart(fig_mv, use_container_width=True)
+            st.plotly_chart(fig_mv, width="stretch")
 
         with st.expander("📄 Données complètes réseau"):
             st.dataframe(
                 ca_mag.rename(columns={"CA N": f"CA {annee_sel}", "CA N-1": f"CA {annee_sel-1}"}),
-                use_container_width=True,
+                width="stretch",
             )
     else:
         st.info("Données magasins non disponibles (mapping code→nom absent).")
@@ -1202,7 +1202,7 @@ with tabs[4]:
                 fig_ech.update_yaxes(title="CA TTC (TND)")
                 # Overlay % labels
                 fig_ech.update_traces(text=ech["Label"].tolist(), textposition="outside")
-                st.plotly_chart(fig_ech, use_container_width=True)
+                st.plotly_chart(fig_ech, width="stretch")
 
             with col_ec2:
                 fig_pie_e = chart_pie(
@@ -1210,7 +1210,7 @@ with tabs[4]:
                     [f"{m} mois" for m in ech["Nbr_Mois_Echance"]],
                     "Part par échéance",
                 )
-                st.plotly_chart(fig_pie_e, use_container_width=True)
+                st.plotly_chart(fig_pie_e, width="stretch")
 
         section("Tendance mensuelle EDC")
         df_edc_comp = compare_years(df_edc, edc_yr, edc_yr - 1)
@@ -1219,7 +1219,7 @@ with tabs[4]:
                 df_edc_comp, "Mois Nom", "CA N", "CA N-1",
                 f"EDC mensuel — {edc_yr} vs {edc_yr-1}", edc_yr,
             )
-            st.plotly_chart(fig_edc_t, use_container_width=True)
+            st.plotly_chart(fig_edc_t, width="stretch")
     else:
         st.warning("⚠️ Aucune donnée EDC disponible.")
 
@@ -1246,10 +1246,10 @@ with tabs[5]:
             df_inactive,
             f"Conventions inactives — {len(df_inactive)} comptes sans facture depuis >30j",
         )
-        st.plotly_chart(fig_ia, use_container_width=True)
+        st.plotly_chart(fig_ia, width="stretch")
 
         with st.expander(f"📋 Liste complète ({len(df_inactive)} conventions)"):
-            st.dataframe(df_inactive, use_container_width=True)
+            st.dataframe(df_inactive, width="stretch")
     else:
         st.success("✅ Aucune convention inactive détectée (seuil : 30 jours).")
 
@@ -1270,7 +1270,7 @@ with tabs[5]:
                     declining.head(15), "Perte TND", "Nom",
                     "Perte CA vs N-1 (TND)", C["red"], h=460, orientation="h",
                 )
-                st.plotly_chart(fig_perte, use_container_width=True)
+                st.plotly_chart(fig_perte, width="stretch")
             else:
                 st.success("✅ Aucune convention en déclin.")
 
@@ -1280,7 +1280,7 @@ with tabs[5]:
                     declining.head(15), "Nom", "Évolution %",
                     "Variation % — Conventions en déclin", h=460,
                 )
-                st.plotly_chart(fig_dec_pct, use_container_width=True)
+                st.plotly_chart(fig_dec_pct, width="stretch")
 
     # ── Opportunités ───────────────────────────────────────────
     section("Opportunités — Conventions à fort potentiel")
@@ -1296,7 +1296,7 @@ with tabs[5]:
                 opps, "CA N", "Nom",
                 f"Top opportunités — CA {annee_sel}", C["green"], h=380, orientation="h",
             )
-            st.plotly_chart(fig_opp, use_container_width=True)
+            st.plotly_chart(fig_opp, width="stretch")
         else:
             st.info("Aucune convention en croissance détectée pour cette période.")
 
