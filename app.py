@@ -1424,11 +1424,10 @@ with tabs[6]:
                         continue
 
                     n, n1, ev, nb, pan = _type_kpi(df_t)
-                    k1, k2, k3, k4 = st.columns(4)
-                    k1.metric(f"CA {annee_sel}", f"{n:,.0f} TND", f"{ev:+.1f}%")
-                    k2.metric(f"CA {annee_sel-1}", f"{n1:,.0f} TND")
-                    k3.metric("Transactions", nb)
-                    k4.metric("Panier moyen", f"{pan:,.0f} TND")
+                    st.metric(f"CA {annee_sel}", f"{n:,.0f} TND", f"{ev:+.1f}%")
+                    st.metric(f"CA {annee_sel-1}", f"{n1:,.0f} TND")
+                    st.metric("Transactions", nb)
+                    st.metric("Panier moyen", f"{pan:,.0f} TND")
 
                     bar_d = _type_bar_mag(df_t)
                     if not bar_d.empty:
