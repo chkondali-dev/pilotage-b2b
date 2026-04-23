@@ -8,21 +8,24 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import os
-import requests
-from io import BytesIO
 from datetime import datetime, timedelta
 
 st.set_page_config(page_title="Pilotage B2B - SMG", layout="wide", page_icon="📊")
 
-GITHUB_RAW = "https://raw.githubusercontent.com/chkondali-dev/pilotage-b2b/main/"
 LOCAL_DATA = r"C:\Users\hachk\pilotage_b2b\2025"
 
+def list_files(pattern):
+    try:
+        return [f for f in os.listdir(LOCAL_DATA) if pattern in f][0]
+    except:
+        return None
+
 FILES = {
-    "vc": os.path.join(LOCAL_DATA, [f for f in os.listdir(LOCAL_DATA) if 'VC (4)' in f][0]),
-    "vc_credit": os.path.join(LOCAL_DATA, [f for f in os.listdir(LOCAL_DATA) if 'VC credit' in f][0]),
-    "vc_edc": os.path.join(LOCAL_DATA, [f for f in os.listdir(LOCAL_DATA) if 'VC CONVENTION EDC' in f][0]),
-    "conventions": os.path.join(LOCAL_DATA, [f for f in os.listdir(LOCAL_DATA) if 'TDC CONVENTION' in f][0]),
-    "code_magasin": os.path.join(LOCAL_DATA, [f for f in os.listdir(LOCAL_DATA) if 'Code MAGASIN' in f][0]),
+    "vc": os.path.join(LOCAL_DATA, list_files("VC (4)")),
+    "vc_credit": os.path.join(LOCAL_DATA, list_files("VC credit")),
+    "vc_edc": os.path.join(LOCAL_DATA, list_files("VC CONVENTION EDC")),
+    "conventions": os.path.join(LOCAL_DATA, list_files("TDC CONVENTION")),
+    "code_magasin": os.path.join(LOCAL_DATA, list_files("Code MAGASIN")),
 }
 
 COLORS = {
@@ -33,8 +36,8 @@ COLORS = {
 @st.cache_data(ttl=3600)
 def load_excel(filepath):
     try:
-        if not os.path.exists(filepath):
-            st.error(f"Fichier non trouve: {filepath}")
+        if not filepath or not os.path.exists(filepath):
+            st.error(f"Fichier non trouve")
             return None
         df = pd.read_excel(filepath, engine='openpyxl')
         for col in df.columns:
@@ -42,7 +45,7 @@ def load_excel(filepath):
                 df = df.drop(columns=[col])
         return df
     except Exception as e:
-        st.error(f"Erreur chargement {filepath}: {e}")
+        st.error(f"Erreur: {e}")
         return None
 
 def load_all_data():
@@ -61,7 +64,7 @@ def main():
     dfs = load_all_data()
     
     if not dfs:
-        st.error("Impossible de charger les donnees. Verifiez la connexion internet.")
+        st.error("Impossible de charger les donnees.")
         return
     
     tabs = st.tabs(["Accueil", "CA Journalier", "Conventions", "Magasins", "Alertes"])
@@ -77,7 +80,7 @@ def main():
             amount_col = None
             
             for col in df.columns:
-                col_lower = col.lower() if isinstance(col, str) else ""
+                col_lower = str(col).lower()
                 if date_col is None and ("date" in col_lower or "jour" in col_lower):
                     date_col = col
                 if amount_col is None and ("montant" in col_lower or "ca" in col_lower or "vend" in col_lower):
