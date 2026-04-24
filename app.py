@@ -1443,73 +1443,50 @@ with tabs[6]:
         if df_f.empty:
             st.info("Aucune transaction pour les filtres sélectionnés.")
         else:
-            # === KPIs ===
+            # === KPIs per type (same period) ===
             an  = int(annee_sel)
             an1 = an - 1
-            
-            ca_n   = df_f[df_f["Année"] == an]["_ca"].sum()
-            ca_n1  = df_f[df_f["Année"] == an1]["_ca"].sum()
-            evo    = evol_pct(ca_n, ca_n1)
-            nb_tx  = len(df_f[df_f["Année"] == an])
-            pan    = ca_n / nb_tx if nb_tx > 0 else 0
 
-            k1, k2, k3, k4 = st.columns(4)
-            k1.metric(f"CA {an}", f"{ca_n:,.0f} TND", f"{ evo:+.1f}%")
-            k2.metric(f"CA {an1}", f"{ca_n1:,.0f} TND")
-            k3.metric("Transactions", nb_tx)
-            k4.metric("Panier moyen", f"{pan:,.0f} TND")
+            section("CA par type — même période")
 
-            # CA par type
-            section("CA par type de financement")
-            ca_by_type = df_f[df_f["Année"] == an].groupby("_type")["_ca"].sum().reset_index()
-            ca_by_type.columns = ["Type", "CA"]
-            ca_by_type["%"] = (ca_by_type["CA"] / ca_by_type["CA"].sum() * 100).round(1)
-            
-            ct1, ct2 = st.columns([1, 1])
-            with ct1:
-                fig_pie = px.pie(ca_by_type, values="CA", names="Type", hole=0.4,
-                                color_discrete_sequence=[C["blue"], C["green"], C["purple"], C["amber"], C["red"], C["slate"]])
-                fig_pie.update_layout(margin=dict(l=20, r=20, t=30, b=20))
-                st.plotly_chart(fig_pie, width="stretch")
-            with ct2:
-                st.dataframe(ca_by_type.rename(columns={"CA": "CA (TND)"}), width="stretch", use_container_width=True)
+            col_types = st.columns(3)
+            for idx, (type_key, type_label) in enumerate(TYPE_MAP.items()):
+                df_t = df_f[df_f["_type"] == type_label]
+                with col_types[idx]:
+                    st.markdown(f"### {type_label}")
+                    if df_t.empty:
+                        st.info(f"Aucune donnée")
+                        continue
 
-            # CA par magasin
-            section("CA par magasin")
-            ca_by_mag = df_f[df_f["Année"] == an].groupby("_nom_mag")["_ca"].sum().reset_index()
-            ca_by_mag.columns = ["Magasin", "CA"]
-            ca_by_mag = ca_by_mag.sort_values("CA", ascending=False).head(25)
-            
-            fig_bar = px.bar(ca_by_mag, x="Magasin", y="CA", color="CA",
-                           color_continuous_scale="Blues", text_auto=True)
-            fig_bar.update_layout(xaxis_tickangle=-45, margin=dict(b=120), height=420)
-            st.plotly_chart(fig_bar, width="stretch")
+                    # KPIs for this type
+                    ca_t   = df_t[df_t["Année"] == an]["_ca"].sum()
+                    ca_t1  = df_t[df_t["Année"] == an1]["_ca"].sum()
+                    evo_t  = evol_pct(ca_t, ca_t1)
+                    nb_t   = len(df_t[df_t["Année"] == an])
+                    pan_t  = ca_t / nb_t if nb_t > 0 else 0
 
-            # Évolution temporelle
-            section("Évolution temporelle")
-            evo_df = df_f[df_f["Année"].isin([an, an1])].groupby(["JMois", "Année"])["_ca"].sum().reset_index()
-            fig_line = px.line(evo_df, x="JMois", y="_ca", color="Année", markers=True,
-                           color_discrete_map={an: C["blue"], an1: C["slate"]})
-            fig_line.update_layout(height=380)
-            st.plotly_chart(fig_line, width="stretch")
+                    st.metric(f"CA {an}", f"{ca_t:,.0f} TND", f"{evo_t:+.1f}%")
+                    st.metric(f"CA {an1}", f"{ca_t1:,.0f} TND")
+                    st.metric("Transactions", nb_t)
+                    st.metric("Panier moyen", f"{pan_t:,.0f} TND")
 
-            # Heatmap
-            section("Heatmap — Magasin × Type")
-            hm = df_f[df_f["Année"] == an].groupby(["_nom_mag", "_type"])["_ca"].sum().reset_index()
-            if not hm.empty:
-                hm_pivot = hm.pivot_table(index="_nom_mag", columns="_type", values="_ca", fill_value=0)
-                fig_hm = px.imshow(hm_pivot, text_auto=True, aspect="auto", color_continuous_scale="Blues")
-                fig_hm.update_layout(height=max(300, len(hm_pivot) * 15))
-                st.plotly_chart(fig_hm, width="stretch")
+                    # Pie chart - same period
+                    pie_data = df_t.groupby("_nom_mag")["_ca"].sum().reset_index()
+                    pie_data.columns = ["Magasin", "CA"]
+                    if not pie_data.empty:
+                        fig_p = px.pie(pie_data.head(10), values="CA", names="Magasin", hole=0.4,
+                                     color_discrete_sequence=px.colors.qualitative.Set3)
+                        fig_p.update_layout(margin=dict(l=10, r=10, t=20, b=10), height=300)
+                        st.plotly_chart(fig_p, width="stretch")
 
-            # Détail
+            # Tableau détaillé
             section("Tableau détaillé")
             detail = df_f[df_f["Année"] == an].groupby(["_nom_mag", "_type"])["_ca"].sum().reset_index()
             detail.columns = ["Magasin", "Type", "CA"]
             detail["%"] = (detail["CA"] / detail["CA"].sum() * 100).round(2)
             detail = detail.sort_values("CA", ascending=False)
             st.dataframe(detail, width="stretch", use_container_width=True)
-            
+
             csv = detail.to_csv(index=False).encode("utf-8")
             st.download_button("📥 Export CSV", data=csv, file_name="pilotage_magasin.csv", mime="text/csv")
 
