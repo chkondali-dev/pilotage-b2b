@@ -1345,38 +1345,45 @@ with tabs[6]:
         "vc_edc": "EDC",
     }
 
-    def _prep_source(df, src_key):
+    def _prep_source(df, df_code, src_key):
         if df.empty:
             return pd.DataFrame()
         df = df.copy()
         
         date_col = next((c for c in df.columns if "date" in c.lower()), None)
         ca_col  = next((c for c in df.columns if "montant" in c.lower() or "ca" in c.lower()), None)
-        mag_col = next((c for c in df.columns if "code" in c.lower() and "magasin" in c.lower()), None)
-        name_col = next((c for c in df.columns if c != mag_col and ("magasin" in c.lower() or "nom" in c.lower())), None)
         
-        if date_col and ca_col:
+        # Try exact "Code magasin" first, then fallback
+        mag_col = next((c for c in df.columns if c.lower() == "code magasin".lower()), None)
+        if not mag_col:
+            mag_col = next((c for c in df.columns if "code" in c.lower() and "magasin" in c.lower()), None)
+        
+        if date_col and ca_col and mag_col:
             try:
                 df["_date"] = pd.to_datetime(df[date_col], errors="coerce")
             except:
                 df["_date"] = pd.NaT
             df["_ca"] = pd.to_numeric(df[ca_col], errors="coerce")
             
-            if mag_col and name_col:
-                df["_code_mag"] = df[mag_col].astype(str)
-                df["_nom_mag"] = df[name_col].astype(str)
-            elif mag_col:
+            # Map store code to name using code_df
+            if not df_code.empty:
+                code_col = next((c for c in df_code.columns if "code" in c.lower()), None)
+                name_col = next((c for c in df_code.columns if c != code_col), None)
+                if code_col and name_col:
+                    mapping = df_code.set_index(code_col)[name_col].to_dict()
+                    df["_code_mag"] = df[mag_col].astype(str).str.strip()
+                    df["_nom_mag"] = df[mag_col].astype(str).str.strip().map(mapping).fillna(df["_code_mag"])
+                else:
+                    df["_code_mag"] = df[mag_col].astype(str)
+                    df["_nom_mag"] = df[mag_col].astype(str)
+            else:
                 df["_code_mag"] = df[mag_col].astype(str)
                 df["_nom_mag"] = df[mag_col].astype(str)
-            else:
-                df["_code_mag"] = ""
-                df["_nom_mag"] = ""
             
             df["_type"] = TYPE_MAP.get(src_key, src_key)
             return df[["_date", "_ca", "_code_mag", "_nom_mag", "_type"]]
         return pd.DataFrame()
 
-    # Consolidate all sources
     sources = [
         ("vc", df_vc_tmp),
         ("vc_credit", df_cr_tmp),
@@ -1386,7 +1393,7 @@ with tabs[6]:
 
     df_all_list = []
     for key, df_src in sources:
-        prepped = _prep_source(df_src, key)
+        prepped = _prep_source(df_src, code_df, key)
         if not prepped.empty:
             df_all_list.append(prepped)
 
