@@ -1463,8 +1463,9 @@ with tabs[6]:
 
             section("CA par type — même période")
 
-            col_types = st.columns(len(TYPE_MAP))
-            for idx, (type_key, type_label) in enumerate(TYPE_MAP.items()):
+            available_types = [t for t in TYPE_MAP.values() if t in df_f["_type"].unique()]
+            col_types = st.columns(len(available_types)) if available_types else [st.columns(1)]
+            for idx, type_label in enumerate(available_types):
                 df_t = df_f[df_f["_type"] == type_label]
                 with col_types[idx]:
                     st.markdown(f"### {type_label}")
