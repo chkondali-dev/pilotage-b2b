@@ -1371,10 +1371,10 @@ with tabs[6]:
             # Map store code to name using code_df
             df["_code_mag"] = pd.to_numeric(df[mag_col], errors="coerce").fillna(0).astype(int).astype(str)
             if not df_code.empty:
-                code_col = 'Code Navision' if 'Code Navision' in df_code.columns else None
-                name_col = 'Unité ' if 'Unité ' in df_code.columns else None
+                code_col = next((c for c in df_code.columns if "navision" in c.lower()), None)
+                name_col = next((c for c in df_code.columns if "unit" in c.lower() or "uni" in c.lower()), None)
+                st.sidebar.write(f"DEBUG {src_key}: df_code cols = {df_code.columns.tolist()}")
                 st.sidebar.write(f"DEBUG {src_key}: code_col={code_col}, name_col={name_col}")
-                st.sidebar.write(f"DEBUG {src_key}: mapping sample = {mapping if code_col and name_col else 'NOT BUILT'}")
                 if code_col and name_col:
                     mapping = df_code.set_index(code_col)[name_col].to_dict()
                     st.sidebar.write(f"DEBUG {src_key}: mapping[112] = {mapping.get(112, 'NOT FOUND')}")
