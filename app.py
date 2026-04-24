@@ -1356,14 +1356,13 @@ with tabs[6]:
         return pd.DataFrame()
 
     TYPE_MAP = {
-        "vc":        "Convention",
         "vc_credit": "Crédit Conso",
         "vc_edc":    "EDC",
     }
 
     df_consol_list = []
     for key, label in TYPE_MAP.items():
-        src = {"vc": df_vc_tmp, "vc_credit": df_cr_tmp, "vc_edc": df_edc_tmp}.get(key, pd.DataFrame())
+        src = {"vc_credit": df_cr_tmp, "vc_edc": df_edc_tmp}.get(key, pd.DataFrame())
         prepped = _prep_source(src, label)
         if not prepped.empty:
             df_consol_list.append(prepped)
