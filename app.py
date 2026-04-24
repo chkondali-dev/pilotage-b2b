@@ -1447,6 +1447,20 @@ with tabs[6]:
             an  = int(annee_sel)
             an1 = an - 1
 
+            section("Répartition CA par type de financement")
+            ca_by_type = df_f[df_f["Année"] == an].groupby("_type")["_ca"].sum().reset_index()
+            ca_by_type.columns = ["Type", "CA"]
+            ca_by_type["%"] = (ca_by_type["CA"] / ca_by_type["CA"].sum() * 100).round(1)
+            
+            pc1, pc2 = st.columns([1, 1])
+            with pc1:
+                fig_pie = px.pie(ca_by_type, values="CA", names="Type", hole=0.4,
+                               color_discrete_sequence=[C["blue"], C["green"], C["purple"], C["amber"]])
+                fig_pie.update_layout(margin=dict(l=20, r=20, t=30, b=20))
+                st.plotly_chart(fig_pie, width="stretch")
+            with pc2:
+                st.dataframe(ca_by_type.rename(columns={"CA": "CA (TND)"}), width="stretch", use_container_width=True)
+
             section("CA par type — même période")
 
             col_types = st.columns(len(TYPE_MAP))
