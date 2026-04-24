@@ -1353,12 +1353,13 @@ with tabs[6]:
         if df.empty:
             return pd.DataFrame()
         df = df.copy()
+        st.sidebar.write(f"Debug {src_key}: cols={[c for c in df.columns if 'code' in c.lower() or 'date' in c.lower() or 'montant' in c.lower()}")
         
         date_col = next((c for c in df.columns if "date" in c.lower()), None)
-        ca_col  = next((c for c in df.columns if "montant" in c.lower() or "ca" in c.lower()), None)
+        ca_col  = next((c for c in df.columns if "montant ttc" == c.lower() or "montant" in c.lower()), None)
+        mag_col = next((c for c in df.columns if "magasin" in c.lower() and "code" in c.lower()), None)
         
-        # Try exact "Code magasin" first, then fallback
-        mag_col = next((c for c in df.columns if c.lower() == "code magasin".lower()), None)
+        st.sidebar.write(f"  -> date={date_col}, ca={ca_col}, mag={mag_col}")
         if not mag_col:
             mag_col = next((c for c in df.columns if "code" in c.lower() and "magasin" in c.lower()), None)
         
