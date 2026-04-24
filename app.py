@@ -1404,7 +1404,12 @@ with tabs[6]:
 
     st.sidebar.write(f"Debug df_consol total: {len(df_consol)}")
     st.sidebar.write(f"Debug types: {df_consol['_type'].value_counts().to_dict() if not df_consol.empty else 'empty'}")
-    st.sidebar.write(f"Debug stores sample: {df_consol['_nom_mag'].head(3).tolist() if not df_consol.empty else 'empty'}")
+    sample = df_consol['_nom_mag'].head(3).tolist() if not df_consol.empty else []
+    st.sidebar.write(f"Debug stores sample: {sample}")
+    if not df_consol.empty:
+        # Check mapping for CREDIT PARTICULIER specifically
+        cp_sample = df_consol[df_consol['_type'] == 'Crédit Particulier']['_nom_mag'].head(5).tolist()
+        st.sidebar.write(f"Debug CP stores: {cp_sample}")
 
     if df_consol.empty:
         st.warning("⚠️ Aucune donnée disponible.")
