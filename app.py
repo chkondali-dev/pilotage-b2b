@@ -1426,14 +1426,14 @@ with tabs[6]:
                 date_deb, date_fin = None, None
             
             all_mois = sorted(df_consol["Mois"].dropna().unique().tolist())
-            mois_sel = st.multiselect("Mois", all_mois, default=all_mois, format_func=lambda x: MOIS.get(x, str(x)))
+            mois_sel_pilotage = st.multiselect("Mois", all_mois, default=all_mois, format_func=lambda x: MOIS.get(x, str(x)))
 
         # Apply filters
         df_f = df_consol.copy()
         if mag_sel:
             df_f = df_f[df_f["_nom_mag"].isin(mag_sel)]
-        if mois_sel:
-            df_f = df_f[df_f["Mois"].isin(mois_sel)]
+        if mois_sel_pilotage:
+            df_f = df_f[df_f["Mois"].isin(mois_sel_pilotage)]
         if date_deb and date_fin:
             df_f = df_f[(df_f["_date"] >= pd.Timestamp(date_deb)) & (df_f["_date"] <= pd.Timestamp(date_fin))]
         
