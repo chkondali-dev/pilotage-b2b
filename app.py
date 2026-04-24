@@ -31,6 +31,7 @@ FILES = {
     "vc":                 "Factures%20ventes%20enregistr%C3%A9es%20VC%20(4).xlsx",
     "vc_credit":          "Factures%20ventes%20enregistr%C3%A9es%20VC%20credit%20conso.xlsx",
     "vc_edc":             "Factures%20ventes%20enregistr%C3%A9es%20VC%20CONVENTION%20EDC.xlsx",
+    "credit_particulier": "CREDIT%20PARTICULIER.xlsx",
     "conventions_signees": "TDC%20CONVENTION%201.xlsm",
     "code_magasin":       "Code%20MAGASIN%20Business%20Central.xlsx",
 }
@@ -153,14 +154,15 @@ def _map_magasins(df: pd.DataFrame, code_df: pd.DataFrame) -> pd.DataFrame:
 def prepare_data(_raw: dict) -> tuple:
     """
     Point d'entrée unique pour tout le processing.
-    Retourne (df_vc, df_credit, df_edc, df_conv, code_df).
+    Retourne (df_vc, df_credit, df_edc, df_conv, code_df, df_credit_part).
     """
     code_df   = _raw.get("code_magasin", pd.DataFrame())
     df_vc     = _map_magasins(_add_date_cols(_raw.get("vc",       pd.DataFrame())), code_df)
     df_credit = _map_magasins(_add_date_cols(_raw.get("vc_credit", pd.DataFrame())), code_df)
     df_edc    = _add_date_cols(_raw.get("vc_edc", pd.DataFrame()))
     df_conv   = _raw.get("conventions_signees", pd.DataFrame())
-    return df_vc, df_credit, df_edc, df_conv, code_df
+    df_credit_part = _map_magasins(_add_date_cols(_raw.get("credit_particulier", pd.DataFrame())), code_df)
+    return df_vc, df_credit, df_edc, df_conv, code_df, df_credit_part
 
 
 # ══════════════════════════════════════════════════════════════
@@ -766,7 +768,8 @@ with st.sidebar:
 with st.spinner("Chargement des données…"):
     _raw = load_all_data()
 
-df_vc, df_credit, df_edc, df_conv, code_df = prepare_data(_raw)
+df_vc, df_credit, df_edc, df_conv, code_df, df_credit_part = prepare_data(_raw)
+_raw_part = _raw.get("credit_particulier", pd.DataFrame())
 
 if df_vc.empty or "Année" not in df_vc.columns:
     st.error("⚠️ Aucune donnée VC chargée. Vérifiez la connexion GitHub.")
@@ -1327,7 +1330,181 @@ with tabs[5]:
 # TAB 6 — PILOTAGE PAR MAGASIN
 # ══════════════════════════════════════════════════════════════
 with tabs[6]:
-    st.info("🔧 En cours de développement...")
+    section("Pilotage par magasin")
+
+    df_vc_tmp     = df_vc.copy()
+    df_cr_tmp     = df_credit.copy()
+    df_edc_tmp    = df_edc.copy()
+    df_part_tmp   = df_credit_part.copy()
+
+    # Mapping types
+    TYPE_MAP = {
+        "vc":    "Convention",
+        "vc_credit": "Crédit Conso UBCI",
+        "vc_part": "Crédit Particulier",
+        "vc_edc": "EDC",
+    }
+
+    def _prep_source(df, src_key):
+        if df.empty:
+            return pd.DataFrame()
+        df = df.copy()
+        
+        date_col = next((c for c in df.columns if "date" in c.lower()), None)
+        ca_col  = next((c for c in df.columns if "montant" in c.lower() or "ca" in c.lower()), None)
+        mag_col = next((c for c in df.columns if "code" in c.lower() and "magasin" in c.lower()), None)
+        name_col = next((c for c in df.columns if c != mag_col and ("magasin" in c.lower() or "nom" in c.lower())), None)
+        
+        if date_col and ca_col:
+            try:
+                df["_date"] = pd.to_datetime(df[date_col], errors="coerce")
+            except:
+                df["_date"] = pd.NaT
+            df["_ca"] = pd.to_numeric(df[ca_col], errors="coerce")
+            
+            if mag_col and name_col:
+                df["_code_mag"] = df[mag_col].astype(str)
+                df["_nom_mag"] = df[name_col].astype(str)
+            elif mag_col:
+                df["_code_mag"] = df[mag_col].astype(str)
+                df["_nom_mag"] = df[mag_col].astype(str)
+            else:
+                df["_code_mag"] = ""
+                df["_nom_mag"] = ""
+            
+            df["_type"] = TYPE_MAP.get(src_key, src_key)
+            return df[["_date", "_ca", "_code_mag", "_nom_mag", "_type"]]
+        return pd.DataFrame()
+
+    # Consolidate all sources
+    sources = [
+        ("vc", df_vc_tmp),
+        ("vc_credit", df_cr_tmp),
+        ("vc_part", df_part_tmp),
+        ("vc_edc", df_edc_tmp),
+    ]
+
+    df_all_list = []
+    for key, df_src in sources:
+        prepped = _prep_source(df_src, key)
+        if not prepped.empty:
+            df_all_list.append(prepped)
+
+    if df_all_list:
+        df_consol = pd.concat(df_all_list, ignore_index=True, copy=False)
+    else:
+        df_consol = pd.DataFrame()
+
+    if df_consol.empty:
+        st.warning("⚠️ Aucune donnée disponible.")
+    else:
+        # Add date columns
+        df_consol["Année"] = df_consol["_date"].dt.year
+        df_consol["Mois"] = df_consol["_date"].dt.month
+        df_consol["JMois"] = df_consol["_date"].dt.to_period("M").astype(str)
+
+        # === FILTERS ===
+        with st.sidebar:
+            st.markdown("### Filtres")
+            
+            all_magasins = sorted(df_consol["_nom_mag"].dropna().unique().tolist())
+            mag_sel = st.multiselect("Magasin(s)", all_magasins, default=[], format_func=str)
+            
+            min_d = df_consol["_date"].min()
+            max_d = df_consol["_date"].max()
+            if pd.notna(min_d) and pd.notna(max_d):
+                date_range = st.date_input("Période", value=(min_d.date(), max_d.date()))
+                date_deb, date_fin = date_range[0], date_range[1] if len(date_range) == 2 else (None, None)
+            else:
+                date_deb, date_fin = None, None
+            
+            all_types = sorted(df_consol["_type"].dropna().unique().tolist())
+            type_sel = st.multiselect("Type financement", all_types, default=all_types)
+
+        # Apply filters
+        df_f = df_consol.copy()
+        if mag_sel:
+            df_f = df_f[df_f["_nom_mag"].isin(mag_sel)]
+        if type_sel:
+            df_f = df_f[df_f["_type"].isin(type_sel)]
+        if date_deb and date_fin:
+            df_f = df_f[(df_f["_date"] >= pd.Timestamp(date_deb)) & (df_f["_date"] <= pd.Timestamp(date_fin))]
+        
+        df_f["_ca"] = pd.to_numeric(df_f["_ca"], errors="coerce")
+        df_f = df_f.dropna(subset=["_ca"])
+
+        if df_f.empty:
+            st.info("Aucune transaction pour les filtres sélectionnés.")
+        else:
+            # === KPIs ===
+            an  = int(annee_sel)
+            an1 = an - 1
+            
+            ca_n   = df_f[df_f["Année"] == an]["_ca"].sum()
+            ca_n1  = df_f[df_f["Année"] == an1]["_ca"].sum()
+            evo    = evol_pct(ca_n, ca_n1)
+            nb_tx  = len(df_f[df_f["Année"] == an])
+            pan    = ca_n / nb_tx if nb_tx > 0 else 0
+
+            k1, k2, k3, k4 = st.columns(4)
+            k1.metric(f"CA {an}", f"{ca_n:,.0f} TND", f"{ evo:+.1f}%")
+            k2.metric(f"CA {an1}", f"{ca_n1:,.0f} TND")
+            k3.metric("Transactions", nb_tx)
+            k4.metric("Panier moyen", f"{pan:,.0f} TND")
+
+            # CA par type
+            section("CA par type de financement")
+            ca_by_type = df_f[df_f["Année"] == an].groupby("_type")["_ca"].sum().reset_index()
+            ca_by_type.columns = ["Type", "CA"]
+            ca_by_type["%"] = (ca_by_type["CA"] / ca_by_type["CA"].sum() * 100).round(1)
+            
+            ct1, ct2 = st.columns([1, 1])
+            with ct1:
+                fig_pie = px.pie(ca_by_type, values="CA", names="Type", hole=0.4,
+                                color_discrete_sequence=[C["blue"], C["green"], C["purple"], C["amber"], C["red"], C["slate"]])
+                fig_pie.update_layout(margin=dict(l=20, r=20, t=30, b=20))
+                st.plotly_chart(fig_pie, width="stretch")
+            with ct2:
+                st.dataframe(ca_by_type.rename(columns={"CA": "CA (TND)"}), width="stretch", use_container_width=True)
+
+            # CA par magasin
+            section("CA par magasin")
+            ca_by_mag = df_f[df_f["Année"] == an].groupby("_nom_mag")["_ca"].sum().reset_index()
+            ca_by_mag.columns = ["Magasin", "CA"]
+            ca_by_mag = ca_by_mag.sort_values("CA", ascending=False).head(25)
+            
+            fig_bar = px.bar(ca_by_mag, x="Magasin", y="CA", color="CA",
+                           color_continuous_scale="Blues", text_auto=True)
+            fig_bar.update_layout(xaxis_tickangle=-45, margin=dict(b=120), height=420)
+            st.plotly_chart(fig_bar, width="stretch")
+
+            # Évolution temporelle
+            section("Évolution temporelle")
+            evo_df = df_f[df_f["Année"].isin([an, an1])].groupby(["JMois", "Année"])["_ca"].sum().reset_index()
+            fig_line = px.line(evo_df, x="JMois", y="_ca", color="Année", markers=True,
+                           color_discrete_map={an: C["blue"], an1: C["slate"]})
+            fig_line.update_layout(height=380)
+            st.plotly_chart(fig_line, width="stretch")
+
+            # Heatmap
+            section("Heatmap — Magasin × Type")
+            hm = df_f[df_f["Année"] == an].groupby(["_nom_mag", "_type"])["_ca"].sum().reset_index()
+            if not hm.empty:
+                hm_pivot = hm.pivot_table(index="_nom_mag", columns="_type", values="_ca", fill_value=0)
+                fig_hm = px.imshow(hm_pivot, text_auto=True, aspect="auto", color_continuous_scale="Blues")
+                fig_hm.update_layout(height=max(300, len(hm_pivot) * 15))
+                st.plotly_chart(fig_hm, width="stretch")
+
+            # Détail
+            section("Tableau détaillé")
+            detail = df_f[df_f["Année"] == an].groupby(["_nom_mag", "_type"])["_ca"].sum().reset_index()
+            detail.columns = ["Magasin", "Type", "CA"]
+            detail["%"] = (detail["CA"] / detail["CA"].sum() * 100).round(2)
+            detail = detail.sort_values("CA", ascending=False)
+            st.dataframe(detail, width="stretch", use_container_width=True)
+            
+            csv = detail.to_csv(index=False).encode("utf-8")
+            st.download_button("📥 Export CSV", data=csv, file_name="pilotage_magasin.csv", mime="text/csv")
 
 
 # ── Footer ────────────────────────────────────────────────────
