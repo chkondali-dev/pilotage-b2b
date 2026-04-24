@@ -769,6 +769,8 @@ with st.spinner("Chargement des données…"):
     _raw = load_all_data()
 
 df_vc, df_credit, df_edc, df_conv, code_df, df_credit_part = prepare_data(_raw)
+
+st.sidebar.write(f"Debug: vc={len(df_vc)}, credit={len(df_credit)}, edc={len(df_edc)}, credit_part={len(df_credit_part)}, raw_keys={list(_raw.keys())}")
 _raw_part = _raw.get("credit_particulier", pd.DataFrame())
 
 if df_vc.empty or "Année" not in df_vc.columns:
