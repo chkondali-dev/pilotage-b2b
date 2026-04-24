@@ -1378,7 +1378,11 @@ with tabs[6]:
                 if code_col and name_col:
                     mapping = df_code.set_index(code_col)[name_col].to_dict()
                     st.sidebar.write(f"DEBUG {src_key}: mapping[112] = {mapping.get(112, 'NOT FOUND')}")
-                    df["_nom_mag"] = df["_code_mag"].map(mapping).fillna(df["_code_mag"])
+                    st.sidebar.write(f"DEBUG {src_key}: _code_mag sample = {df['_code_mag'].head(3).tolist()}")
+                    df["_nom_mag"] = df["_code_mag"].map(mapping)
+                    st.sidebar.write(f"DEBUG {src_key}: _nom_mag before fillna = {df['_nom_mag'].head(3).tolist()}")
+                    df["_nom_mag"] = df["_nom_mag"].fillna(df["_code_mag"])
+                    st.sidebar.write(f"DEBUG {src_key}: _nom_mag after fillna = {df['_nom_mag'].head(3).tolist()}")
             else:
                 df["_nom_mag"] = df["_code_mag"]
             
