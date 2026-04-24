@@ -1413,6 +1413,9 @@ with tabs[6]:
         # Check mapping for CREDIT PARTICULIER specifically
         cp_sample = df_consol[df_consol['_type'] == 'Crédit Particulier']['_nom_mag'].head(5).tolist()
         st.sidebar.write(f"Debug CP stores: {cp_sample}")
+        
+        # Check if Magasin column exists in df_credit_part
+        st.sidebar.write(f"df_credit_part cols: {df_credit_part.columns.tolist()[:10]}")
 
     if df_consol.empty:
         st.warning("⚠️ Aucune donnée disponible.")
