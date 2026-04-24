@@ -770,7 +770,8 @@ with st.spinner("Chargement des données…"):
 
 df_vc, df_credit, df_edc, df_conv, code_df, df_credit_part = prepare_data(_raw)
 
-st.sidebar.write(f"Debug: vc={len(df_vc)}, credit={len(df_credit)}, edc={len(df_edc)}, credit_part={len(df_credit_part)}, raw_keys={list(_raw.keys())}")
+_raw_part = _raw.get("credit_particulier", pd.DataFrame())
+st.sidebar.write(f"Debug: _raw_part={len(_raw_part) if not _raw_part.empty else 'empty'}, credit_part prepared={len(df_credit_part)}")
 _raw_part = _raw.get("credit_particulier", pd.DataFrame())
 
 if df_vc.empty or "Année" not in df_vc.columns:
@@ -1353,13 +1354,10 @@ with tabs[6]:
         if df.empty:
             return pd.DataFrame()
         df = df.copy()
-        st.sidebar.write(f"Debug {src_key}: cols={[c for c in df.columns if 'code' in c.lower() or 'date' in c.lower() or 'montant' in c.lower()}")
         
         date_col = next((c for c in df.columns if "date" in c.lower()), None)
         ca_col  = next((c for c in df.columns if "montant ttc" == c.lower() or "montant" in c.lower()), None)
         mag_col = next((c for c in df.columns if "magasin" in c.lower() and "code" in c.lower()), None)
-        
-        st.sidebar.write(f"  -> date={date_col}, ca={ca_col}, mag={mag_col}")
         if not mag_col:
             mag_col = next((c for c in df.columns if "code" in c.lower() and "magasin" in c.lower()), None)
         
