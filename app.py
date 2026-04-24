@@ -1336,6 +1336,8 @@ with tabs[6]:
     df_cr_tmp     = df_credit.copy()
     df_edc_tmp    = df_edc.copy()
     df_part_tmp   = df_credit_part.copy()
+    
+    st.sidebar.write(f"Debug: CreditPart rows = {len(df_part_tmp)}")
 
     # Mapping types
     TYPE_MAP = {
