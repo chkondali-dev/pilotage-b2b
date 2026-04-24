@@ -1333,23 +1333,36 @@ with tabs[6]:
     df_cr_tmp  = df_credit.copy()
     df_edc_tmp = df_edc.copy()
 
-    def _prep_source(df, src):
+    def _prep_source(df, src, convention=None):
         if df.empty:
             return pd.DataFrame()
         df = df.copy()
         date_col = next((c for c in df.columns if "date" in c.lower()), None)
         ca_col   = next((c for c in df.columns if "montant" in c.lower() or "ca" in c.lower()), None)
         mag_col  = next((c for c in df.columns if "magasin" in c.lower()), None)
+        conv_col = "Nom" if "Nom" in df.columns else None
         if date_col and ca_col:
             df["_date"]    = pd.to_datetime(df[date_col], errors="coerce")
             df["_ca"]      = pd.to_numeric(df[ca_col], errors="coerce")
             df["_type"]    = src
             df["_magasin"] = df[mag_col].astype(str) if mag_col else ""
+            if conv_col and src == "Crédit Conso":
+                df["_type"] = df[conv_col].fillna("").astype(str)
+            elif conv_col:
+                df["_type"] = df[conv_col].fillna(src).astype(str)
+            else:
+                df["_type"] = src
             return df[["_date", "_ca", "_type", "_magasin"]]
         return pd.DataFrame()
 
+    TYPE_MAP = {
+        "vc":        "Convention",
+        "vc_credit": "Crédit Conso",
+        "vc_edc":    "EDC",
+    }
+
     df_consol_list = []
-    for key, label in [("vc", "Convention"), ("vc_credit", "Crédit Conso"), ("vc_edc", "EDC")]:
+    for key, label in TYPE_MAP.items():
         src = {"vc": df_vc_tmp, "vc_credit": df_cr_tmp, "vc_edc": df_edc_tmp}.get(key, pd.DataFrame())
         prepped = _prep_source(src, label)
         if not prepped.empty:
@@ -1396,7 +1409,7 @@ with tabs[6]:
         if df_f.empty:
             st.info("Aucune transaction pour les filtres sélectionnés.")
         else:
-            TYPE_LABELS = ["Convention", "Crédit Conso", "EDC"]
+            TYPE_LABELS = sorted(df_f["_type"].dropna().unique().tolist())
 
             def _type_kpi(df_t):
                 an  = int(annee_sel)
