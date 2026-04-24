@@ -1449,7 +1449,7 @@ with tabs[6]:
 
             section("CA par type — même période")
 
-            col_types = st.columns(3)
+            col_types = st.columns(len(TYPE_MAP))
             for idx, (type_key, type_label) in enumerate(TYPE_MAP.items()):
                 df_t = df_f[df_f["_type"] == type_label]
                 with col_types[idx]:
