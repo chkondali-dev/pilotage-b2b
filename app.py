@@ -1369,19 +1369,15 @@ with tabs[6]:
             df["_ca"] = pd.to_numeric(df[ca_col], errors="coerce")
             
             # Map store code to name using code_df
+            df["_code_mag"] = pd.to_numeric(df[mag_col], errors="coerce").fillna(0).astype(int).astype(str)
             if not df_code.empty:
                 code_col = 'Code Navision' if 'Code Navision' in df_code.columns else next((c for c in df_code.columns if "code" in c.lower() and "navision" in c.lower()), None)
                 name_col = 'Unité ' if 'Unité ' in df_code.columns else next((c for c in df_code.columns if c != code_col), None)
                 if code_col and name_col:
                     mapping = df_code.set_index(code_col)[name_col].to_dict()
-                    df["_code_mag"] = df[mag_col].astype(str).str.strip()
-                    df["_nom_mag"] = df[mag_col].astype(str).str.strip().map(mapping).fillna(df["_code_mag"])
-                else:
-                    df["_code_mag"] = df[mag_col].astype(str)
-                    df["_nom_mag"] = df[mag_col].astype(str)
+                    df["_nom_mag"] = df["_code_mag"].map(mapping).fillna(df["_code_mag"])
             else:
-                df["_code_mag"] = df[mag_col].astype(str)
-                df["_nom_mag"] = df[mag_col].astype(str)
+                df["_nom_mag"] = df["_code_mag"]
             
             df["_type"] = TYPE_MAP.get(src_key, src_key)
             return df[["_date", "_ca", "_code_mag", "_nom_mag", "_type"]]
