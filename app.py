@@ -1407,6 +1407,8 @@ with tabs[6]:
         df_consol = pd.DataFrame()
 
     st.sidebar.write(f"Debug df_consol total: {len(df_consol)}")
+    st.sidebar.write(f"Debug types: {df_consol['_type'].value_counts().to_dict() if not df_consol.empty else 'empty'}")
+    st.sidebar.write(f"Debug stores sample: {df_consol['_nom_mag'].head(3).tolist() if not df_consol.empty else 'empty'}")
 
     if df_consol.empty:
         st.warning("⚠️ Aucune donnée disponible.")
