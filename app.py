@@ -10,7 +10,6 @@ import plotly.express as px
 import plotly.graph_objects as go
 import requests
 from io import BytesIO
-from urllib.parse import quote
 
 st.set_page_config(
     page_title="Pilotage B2B — SMG",
@@ -29,11 +28,11 @@ LOGO_MG_URL       = GITHUB_RAW_IMAGES + "logo-1653837429.jpg"
 LOGO_BATAM_URL    = GITHUB_RAW_IMAGES + "logo.svg"
 
 FILES = {
-    "vc":                 quote("Factures ventes enregistrées VC (4).xlsx"),
-    "vc_credit":          quote("Factures ventes enregistrées VC credit conso.xlsx"),
-    "vc_edc":             quote("Factures ventes enregistrées VC CONVENTION EDC.xlsx"),
-    "conventions_signees": quote("TDC CONVENTION 1.xlsm"),
-    "code_magasin":       quote("Code MAGASIN Business Central.xlsx"),
+    "vc":                 "Factures%20ventes%20enregistr%C3%A9es%20VC%20(4).xlsx",
+    "vc_credit":          "Factures%20ventes%20enregistr%C3%A9es%20VC%20credit%20conso.xlsx",
+    "vc_edc":             "Factures%20ventes%20enregistr%C3%A9es%20VC%20CONVENTION%20EDC.xlsx",
+    "conventions_signees": "TDC%20CONVENTION%201.xlsm",
+    "code_magasin":       "Code%20MAGASIN%20Business%20Central.xlsx",
 }
 
 # ─── Palette sémantique ───────────────────────────────────────
