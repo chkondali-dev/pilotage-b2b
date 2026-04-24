@@ -1370,19 +1370,21 @@ with tabs[6]:
             
             # Map store code to name using code_df
             df["_code_mag"] = pd.to_numeric(df[mag_col], errors="coerce").fillna(0).astype(int).astype(str)
-            if not df_code.empty:
+if not df_code.empty:
                 code_col = next((c for c in df_code.columns if "navision" in c.lower()), None)
-                name_col = next((c for c in df_code.columns if "unit" in c.lower() or "uni" in c.lower()), None)
+                # Use the actual column name with trailing space
+                name_col = next((c for c in df_code.columns if c.strip() == "Unité"), None)
                 st.sidebar.write(f"DEBUG {src_key}: df_code cols = {df_code.columns.tolist()}")
                 st.sidebar.write(f"DEBUG {src_key}: code_col={code_col}, name_col={name_col}")
+                st.sidebar.write(f"DEBUG {src_key}: df cols = {[c for c in df.columns if 'code' in c.lower() or 'unit' in c.lower()]}")
                 if code_col and name_col:
                     mapping = df_code.set_index(code_col)[name_col].to_dict()
                     st.sidebar.write(f"DEBUG {src_key}: mapping[112] = {mapping.get(112, 'NOT FOUND')}")
-                    st.sidebar.write(f"DEBUG {src_key}: _code_mag sample = {df['_code_mag'].head(3).tolist()}")
+                    sample_code = pd.to_numeric(df[mag_col], errors="coerce").fillna(0).astype(int).head(3).tolist()
+                    st.sidebar.write(f"DEBUG {src_key}: source mag_col sample = {sample_code}")
+                    df["_code_mag"] = pd.to_numeric(df[mag_col], errors="coerce").fillna(0).astype(int).astype(str)
                     df["_nom_mag"] = df["_code_mag"].map(mapping)
-                    st.sidebar.write(f"DEBUG {src_key}: _nom_mag before fillna = {df['_nom_mag'].head(3).tolist()}")
                     df["_nom_mag"] = df["_nom_mag"].fillna(df["_code_mag"])
-                    st.sidebar.write(f"DEBUG {src_key}: _nom_mag after fillna = {df['_nom_mag'].head(3).tolist()}")
             else:
                 df["_nom_mag"] = df["_code_mag"]
             
