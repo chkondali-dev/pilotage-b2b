@@ -1370,8 +1370,8 @@ with tabs[6]:
             
             # Map store code to name using code_df
             if not df_code.empty:
-                code_col = next((c for c in df_code.columns if "code" in c.lower()), None)
-                name_col = next((c for c in df_code.columns if c != code_col), None)
+                code_col = 'Code Navision' if 'Code Navision' in df_code.columns else next((c for c in df_code.columns if "code" in c.lower() and "navision" in c.lower()), None)
+                name_col = 'Unité ' if 'Unité ' in df_code.columns else next((c for c in df_code.columns if c != code_col), None)
                 if code_col and name_col:
                     mapping = df_code.set_index(code_col)[name_col].to_dict()
                     df["_code_mag"] = df[mag_col].astype(str).str.strip()
