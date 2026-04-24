@@ -1397,6 +1397,7 @@ with tabs[6]:
     df_all_list = []
     for key, df_src in sources:
         prepped = _prep_source(df_src, code_df, key)
+        st.sidebar.write(f"Debug {key}: prepped rows = {len(prepped)}")
         if not prepped.empty:
             df_all_list.append(prepped)
 
@@ -1404,6 +1405,8 @@ with tabs[6]:
         df_consol = pd.concat(df_all_list, ignore_index=True, copy=False)
     else:
         df_consol = pd.DataFrame()
+
+    st.sidebar.write(f"Debug df_consol total: {len(df_consol)}")
 
     if df_consol.empty:
         st.warning("⚠️ Aucune donnée disponible.")
