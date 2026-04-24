@@ -769,9 +769,6 @@ with st.spinner("Chargement des données…"):
     _raw = load_all_data()
 
 df_vc, df_credit, df_edc, df_conv, code_df, df_credit_part = prepare_data(_raw)
-
-_raw_part = _raw.get("credit_particulier", pd.DataFrame())
-st.sidebar.write(f"Debug: _raw_part={len(_raw_part) if not _raw_part.empty else 'empty'}, credit_part prepared={len(df_credit_part)}")
 _raw_part = _raw.get("credit_particulier", pd.DataFrame())
 
 if df_vc.empty or "Année" not in df_vc.columns:
@@ -1339,8 +1336,6 @@ with tabs[6]:
     df_cr_tmp     = df_credit.copy()
     df_edc_tmp    = df_edc.copy()
     df_part_tmp   = df_credit_part.copy()
-    
-    st.sidebar.write(f"Debug CP: df_credit_part={len(df_credit_part)}, df_vc={len(df_vc)}, df_credit={len(df_credit)}, df_edc={len(df_edc)}")
 
     # Mapping types
     TYPE_MAP = {
@@ -1356,8 +1351,10 @@ with tabs[6]:
         df = df.copy()
         
         date_col = next((c for c in df.columns if "date" in c.lower()), None)
-        ca_col  = next((c for c in df.columns if "montant ttc" == c.lower() or "montant" in c.lower()), None)
-        mag_col = next((c for c in df.columns if "magasin" in c.lower() and "code" in c.lower()), None)
+        ca_col  = next((c for c in df.columns if "montant" in c.lower() or "ca" in c.lower()), None)
+        
+        # Try exact "Code magasin" first, then fallback
+        mag_col = next((c for c in df.columns if c.lower() == "code magasin".lower()), None)
         if not mag_col:
             mag_col = next((c for c in df.columns if "code" in c.lower() and "magasin" in c.lower()), None)
         
@@ -1369,24 +1366,19 @@ with tabs[6]:
             df["_ca"] = pd.to_numeric(df[ca_col], errors="coerce")
             
             # Map store code to name using code_df
-            df["_code_mag"] = pd.to_numeric(df[mag_col], errors="coerce").fillna(0).astype(int).astype(str)
-if not df_code.empty:
-                code_col = next((c for c in df_code.columns if "navision" in c.lower()), None)
-                # Use the actual column name with trailing space
-                name_col = next((c for c in df_code.columns if c.strip() == "Unité"), None)
-                st.sidebar.write(f"DEBUG {src_key}: df_code cols = {df_code.columns.tolist()}")
-                st.sidebar.write(f"DEBUG {src_key}: code_col={code_col}, name_col={name_col}")
-                st.sidebar.write(f"DEBUG {src_key}: df cols = {[c for c in df.columns if 'code' in c.lower() or 'unit' in c.lower()]}")
+            if not df_code.empty:
+                code_col = next((c for c in df_code.columns if "code" in c.lower()), None)
+                name_col = next((c for c in df_code.columns if c != code_col), None)
                 if code_col and name_col:
                     mapping = df_code.set_index(code_col)[name_col].to_dict()
-                    st.sidebar.write(f"DEBUG {src_key}: mapping[112] = {mapping.get(112, 'NOT FOUND')}")
-                    sample_code = pd.to_numeric(df[mag_col], errors="coerce").fillna(0).astype(int).head(3).tolist()
-                    st.sidebar.write(f"DEBUG {src_key}: source mag_col sample = {sample_code}")
-                    df["_code_mag"] = pd.to_numeric(df[mag_col], errors="coerce").fillna(0).astype(int).astype(str)
-                    df["_nom_mag"] = df["_code_mag"].map(mapping)
-                    df["_nom_mag"] = df["_nom_mag"].fillna(df["_code_mag"])
+                    df["_code_mag"] = df[mag_col].astype(str).str.strip()
+                    df["_nom_mag"] = df[mag_col].astype(str).str.strip().map(mapping).fillna(df["_code_mag"])
+                else:
+                    df["_code_mag"] = df[mag_col].astype(str)
+                    df["_nom_mag"] = df[mag_col].astype(str)
             else:
-                df["_nom_mag"] = df["_code_mag"]
+                df["_code_mag"] = df[mag_col].astype(str)
+                df["_nom_mag"] = df[mag_col].astype(str)
             
             df["_type"] = TYPE_MAP.get(src_key, src_key)
             return df[["_date", "_ca", "_code_mag", "_nom_mag", "_type"]]
@@ -1402,7 +1394,6 @@ if not df_code.empty:
     df_all_list = []
     for key, df_src in sources:
         prepped = _prep_source(df_src, code_df, key)
-        st.sidebar.write(f"Debug {key}: prepped rows = {len(prepped)}")
         if not prepped.empty:
             df_all_list.append(prepped)
 
@@ -1410,18 +1401,6 @@ if not df_code.empty:
         df_consol = pd.concat(df_all_list, ignore_index=True, copy=False)
     else:
         df_consol = pd.DataFrame()
-
-    st.sidebar.write(f"Debug df_consol total: {len(df_consol)}")
-    st.sidebar.write(f"Debug types: {df_consol['_type'].value_counts().to_dict() if not df_consol.empty else 'empty'}")
-    sample = df_consol['_nom_mag'].head(3).tolist() if not df_consol.empty else []
-    st.sidebar.write(f"Debug stores sample: {sample}")
-    if not df_consol.empty:
-        # Check mapping for CREDIT PARTICULIER specifically
-        cp_sample = df_consol[df_consol['_type'] == 'Crédit Particulier']['_nom_mag'].head(5).tolist()
-        st.sidebar.write(f"Debug CP stores: {cp_sample}")
-        
-        # Check if Magasin column exists in df_credit_part
-        st.sidebar.write(f"df_credit_part cols: {df_credit_part.columns.tolist()[:10]}")
 
     if df_consol.empty:
         st.warning("⚠️ Aucune donnée disponible.")
@@ -1446,15 +1425,15 @@ if not df_code.empty:
             else:
                 date_deb, date_fin = None, None
             
-            all_mois = sorted(df_consol["Mois"].dropna().unique().tolist())
-            mois_sel_pilotage = st.multiselect("Mois", all_mois, default=all_mois, format_func=lambda x: MOIS.get(x, str(x)))
+            all_types = sorted(df_consol["_type"].dropna().unique().tolist())
+            type_sel = st.multiselect("Type financement", all_types, default=all_types)
 
         # Apply filters
         df_f = df_consol.copy()
         if mag_sel:
             df_f = df_f[df_f["_nom_mag"].isin(mag_sel)]
-        if mois_sel_pilotage:
-            df_f = df_f[df_f["Mois"].isin(mois_sel_pilotage)]
+        if type_sel:
+            df_f = df_f[df_f["_type"].isin(type_sel)]
         if date_deb and date_fin:
             df_f = df_f[(df_f["_date"] >= pd.Timestamp(date_deb)) & (df_f["_date"] <= pd.Timestamp(date_fin))]
         
@@ -1470,7 +1449,7 @@ if not df_code.empty:
 
             section("CA par type — même période")
 
-            col_types = st.columns(len(TYPE_MAP))
+            col_types = st.columns(3)
             for idx, (type_key, type_label) in enumerate(TYPE_MAP.items()):
                 df_t = df_f[df_f["_type"] == type_label]
                 with col_types[idx]:
