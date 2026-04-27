@@ -459,10 +459,16 @@ def kpi_card(label, value, delta=None, highlight=False):
     
     highlight_class = "highlight" if highlight else ""
     
+    # Format value based on type
+    if isinstance(value, (int, float)):
+        formatted_value = f"{value:,.0f}"
+    else:
+        formatted_value = str(value)
+    
     st.markdown(f"""
     <div class="kpi-card {highlight_class}">
         <div class="kpi-label">{label}</div>
-        <div class="kpi-value">{value:,.0f}</div>
+        <div class="kpi-value">{formatted_value}</div>
         <div class="kpi-delta">{delta_html}</div>
     </div>
     """, unsafe_allow_html=True)
