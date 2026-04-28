@@ -1073,9 +1073,9 @@ with tabs[1]:
     with col_seg2:
         st.markdown("**Top 5 Magasins — Veille**")
         if not df_vc_hier.empty and "Montant TTC" in df_vc_hier.columns:
-            # Grouper et trouver top 5
+            # Trouver colonne unite/code magasin (pas "Nom" qui est convention)
             grp_col = None
-            for c in ["Nom", "Unite", "Unit", "Magasin"]:
+            for c in ["Unite", "Unit", "Code Unite", "Unite Code"]:
                 if c in df_vc_hier.columns:
                     grp_col = c
                     break
@@ -1092,7 +1092,7 @@ with tabs[1]:
                 fig_top5m.update_layout(height=250, margin=dict(l=20, r=20, t=40, b=20))
                 st.plotly_chart(fig_top5m, use_container_width=True)
             else:
-                st.warning("Colonne magasin non trouvee")
+                st.caption("Colonne unite non disponible")
     
     # Analyse par enseigne MG/BATAM
     st.markdown("### 3. Analyse par Enseigne (MG / BATAM)")
