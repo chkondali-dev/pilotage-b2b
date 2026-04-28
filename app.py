@@ -152,49 +152,16 @@ def _map_magasins(df: pd.DataFrame, code_df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     df[code_col_src] = df[code_col_src].astype(str).str.strip()
     
-    df["Magasin"] = df[code_col_src].map(mapping_nom).fillna(df[code_col_src])
+df["Magasin"] = df[code_col_src].map(mapping_nom).fillna(df[code_col_src])
     df["Enseigne"] = df[code_col_src].map(mapping_ense).fillna("MG")
     
+    # Fallback: si Enseigne pas cree, inferez depuis Magasin
+    if "Enseigne" not in df.columns or df["Enseigne"].isna().all():
+        df["Enseigne"] = df["Magasin"].apply(
+            lambda x: "BATAM" if ("BATAM" in str(x).upper() or "BTM" in str(x).upper()) else "MG"
+        )
+    
     return df
-    
-    # Standardiser les colonnes du code_df
-    code_df = code_df.copy()
-    code_df.columns = [c.strip() for c in code_df.columns]
-    
-    # Trouver colonne code dans le df source - chercher "Unite Code" qui correspond a "Code Business Central"
-    code_col_src = next((c for c in df.columns if c.lower() in ["unite code", "code unite"]), None)
-    if not code_col_src:
-        code_col_src = next((c for c in df.columns if "magasin" in c.lower() and "code" in c.lower()), None)
-    if not code_col_src:
-        code_col_src = next((c for c in df.columns if "code" in c.lower()), None)
-    if not code_col_src:
-        return df
-    
-    # Trouver colonne Code Business Central dans code_df
-    code_col = next((c for c in code_df.columns if "business" in c.lower()), None)
-    if not code_col:
-        code_col = next((c for c in code_df.columns if "navision" in c.lower()), None)
-    
-    # Trouver colonne Unite/Nom dans code_df
-    name_col = next((c for c in code_df.columns if c != code_col), None)
-    
-    if not code_col or not name_col:
-        return df
-    
-    # Mapping avec Enseigne (MG/BATAM) depuis le nom de l'unite
-    def get_enseigne(unit):
-        s = str(unit).upper()
-        if "BATAM" in s or "BTM" in s:
-            return "BATAM"
-        return "MG"
-    
-    # Convertir les codes en nombres pour le mapping
-    try:
-        code_df[code_col] = pd.to_numeric(code_df[code_col], errors='coerce')
-    except:
-        pass
-    
-    code_df["Enseigne"] = code_df[name_col].apply(get_enseigne)
     
     # Mapping code → nom + enseigne
     mapping_nom = code_df.set_index(code_col)[name_col].to_dict()
