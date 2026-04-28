@@ -1073,19 +1073,26 @@ with tabs[1]:
     if not df_vc_hier.empty:
         worst = df_vc_hier[df_vc_hier["Montant TTC"] > 0].nsmallest(1, "Montant TTC")
         if len(worst) > 0:
-            w_mag = worst.iloc[0]["Nom"]
+            w_mag = worst.iloc[0]["Magasin"] if "Magasin" in worst.columns else worst.iloc[0].get("Nom", "")
             w_ca = worst.iloc[0]["Montant TTC"]
             if w_ca < 100:
                 alertes.append(f"🚨 Magasin critique: {w_mag} (CA: {w_ca:,.0f})")
                 couleur_alertes.append("inverse")
     
-    if total_ca > 0:
-        if mg_pct > 80:
-            alertes.append(f"⚖️ Desequilibre: MG {mg_pct:.0f}% / BATAM {bam_pct:.0f}%")
-            couleur_alertes.append("inverse")
-        elif bam_pct > 80:
-            alertes.append(f"⚖️ Desequilibre: BATAM {bam_pct:.0f}% / MG {mg_pct:.0f}%")
-            couleur_alertes.append("inverse")
+    # Check forEnseigne
+    if "Enseigne" in df_vc_hier.columns:
+        ca_ens = df_vc_hier.groupby("Enseigne")["Montant TTC"].sum()
+        total_ca = ca_ens.sum()
+        mg_pct = (ca_ens.get("MG", 0) / total_ca * 100) if total_ca > 0 else 0
+        bam_pct = (ca_ens.get("BATAM", 0) / total_ca * 100) if total_ca > 0 else 0
+        
+        if total_ca > 0:
+            if mg_pct > 80:
+                alertes.append(f"⚖️ Desequilibre: MG {mg_pct:.0f}% / BATAM {bam_pct:.0f}%")
+                couleur_alertes.append("inverse")
+            elif bam_pct > 80:
+                alertes.append(f"⚖️ Desequilibre: BATAM {bam_pct:.0f}% / MG {mg_pct:.0f}%")
+                couleur_alertes.append("inverse")
     
     if not alertes:
         alertes.append("✅ Aucune alerte — veille normale")
