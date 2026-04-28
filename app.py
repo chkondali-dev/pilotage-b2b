@@ -115,8 +115,51 @@ def _map_magasins(df: pd.DataFrame, code_df: pd.DataFrame) -> pd.DataFrame:
     """
     Mapping vectorise code→nom magasin + enseigne (MG/BATAM).
     """
-    if code_df.empty:
+    if code_df.empty or len(df) == 0:
         return df
+    
+    # Standardiser les colonnes du code_df
+    code_df = code_df.copy()
+    code_df.columns = [c.strip() for c in code_df.columns]
+    
+    # Trouver colonne code dans le df source - "Unite Code"
+    code_col_src = next((c for c in df.columns if c.lower() in ["unite code", "code unite"]), None)
+    if not code_col_src:
+        code_col_src = next((c for c in df.columns if "code" in c.lower()), None)
+    if not code_col_src or code_col_src not in df.columns:
+        return df
+    
+    # Trouver colonne Code Business Central dans code_df
+    code_col = next((c for c in code_df.columns if "business" in c.lower()), None)
+    if not code_col:
+        code_col = next((c for c in code_df.columns if "navision" in c.lower()), None)
+    
+    # Trouver colonne Unite/Nom dans code_df
+    name_col = next((c for c in code_df.columns if c != code_col), None)
+    
+    if not code_col or not name_col or code_col not in code_df.columns:
+        return df
+    
+    # Enseigne function
+    def get_enseigne(unit):
+        s = str(unit).upper()
+        return "BATAM" if ("BATAM" in s or "BTM" in s) else "MG"
+    
+    code_df["Enseigne"] = code_df[name_col].apply(get_enseigne)
+    
+    # Create mappings as strings
+    code_df[code_col] = code_df[code_col].astype(str).str.strip()
+    
+    mapping_nom = code_df.set_index(code_col)[name_col].to_dict()
+    mapping_ense = code_df.set_index(code_col)["Enseigne"].to_dict()
+    
+    df = df.copy()
+    df[code_col_src] = df[code_col_src].astype(str).str.strip()
+    
+    df["Magasin"] = df[code_col_src].map(mapping_nom).fillna(df[code_col_src])
+    df["Enseigne"] = df[code_col_src].map(mapping_ense).fillna("MG")
+    
+    return df
     
     # Standardiser les colonnes du code_df
     code_df = code_df.copy()
