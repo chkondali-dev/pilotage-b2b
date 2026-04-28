@@ -1072,17 +1072,20 @@ with tabs[1]:
     
     with col_seg2:
         st.markdown("**Top 5 Magasins — Veille**")
-        if not df_vc_hier.empty and "Nom" in df_vc_hier.columns:
-            top5_mag = df_vc_hier.groupby("Nom")["Montant TTC"].sum().nlargest(5)
-            df_top5m = top5_mag.reset_index()
-            df_top5m.columns = ["Magasin", "CA"]
-            fig_top5m = px.bar(
-                df_top5m, x="CA", y="Magasin", orientation="h",
-                title="Top 5 Magasins",
-                color="CA", color_continuous_scale=["#DCFCE7", "#15803D"],
-            )
-            fig_top5m.update_layout(height=250, margin=dict(l=20, r=20, t=40, b=20))
-            st.plotly_chart(fig_top5m, use_container_width=True)
+        if not df_vc_hier.empty:
+            # Utiliser "Magasin" si disponible, sinon "Nom"
+            mag_col = "Magasin" if "Magasin" in df_vc_hier.columns else "Nom"
+            if mag_col in df_vc_hier.columns:
+                top5_mag = df_vc_hier.groupby(mag_col)["Montant TTC"].sum().nlargest(5)
+                df_top5m = top5_mag.reset_index()
+                df_top5m.columns = ["Magasin", "CA"]
+                fig_top5m = px.bar(
+                    df_top5m, x="CA", y="Magasin", orientation="h",
+                    title="Top 5 Magasins",
+                    color="CA", color_continuous_scale=["#DCFCE7", "#15803D"],
+                )
+                fig_top5m.update_layout(height=250, margin=dict(l=20, r=20, t=40, b=20))
+                st.plotly_chart(fig_top5m, use_container_width=True)
     
     # Analyse par enseigne MG/BATAM
     st.markdown("### 3. Analyse par Enseigne (MG / BATAM)")
