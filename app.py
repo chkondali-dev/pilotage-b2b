@@ -113,46 +113,53 @@ def _add_date_cols(df: pd.DataFrame) -> pd.DataFrame:
 
 def _map_magasins(df: pd.DataFrame, code_df: pd.DataFrame) -> pd.DataFrame:
     """
-    Mapping vectorisé code→nom magasin.
-    REMPLACE l'ancien get_magasin_name() appelé row-by-row via apply(lambda).
-    Gain : O(1) merge vs O(n) dict lookups.
+    Mapping vectorise code→nom magasin + enseigne (MG/BATAM).
     """
     if code_df.empty:
         return df
     
-    # Trouver colonne code dans le df source (plus flexible)
+    # Standardiser les colonnes du code_df
+    code_df = code_df.copy()
+    code_df.columns = [c.strip() for c in code_df.columns]
+    
+    # Trouver colonne code dans le df source
     code_col_src = next((c for c in df.columns if "magasin" in c.lower() and "code" in c.lower()), None)
     if not code_col_src:
         code_col_src = next((c for c in df.columns if "code" in c.lower()), None)
     if not code_col_src:
         return df
     
-    code_df = code_df.copy()
-    code_df.columns = [c.strip() for c in code_df.columns]
-    # Cherche la colonne code en premier
-    code_col = next((c for c in code_df.columns if "code" in c.lower()), None)
-    # Cherche la colonne nom en excluant la colonne code
-    name_col = next(
-        (c for c in code_df.columns
-         if c != code_col and any(k in c.lower() for k in ("unit", "nom", "magasin", "libelle"))),
-        None,
-    )
-    # Fallback : prend la deuxième colonne si aucun match sémantique
-    if not name_col and len(code_df.columns) >= 2:
-        name_col = next((c for c in code_df.columns if c != code_col), None)
+    # Trouver colonne Code Navision dans code_df
+    code_col = next((c for c in code_df.columns if "navision" in c.lower()), None)
+    # Trouver colonne Unite/Nom dans code_df
+    name_col = next((c for c in code_df.columns if c != code_col), None)
+    
     if not code_col or not name_col:
         return df
-    mapping = code_df.set_index(code_col)[name_col].to_dict()
+    
+    # Mapping avec Enseigne (MG/BATAM) depuis le nom de l'unite
+    def get_enseigne(unit):
+        s = str(unit).upper()
+        if "BATAM" in s or "BTM" in s:
+            return "BATAM"
+        return "MG"
+    
+    code_df["Enseigne"] = code_df[name_col].apply(get_enseigne)
+    
+    # Mapping code → nom + enseigne
+    mapping_nom = code_df.set_index(code_col)[name_col].to_dict()
+    mapping_ense = code_df.set_index(code_col)["Enseigne"].to_dict()
+    
     df = df.copy()
     df["Magasin"] = (
         df[code_col_src].astype(str).str.strip()
-        .map(mapping)
+        .map(mapping_nom)
         .fillna(df[code_col_src].astype(str))
     )
-    
-    # Extraire Enseigne (MG/BATAM) depuis le nom du magasin (toujours)
-    df["Enseigne"] = df["Magasin"].apply(
-        lambda x: "BATAM" if ("BATAM" in str(x).upper() or "BTM" in str(x).upper()) else ("MG" if "MG" in str(x).upper() else "MG")
+    df["Enseigne"] = (
+        df[code_col_src].astype(str).str.strip()
+        .map(mapping_ense)
+        .fillna("MG")
     )
     
     return df
