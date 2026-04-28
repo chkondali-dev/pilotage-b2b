@@ -152,14 +152,8 @@ def _map_magasins(df: pd.DataFrame, code_df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     df[code_col_src] = df[code_col_src].astype(str).str.strip()
     
-df["Magasin"] = df[code_col_src].map(mapping_nom).fillna(df[code_col_src])
+    df["Magasin"] = df[code_col_src].map(mapping_nom).fillna(df[code_col_src])
     df["Enseigne"] = df[code_col_src].map(mapping_ense).fillna("MG")
-    
-    # Fallback: si Enseigne pas cree, inferez depuis Magasin
-    if "Enseigne" not in df.columns or df["Enseigne"].isna().all():
-        df["Enseigne"] = df["Magasin"].apply(
-            lambda x: "BATAM" if ("BATAM" in str(x).upper() or "BTM" in str(x).upper()) else "MG"
-        )
     
     return df
     
