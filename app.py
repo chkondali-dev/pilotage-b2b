@@ -1662,8 +1662,8 @@ st.markdown("---")
 st.caption(
     f"Dashboard B2B SMG — MG & BATAM  ·  "
     f"Source : VC.CONV. Business Central  ·  "
-    f"Généré automatiquement  ·  "
-    f"Filtres actifs : Année {annee_sel} "
-    f"{'| Mois ' + MOIS.get(mois_sel, str(mois_sel)) if mois_sel != 'Tous' else ''} "
-    f"{'| Conv. ' + conv_sel if conv_sel != 'Tous' else ''}"
+    f"Genere automatiquement  ·  "
+    f"Filtres actifs: Annee {annee_sel} "
+    + (f"| Mois {MOIS.get(mois_sel, str(mois_sel))} " if mois_sel != "Tous" else "")
+    + (f"| Conv. {conv_sel}" if conv_sel != "Tous" else "")
 )
