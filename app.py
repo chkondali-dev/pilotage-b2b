@@ -122,15 +122,20 @@ def _map_magasins(df: pd.DataFrame, code_df: pd.DataFrame) -> pd.DataFrame:
     code_df = code_df.copy()
     code_df.columns = [c.strip() for c in code_df.columns]
     
-    # Trouver colonne code dans le df source
-    code_col_src = next((c for c in df.columns if "magasin" in c.lower() and "code" in c.lower()), None)
+    # Trouver colonne code dans le df source - chercher "Unite Code" qui correspond a "Code Business Central"
+    code_col_src = next((c for c in df.columns if c.lower() in ["unite code", "code unite"]), None)
+    if not code_col_src:
+        code_col_src = next((c for c in df.columns if "magasin" in c.lower() and "code" in c.lower()), None)
     if not code_col_src:
         code_col_src = next((c for c in df.columns if "code" in c.lower()), None)
     if not code_col_src:
         return df
     
-    # Trouver colonne Code Navision dans code_df
-    code_col = next((c for c in code_df.columns if "navision" in c.lower()), None)
+    # Trouver colonne Code Business Central dans code_df
+    code_col = next((c for c in code_df.columns if "business" in c.lower()), None)
+    if not code_col:
+        code_col = next((c for c in code_df.columns if "navision" in c.lower()), None)
+    
     # Trouver colonne Unite/Nom dans code_df
     name_col = next((c for c in code_df.columns if c != code_col), None)
     
@@ -144,6 +149,12 @@ def _map_magasins(df: pd.DataFrame, code_df: pd.DataFrame) -> pd.DataFrame:
             return "BATAM"
         return "MG"
     
+    # Convertir les codes en nombres pour le mapping
+    try:
+        code_df[code_col] = pd.to_numeric(code_df[code_col], errors='coerce')
+    except:
+        pass
+    
     code_df["Enseigne"] = code_df[name_col].apply(get_enseigne)
     
     # Mapping code → nom + enseigne
@@ -151,15 +162,18 @@ def _map_magasins(df: pd.DataFrame, code_df: pd.DataFrame) -> pd.DataFrame:
     mapping_ense = code_df.set_index(code_col)["Enseigne"].to_dict()
     
     df = df.copy()
+    
+    # Conversion du code source
+    try:
+        df[code_col_src] = pd.to_numeric(df[code_col_src], errors='coerce')
+    except:
+        pass
+    
     df["Magasin"] = (
-        df[code_col_src].astype(str).str.strip()
-        .map(mapping_nom)
-        .fillna(df[code_col_src].astype(str))
+        df[code_col_src].map(mapping_nom).fillna(df[code_col_src].astype(str))
     )
     df["Enseigne"] = (
-        df[code_col_src].astype(str).str.strip()
-        .map(mapping_ense)
-        .fillna("MG")
+        df[code_col_src].map(mapping_ense).fillna("MG")
     )
     
     return df
