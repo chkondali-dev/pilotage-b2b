@@ -121,7 +121,9 @@ def _map_magasins(df: pd.DataFrame, code_df: pd.DataFrame) -> pd.DataFrame:
         return df
     
     # Trouver colonne code dans le df source (plus flexible)
-    code_col_src = next((c for c in df.columns if "code" in c.lower() and "magasin" in c.lower()), None)
+    code_col_src = next((c for c in df.columns if "magasin" in c.lower() and "code" in c.lower()), None)
+    if not code_col_src:
+        code_col_src = next((c for c in df.columns if "code" in c.lower()), None)
     if not code_col_src:
         return df
     
@@ -148,13 +150,10 @@ def _map_magasins(df: pd.DataFrame, code_df: pd.DataFrame) -> pd.DataFrame:
         .fillna(df[code_col_src].astype(str))
     )
     
-    # Extraire Enseigne (MG/BATAM) depuis le nom du magasin
-    if name_col:
-        ense_col = name_col.lower()
-        if "unit" in ense_col or "nom" in ense_col:
-            df["Enseigne"] = df["Magasin"].apply(
-                lambda x: "BATAM" if ("BATAM" in str(x).upper() or "BTM" in str(x).upper()) else "MG"
-            )
+    # Extraire Enseigne (MG/BATAM) depuis le nom du magasin (toujours)
+    df["Enseigne"] = df["Magasin"].apply(
+        lambda x: "BATAM" if ("BATAM" in str(x).upper() or "BTM" in str(x).upper()) else ("MG" if "MG" in str(x).upper() else "MG")
+    )
     
     return df
 
