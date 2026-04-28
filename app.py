@@ -1023,11 +1023,15 @@ with tabs[1]:
             st.plotly_chart(fig_top5m, use_container_width=True)
     
     # Analyse par enseigne MG/BATAM
+    st.markdown("### 3. Analyse par Enseigne (MG / BATAM)")
+    
     col_ens1, col_ens2 = st.columns([1, 2])
     
     with col_ens1:
-        st.markdown("**Repartition MG / BATAM**")
-        if not df_vc_hier.empty and "Enseigne" in df_vc_hier.columns:
+        st.markdown("**CA par Enseigne**")
+        has_enseigne = not df_vc_hier.empty and "Enseigne" in df_vc_hier.columns
+        
+        if has_enseigne:
             ca_ens = df_vc_hier.groupby("Enseigne")["Montant TTC"].sum()
             total_ca = ca_ens.sum()
             
@@ -1036,21 +1040,30 @@ with tabs[1]:
             mg_pct = (mg_ca / total_ca * 100) if total_ca > 0 else 0
             bam_pct = (bam_ca / total_ca * 100) if total_ca > 0 else 0
             
-            ens1, ens2 = st.columns(2)
-            ens1.metric("CA MG", f"{mg_ca:,.0f}", f"{mg_pct:.1f}%")
-            ens2.metric("CA BATAM", f"{bam_ca:,.0f}", f"{bam_pct:.1f}%")
+            st.metric("CA MG", f"{mg_ca:,.0f} TND", f"{mg_pct:.1f}% du total")
+            st.metric("CA BATAM", f"{bam_ca:,.0f} TND", f"{bam_pct:.1f}% du total")
+            st.caption(f"**Total:** {total_ca:,.0f} TND")
+        else:
+            st.info("Pas de donnees d'enseigne disponibles")
     
     with col_ens2:
-        if not df_vc_hier.empty and "Enseigne" in df_vc_hier.columns:
-            ca_ens = df_vc_hier.groupby("Enseigne")["Montant TTC"].sum()
+        if has_enseigne:
             fig_pie = px.pie(
-                values=ca_ens.values, names=ca_ens.index,
-                title="Repartition CA MG vs BATAM",
+                values=ca_ens.values if len(ca_ens) > 0 else [1, 1], 
+                names=ca_ens.index if len(ca_ens) > 0 else ["MG", "BATAM"],
+                title="Repartition du CA: MG vs BATAM",
                 color_discrete_sequence=["#1D4ED8", "#059669"],
                 hole=0.4,
             )
-            fig_pie.update_traces(textinfo="percent+label")
-            fig_pie.update_layout(height=250, margin=dict(l=20, r=20, t=40, b=20))
+            fig_pie.update_traces(
+                textinfo="percent+label",
+                hoverinfo="label+percent+value",
+            )
+            fig_pie.update_layout(
+                height=300,
+                margin=dict(l=20, r=20, t=50, b=20),
+                legend=dict(orientation="h", yanchor="bottom", y=-0.1, xanchor="center", x=0.5),
+            )
             st.plotly_chart(fig_pie, use_container_width=True)
     
     # Alertes automatiques
