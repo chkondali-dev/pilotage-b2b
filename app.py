@@ -113,14 +113,14 @@ def _add_date_cols(df: pd.DataFrame) -> pd.DataFrame:
 
 def _map_magasins(df: pd.DataFrame, code_df: pd.DataFrame) -> pd.DataFrame:
     """
-    Mapping vectorise code→nom magasin + enseigne (MG/BATAM).
+    Mapping code Navision → nom magasin + enseigne.
     """
     if len(df) == 0:
         return df
     
-    # Ajouter colonne Enseigne par defaut
     df = df.copy()
     df["Enseigne"] = "MG"
+    df["Magasin"] = "Inconnu"
     
     if code_df.empty:
         return df
@@ -128,34 +128,29 @@ def _map_magasins(df: pd.DataFrame, code_df: pd.DataFrame) -> pd.DataFrame:
     code_df = code_df.copy()
     code_df.columns = [c.strip() for c in code_df.columns]
     
-    # Essayer de trouver Code Navision dans le df source
+    # Code Navision dans le df source
     code_col_src = next((c for c in df.columns if "navision" in c.lower()), None)
-    
-    if code_col_src:
-        code_col = next((c for c in code_df.columns if "navision" in c.lower()), None)
-    else:
-        # Fallback: utiliser la colonne qui contient "code" et pas "magasin"
-        code_col_src = next((c for c in df.columns if "code" in c.lower() and "navision" not in c.lower()), None)
-        code_col = next((c for c in code_df.columns if "code" in c.lower() and "navision" not in c.lower()), None)
-    
-    if not code_col_src or not code_col:
+    if not code_col_src:
         return df
     
-    name_col = next((c for c in code_df.columns if c != code_col), None)
-    if not name_col:
-        return df
+    # Code Navision dans code_df (col 0)
+    code_col = code_df.columns[0]
+    # Unite (col 2) - le nom du magasin
+    name_col = code_df.columns[2] if len(code_df.columns) > 2 else code_df.columns[1]
     
-    def get_enseigne(unit):
+    def get_ense(unit):
         s = str(unit).upper()
         return "BATAM" if ("BATAM" in s or "BTM" in s) else "MG"
     
-    code_df["Enseigne"] = code_df[name_col].apply(get_enseigne)
+    code_df["Enseigne"] = code_df[name_col].apply(get_ense)
+    
+    # Normaliser les codes
     code_df[code_col] = code_df[code_col].astype(str).str.strip()
+    df[code_col_src] = df[code_col_src].astype(str).str.strip()
     
     mapping_nom = code_df.set_index(code_col)[name_col].to_dict()
     mapping_ense = code_df.set_index(code_col)["Enseigne"].to_dict()
     
-    df[code_col_src] = df[code_col_src].astype(str).str.strip()
     df["Magasin"] = df[code_col_src].map(mapping_nom).fillna(df[code_col_src])
     df["Enseigne"] = df[code_col_src].map(mapping_ense).fillna("MG")
     
@@ -1073,26 +1068,23 @@ with tabs[1]:
     with col_seg2:
         st.markdown("**Top 5 Magasins — Veille**")
         if not df_vc_hier.empty and "Montant TTC" in df_vc_hier.columns:
-            # Trouver colonne unite/code magasin (pas "Nom" qui est convention)
-            grp_col = None
-            for c in ["Unite", "Unit", "Code Unite", "Unite Code"]:
-                if c in df_vc_hier.columns:
-                    grp_col = c
-                    break
-            
-            if grp_col:
-                top5_mag = df_vc_hier.groupby(grp_col)["Montant TTC"].sum().nlargest(5)
-                df_top5m = top5_mag.reset_index()
-                df_top5m.columns = ["Magasin", "CA"]
-                fig_top5m = px.bar(
-                    df_top5m, x="CA", y="Magasin", orientation="h",
-                    title="Top 5 Magasins",
-                    color="CA", color_continuous_scale=["#DCFCE7", "#15803D"],
-                )
-                fig_top5m.update_layout(height=250, margin=dict(l=20, r=20, t=40, b=20))
-                st.plotly_chart(fig_top5m, use_container_width=True)
+            # Essayer colonne Code Navision pour le mapping
+            for code_col_src in ["Code Navision", "Unite Code"]:
+                if code_col_src in df_vc_hier.columns and "Magasin" in df_vc_hier.columns:
+                    top5_mag = df_vc_hier.groupby("Magasin")["Montant TTC"].sum().nlargest(5)
+                    if len(top5_mag) > 0:
+                        df_top5m = top5_mag.reset_index()
+                        df_top5m.columns = ["Magasin", "CA"]
+                        fig_top5m = px.bar(
+                            df_top5m, x="CA", y="Magasin", orientation="h",
+                            title="Top 5 Magasins",
+                            color="CA", color_continuous_scale=["#DCFCE7", "#15803D"],
+                        )
+                        fig_top5m.update_layout(height=250, margin=dict(l=20, r=20, t=40, b=20))
+                        st.plotly_chart(fig_top5m, use_container_width=True)
+                        break
             else:
-                st.caption("Colonne unite non disponible")
+                st.caption("Colonne Magasin non disponible")
     
     # Analyse par enseigne MG/BATAM
     st.markdown("### 3. Analyse par Enseigne (MG / BATAM)")
