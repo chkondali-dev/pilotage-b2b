@@ -147,6 +147,15 @@ def _map_magasins(df: pd.DataFrame, code_df: pd.DataFrame) -> pd.DataFrame:
         .map(mapping)
         .fillna(df[code_col_src].astype(str))
     )
+    
+    # Extraire Enseigne (MG/BATAM) depuis le nom du magasin
+    if name_col:
+        ense_col = name_col.lower()
+        if "unit" in ense_col or "nom" in ense_col:
+            df["Enseigne"] = df["Magasin"].apply(
+                lambda x: "BATAM" if ("BATAM" in str(x).upper() or "BTM" in str(x).upper()) else "MG"
+            )
+    
     return df
 
 
@@ -1018,10 +1027,7 @@ with tabs[1]:
     
     with col_ens1:
         st.markdown("**Repartition MG / BATAM**")
-        if not df_vc_hier.empty:
-            df_vc_hier["Enseigne"] = df_vc_hier["Nom"].apply(
-                lambda x: "BATAM" if ("BATAM" in str(x).upper() or "BTM" in str(x).upper()) else "MG"
-            )
+        if not df_vc_hier.empty and "Enseigne" in df_vc_hier.columns:
             ca_ens = df_vc_hier.groupby("Enseigne")["Montant TTC"].sum()
             total_ca = ca_ens.sum()
             
@@ -1035,7 +1041,8 @@ with tabs[1]:
             ens2.metric("CA BATAM", f"{bam_ca:,.0f}", f"{bam_pct:.1f}%")
     
     with col_ens2:
-        if not df_vc_hier.empty:
+        if not df_vc_hier.empty and "Enseigne" in df_vc_hier.columns:
+            ca_ens = df_vc_hier.groupby("Enseigne")["Montant TTC"].sum()
             fig_pie = px.pie(
                 values=ca_ens.values, names=ca_ens.index,
                 title="Repartition CA MG vs BATAM",
