@@ -126,6 +126,41 @@ def _map_magasins(df: pd.DataFrame, code_df: pd.DataFrame) -> pd.DataFrame:
         return df
     
     code_df = code_df.copy()
+    code_df.columns = code_df.columns.str.strip()
+    
+    # Utiliser Unite Code dans VC -> Code Navision dans mapping
+    code_col_src = next((c for c in df.columns if c.lower() == "unite code"), None)
+    if not code_col_src:
+        return df
+    
+    # Code Navision est la colonne 0 dans le fichier de mapping
+    code_col = list(code_df.columns)[0]
+    unite_col = list(code_df.columns)[2]
+    
+    def get_ense(unit):
+        s = str(unit).upper()
+        return "BATAM" if "BATAM" in s or "BTM" in s else "MG"
+    
+    code_df["Enseigne"] = code_df[unite_col].apply(get_ense)
+    code_df[code_col] = code_df[code_col].astype(str).str.strip()
+    
+    mapping_nom = code_df.set_index(code_col)[unite_col].to_dict()
+    mapping_ense = code_df.set_index(code_col)["Enseigne"].to_dict()
+    
+    df[code_col_src] = df[code_col_src].astype(str).str.strip()
+    df["Magasin"] = df[code_col_src].map(mapping_nom).fillna(df[code_col_src])
+    df["Enseigne"] = df[code_col_src].map(mapping_ense).fillna("MG")
+    
+    return df
+    
+    df = df.copy()
+    df["Enseigne"] = "MG"
+    df["Magasin"] = "Inconnu"
+    
+    if code_df.empty:
+        return df
+    
+    code_df = code_df.copy()
     code_df.columns = [c.strip() for c in code_df.columns]
     
     # Code Navision dans le df source
