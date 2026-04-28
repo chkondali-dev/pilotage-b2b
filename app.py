@@ -10,6 +10,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import requests
 from io import BytesIO
+from datetime import datetime, timedelta
 
 st.set_page_config(
     page_title="Pilotage B2B — SMG",
@@ -949,8 +950,144 @@ with tabs[0]:
 
 # ════════════��═��═══════════════════════════════════════════════
 # TAB 1 — CA & TENDANCES
-# ═════════════════════════════════════���════════════════════════
+# ══════════════════════════════════════════════════════
 with tabs[1]:
+
+    # ══════════════════════════════════════════════════════
+    # SECTION VEILLE (J-1) — DECISIONNELLE
+    # ══════════════════════════════════════════════════════
+    st.markdown("### 📊 Performance de la veille (J-1)")
+    
+    # Donnees veille (hier)
+    hier_date = (datetime.now() - timedelta(days=1)).date()
+    annee_hier = hier_date.year
+    mois_hier = hier_date.month
+    
+    df_vc_hier = df_vc[(df_vc["Date"].dt.date == hier_date)].copy()
+    df_vc_n1 = df_vc[(df_vc["Année"] == annee_hier - 1) & (df_vc["Mois"] == mois_hier) & (df_vc["Jour"] == hier_date.day)].copy()
+    
+    # KPI veille
+    ca_veille = df_vc_hier["Montant TTC"].sum() if len(df_vc_hier) > 0 else 0
+    ca_n1_meme_jour = df_vc_n1["Montant TTC"].sum() if len(df_vc_n1) > 0 else 0
+    evo_veille = ((ca_veille - ca_n1_meme_jour) / ca_n1_meme_jour * 100) if ca_n1_meme_jour > 0 else 0
+    nb_tickets_veille = len(df_vc_hier)
+    panier_veille = ca_veille / nb_tickets_veille if nb_tickets_veille > 0 else 0
+    
+    # KPI Cards horizontales
+    kp1, kp2, kp3, kp4 = st.columns(4)
+    kp1.metric("CA Veille", f"{ca_veille:,.0f} TND", delta_color="normal" if evo_veille >= 0 else "inverse")
+    kp2.metric("Evolution vs N-1", f"{evo_veille:+.1f}%", delta_color="normal" if evo_veille >= 0 else "inverse")
+    kp3.metric("Nb Tickets", nb_tickets_veille)
+    kp4.metric("Panier Moyen", f"{panier_veille:,.0f} TND")
+    
+    st.caption(f"📅 Date de reference: {hier_date.strftime('%d/%m/%Y')}")
+    
+    # Analyse par segment
+    col_seg1, col_seg2 = st.columns(2)
+    
+    with col_seg1:
+        st.markdown("**Top 5 Conventions — Veille**")
+        if not df_vc_hier.empty and "Nom" in df_vc_hier.columns:
+            top5_conv = df_vc_hier.groupby("Nom")["Montant TTC"].sum().nlargest(5)
+            df_top5 = top5_conv.reset_index()
+            df_top5.columns = ["Convention", "CA"]
+            fig_top5 = px.bar(
+                df_top5, x="CA", y="Convention", orientation="h",
+                title="Top 5 Conventions",
+                color="CA", color_continuous_scale=["#DCFCE7", "#15803D"],
+            )
+            fig_top5.update_layout(height=250, margin=dict(l=20, r=20, t=40, b=20))
+            st.plotly_chart(fig_top5, use_container_width=True)
+    
+    with col_seg2:
+        st.markdown("**Top 5 Magasins — Veille**")
+        if not df_vc_hier.empty and "Nom" in df_vc_hier.columns:
+            top5_mag = df_vc_hier.groupby("Nom")["Montant TTC"].sum().nlargest(5)
+            df_top5m = top5_mag.reset_index()
+            df_top5m.columns = ["Magasin", "CA"]
+            fig_top5m = px.bar(
+                df_top5m, x="CA", y="Magasin", orientation="h",
+                title="Top 5 Magasins",
+                color="CA", color_continuous_scale=["#DCFCE7", "#15803D"],
+            )
+            fig_top5m.update_layout(height=250, margin=dict(l=20, r=20, t=40, b=20))
+            st.plotly_chart(fig_top5m, use_container_width=True)
+    
+    # Analyse par enseigne MG/BATAM
+    col_ens1, col_ens2 = st.columns([1, 2])
+    
+    with col_ens1:
+        st.markdown("**Repartition MG / BATAM**")
+        if not df_vc_hier.empty:
+            df_vc_hier["Enseigne"] = df_vc_hier["Nom"].apply(
+                lambda x: "BATAM" if ("BATAM" in str(x).upper() or "BTM" in str(x).upper()) else "MG"
+            )
+            ca_ens = df_vc_hier.groupby("Enseigne")["Montant TTC"].sum()
+            total_ca = ca_ens.sum()
+            
+            mg_ca = ca_ens.get("MG", 0)
+            bam_ca = ca_ens.get("BATAM", 0)
+            mg_pct = (mg_ca / total_ca * 100) if total_ca > 0 else 0
+            bam_pct = (bam_ca / total_ca * 100) if total_ca > 0 else 0
+            
+            ens1, ens2 = st.columns(2)
+            ens1.metric("CA MG", f"{mg_ca:,.0f}", f"{mg_pct:.1f}%")
+            ens2.metric("CA BATAM", f"{bam_ca:,.0f}", f"{bam_pct:.1f}%")
+    
+    with col_ens2:
+        if not df_vc_hier.empty:
+            fig_pie = px.pie(
+                values=ca_ens.values, names=ca_ens.index,
+                title="Repartition CA MG vs BATAM",
+                color_discrete_sequence=["#1D4ED8", "#059669"],
+                hole=0.4,
+            )
+            fig_pie.update_traces(textinfo="percent+label")
+            fig_pie.update_layout(height=250, margin=dict(l=20, r=20, t=40, b=20))
+            st.plotly_chart(fig_pie, use_container_width=True)
+    
+    # Alertes automatiques
+    st.markdown("### 🔔 Alertes & Insights — Veille")
+    
+    alertes = []
+    couleur_alertes = []
+    
+    if evo_veille < -20:
+        alertes.append(f"⚠️ Baisse significative: {evo_veille:.1f}% vs N-1")
+        couleur_alertes.append("inverse")
+    elif evo_veille >= 0:
+        alertes.append(f"✅ Belle performance: +{evo_veille:.1f}% vs N-1")
+        couleur_alertes.append("normal")
+    
+    if panier_veille < panier_moy * 0.8:
+        alertes.append(f"📉 Panier bas: {panier_veille:,.0f} TND (moy: {panier_moy:,.0f})")
+        couleur_alertes.append("inverse")
+    
+    if not df_vc_hier.empty:
+        worst = df_vc_hier[df_vc_hier["Montant TTC"] > 0].nsmallest(1, "Montant TTC")
+        if len(worst) > 0:
+            w_mag = worst.iloc[0]["Nom"]
+            w_ca = worst.iloc[0]["Montant TTC"]
+            if w_ca < 100:
+                alertes.append(f"🚨 Magasin critique: {w_mag} (CA: {w_ca:,.0f})")
+                couleur_alertes.append("inverse")
+    
+    if total_ca > 0:
+        if mg_pct > 80:
+            alertes.append(f"⚖️ Desequilibre: MG {mg_pct:.0f}% / BATAM {bam_pct:.0f}%")
+            couleur_alertes.append("inverse")
+        elif bam_pct > 80:
+            alertes.append(f"⚖️ Desequilibre: BATAM {bam_pct:.0f}% / MG {mg_pct:.0f}%")
+            couleur_alertes.append("inverse")
+    
+    if not alertes:
+        alertes.append("✅ Aucune alerte — veille normale")
+        couleur_alertes.append("normal")
+    
+    for txt, col in zip(alertes, couleur_alertes):
+        st.write(f"{txt}")
+    
+    st.markdown("---")
 
     section("Tendance mensuelle")
     col_t1, col_t2 = st.columns(2)
