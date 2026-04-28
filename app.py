@@ -114,10 +114,52 @@ def _add_date_cols(df: pd.DataFrame) -> pd.DataFrame:
 def _map_magasins(df: pd.DataFrame, code_df: pd.DataFrame) -> pd.DataFrame:
     """
     Mapping vectorise code→nom magasin + enseigne (MG/BATAM).
-    Utilise Code Navision pour le matching.
     """
-    if code_df.empty or len(df) == 0:
+    if len(df) == 0:
         return df
+    
+    # Ajouter colonne Enseigne par defaut
+    df = df.copy()
+    df["Enseigne"] = "MG"
+    
+    if code_df.empty:
+        return df
+    
+    code_df = code_df.copy()
+    code_df.columns = [c.strip() for c in code_df.columns]
+    
+    # Essayer de trouver Code Navision dans le df source
+    code_col_src = next((c for c in df.columns if "navision" in c.lower()), None)
+    
+    if code_col_src:
+        code_col = next((c for c in code_df.columns if "navision" in c.lower()), None)
+    else:
+        # Fallback: utiliser la colonne qui contient "code" et pas "magasin"
+        code_col_src = next((c for c in df.columns if "code" in c.lower() and "navision" not in c.lower()), None)
+        code_col = next((c for c in code_df.columns if "code" in c.lower() and "navision" not in c.lower()), None)
+    
+    if not code_col_src or not code_col:
+        return df
+    
+    name_col = next((c for c in code_df.columns if c != code_col), None)
+    if not name_col:
+        return df
+    
+    def get_enseigne(unit):
+        s = str(unit).upper()
+        return "BATAM" if ("BATAM" in s or "BTM" in s) else "MG"
+    
+    code_df["Enseigne"] = code_df[name_col].apply(get_enseigne)
+    code_df[code_col] = code_df[code_col].astype(str).str.strip()
+    
+    mapping_nom = code_df.set_index(code_col)[name_col].to_dict()
+    mapping_ense = code_df.set_index(code_col)["Enseigne"].to_dict()
+    
+    df[code_col_src] = df[code_col_src].astype(str).str.strip()
+    df["Magasin"] = df[code_col_src].map(mapping_nom).fillna(df[code_col_src])
+    df["Enseigne"] = df[code_col_src].map(mapping_ense).fillna("MG")
+    
+    return df
     
     # Standardiser les colonnes du code_df
     code_df = code_df.copy()
