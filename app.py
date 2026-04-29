@@ -1319,10 +1319,15 @@ with tabs[2]:
     conv_detail = st.selectbox("Sélectionner une convention", all_convs, key="conv_detail")
 
     if conv_detail:
-        df_cv      = df_vc_filt[df_vc_filt["Nom"] == conv_detail].copy()
+        # Filter data for this specific convention
+        df_cv = df_vc_filt[df_vc_filt["Nom"] == conv_detail].copy()
+        
+        # Calculate CA for current and previous year using filtered data
         ca_cv_n    = ca_sum(df_vc_filt, annee_sel, mois_sel)
         ca_cv_n1   = ca_sum(df_vc_filt, annee_sel - 1, mois_sel)
         ev_cv      = evol_pct(ca_cv_n, ca_cv_n1)
+        
+        # Count only filtered data
         nb_fact_cv = len(df_cv[df_cv["Année"] == annee_sel])
         panier_cv  = ca_cv_n / nb_fact_cv if nb_fact_cv > 0 else 0
 
@@ -1337,7 +1342,8 @@ with tabs[2]:
         ci4.metric("Panier moyen", f"{panier_cv:,.0f} TND")
 
         col_cv1, col_cv2 = st.columns(2)
-        df_cv_comp = compare_years(df_cv, annee_sel, annee_sel - 1)
+        # Use filtered data for comparison
+        df_cv_comp = compare_years(df_vc_filt[df_vc_filt["Nom"] == conv_detail], annee_sel, annee_sel - 1)
 
         with col_cv1:
             fig_cv_g = chart_grouped_bar(
@@ -1347,9 +1353,12 @@ with tabs[2]:
             st.plotly_chart(fig_cv_g, use_container_width=True)
 
         with col_cv2:
-            # Cumulé
-            _cn  = df_cv[df_cv["Année"] == annee_sel].groupby("Mois")["Montant TTC"].sum().reset_index()
-            _cn1 = df_cv[df_cv["Année"] == annee_sel - 1].groupby("Mois")["Montant TTC"].sum().reset_index()
+            # Cumulé - use filtered data for both years
+            _df_filtered_n = df_vc_filt[(df_vc_filt["Nom"] == conv_detail) & (df_vc_filt["Année"] == annee_sel)]
+            _df_filtered_n1 = df_vc_filt[(df_vc_filt["Nom"] == conv_detail) & (df_vc_filt["Année"] == annee_sel - 1)]
+            
+            _cn  = _df_filtered_n.groupby("Mois")["Montant TTC"].sum().reset_index()
+            _cn1 = _df_filtered_n1.groupby("Mois")["Montant TTC"].sum().reset_index()
             _cn["CA Cum N"]   = _cn["Montant TTC"].cumsum()
             _cn1["CA Cum N-1"] = _cn1["Montant TTC"].cumsum()
             df_cum = _cn[["Mois", "CA Cum N"]].merge(
@@ -1366,7 +1375,7 @@ with tabs[2]:
         with col_cv3:
             if "Magasin" in df_cv.columns:
                 mag = (
-                    df_cv[df_cv["Année"] == annee_sel]
+                    _df_filtered_n
                     .groupby("Magasin")["Montant TTC"].sum()
                     .nlargest(10).reset_index()
                 )
@@ -1374,10 +1383,10 @@ with tabs[2]:
                     mag, "Montant TTC", "Magasin",
                     "Top Magasins", C["purple"], h=360, orientation="h",
                 )
-                st.plotly_chart(fig_mag_cv, width="stretch")
+                st.plotly_chart(fig_mag_cv, use_container_width=True)
 
         with col_cv4:
-            ca_cash   = df_cv[df_cv["Année"] == annee_sel]["Montant TTC"].sum()
+            ca_cash   = _df_filtered_n["Montant TTC"].sum() if len(_df_filtered_n) > 0 else 0
             ca_credit = (
                 df_credit[df_credit["Nom"] == conv_detail]["Montant TTC"].sum()
                 if "Nom" in df_credit.columns else 0
