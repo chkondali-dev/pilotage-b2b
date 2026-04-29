@@ -1252,14 +1252,11 @@ with tabs[1]:
         )
         st.plotly_chart(fig_mvar, width="stretch")
 
-    # ── CA Journalier ──────────────────────────────────────────
+# ── CA Journalier ──────────────────────────────────────────
     section("CA Journalier")
 
-_dj_n  = df_vc_filt[df_vc_filt["Année"] == annee_sel]
-        _dj_n1 = df_vc_filt[df_vc_filt["Année"] == annee_sel - 1]
-    if mois_sel:
-        _dj_n  = _dj_n[_dj_n["Mois"].isin(mois_sel)]
-        _dj_n1 = _dj_n1[_dj_n1["Mois"].isin(mois_sel)]
+    _dj_n  = df_vc_filt[df_vc_filt["Année"] == annee_sel]
+    _dj_n1 = df_vc_filt[df_vc_filt["Année"] == annee_sel - 1]
 
     ca_jn  = _dj_n.groupby("Jour")["Montant TTC"].sum().rename("CA N").reset_index()
     ca_jn1 = _dj_n1.groupby("Jour")["Montant TTC"].sum().rename("CA N-1").reset_index()
