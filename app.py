@@ -892,9 +892,14 @@ if df_vc.empty or "Année" not in df_vc.columns:
     st.error("⚠️ Aucune donnée VC chargée. Vérifiez la connexion GitHub.")
     st.stop()
 
+# ── Pré-calculs partagés (calculés une seule fois) ────────────
+df_vc_filt = df_vc.copy()
+if mois_sel:
+    df_vc_filt = df_vc_filt[df_vc_filt["Mois"].isin(mois_sel)]
+
 # Convention filter (dépend de l'année)
 _conv_options = (
-    ["Tous"] + sorted(df_vc_filt[df_vc_filt["Année"] == annee_sel]["Nom"].dropna().unique().tolist())
+    ["Tous"] + sorted(df_vc_filt["Nom"].dropna().unique().tolist())
     if "Nom" in df_vc.columns else ["Tous"]
 )
 with st.sidebar:
@@ -902,15 +907,8 @@ with st.sidebar:
 
 # ── Slice filtré ──────────────────────────────────────────────
 df_filt = df_vc_filt[df_vc_filt["Année"] == annee_sel].copy()
-if mois_sel:
-    df_filt = df_filt[df_filt["Mois"].isin(mois_sel)]
 if conv_sel != "Tous":
     df_filt = df_filt[df_filt["Nom"] == conv_sel]
-
-# ── Pré-calculs partagés (calculés une seule fois) ────────────
-df_vc_filt = df_vc.copy()
-if mois_sel:
-    df_vc_filt = df_vc_filt[df_vc_filt["Mois"].isin(mois_sel)]
 
 df_comp     = compare_years(df_vc_filt, annee_sel, annee_sel - 1)
 risk_mat    = convention_risk_matrix(df_vc_filt, annee_sel)
