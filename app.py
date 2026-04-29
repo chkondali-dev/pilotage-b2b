@@ -908,19 +908,23 @@ if conv_sel != "Tous":
     df_filt = df_filt[df_filt["Nom"] == conv_sel]
 
 # ── Pré-calculs partagés (calculés une seule fois) ────────────
-df_comp     = compare_years(df_vc, annee_sel, annee_sel - 1)
-risk_mat    = convention_risk_matrix(df_vc, annee_sel)
-df_inactive = inactive_conventions(df_vc)
-df_3m       = get_rolling_3m(df_vc)
+df_vc_filt = df_vc.copy()
+if mois_sel:
+    df_vc_filt = df_vc_filt[df_vc_filt["Mois"].isin(mois_sel)]
 
-ca_n        = ca_sum(df_vc, annee_sel, mois_sel)
-ca_n1       = ca_sum(df_vc, annee_sel - 1, mois_sel)
-ca_n2       = ca_sum(df_vc, annee_sel - 2, mois_sel)
+df_comp     = compare_years(df_vc_filt, annee_sel, annee_sel - 1)
+risk_mat    = convention_risk_matrix(df_vc_filt, annee_sel)
+df_inactive = inactive_conventions(df_vc_filt)
+df_3m       = get_rolling_3m(df_vc_filt)
+
+ca_n        = ca_sum(df_vc_filt, annee_sel, mois_sel)
+ca_n1       = ca_sum(df_vc_filt, annee_sel - 1, mois_sel)
+ca_n2       = ca_sum(df_vc_filt, annee_sel - 2, mois_sel)
 ev_nn1      = evol_pct(ca_n, ca_n1)
 ev_n1n2     = evol_pct(ca_n1, ca_n2)
 
-nb_actives  = df_vc[df_vc["Année"] == annee_sel]["Nom"].dropna().nunique() \
-              if "Nom" in df_vc.columns else 0
+nb_actives  = df_vc_filt[df_vc_filt["Année"] == annee_sel]["Nom"].dropna().nunique() \
+              if "Nom" in df_vc_filt.columns else 0
 nb_total    = len(df_conv) if not df_conv.empty else 0
 nb_inact    = len(df_inactive)
 panier_min = df_filt["Montant TTC"].min() if len(df_filt) > 0 else 0
@@ -1316,7 +1320,7 @@ with tabs[2]:
     # ── Analyse individuelle ─���─���───────────────────────────────
     section("Analyse individuelle par convention")
 
-    all_convs = sorted(df_vc["Nom"].dropna().unique().tolist()) if "Nom" in df_vc.columns else []
+    all_convs = sorted(df_vc_filt["Nom"].dropna().unique().tolist()) if "Nom" in df_vc_filt.columns else []
     conv_detail = st.selectbox("Sélectionner une convention", all_convs, key="conv_detail")
 
     if conv_detail:
