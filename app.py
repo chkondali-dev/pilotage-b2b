@@ -894,14 +894,14 @@ if df_vc.empty or "Année" not in df_vc.columns:
 
 # Convention filter (dépend de l'année)
 _conv_options = (
-    ["Tous"] + sorted(df_vc[df_vc["Année"] == annee_sel]["Nom"].dropna().unique().tolist())
+    ["Tous"] + sorted(df_vc_filt[df_vc_filt["Année"] == annee_sel]["Nom"].dropna().unique().tolist())
     if "Nom" in df_vc.columns else ["Tous"]
 )
 with st.sidebar:
     conv_sel = st.selectbox("Convention", _conv_options)
 
 # ── Slice filtré ──────────────────────────────────────────────
-df_filt = df_vc[df_vc["Année"] == annee_sel].copy()
+df_filt = df_vc_filt[df_vc_filt["Année"] == annee_sel].copy()
 if mois_sel:
     df_filt = df_filt[df_filt["Mois"].isin(mois_sel)]
 if conv_sel != "Tous":
@@ -931,7 +931,7 @@ panier_min = df_filt["Montant TTC"].min() if len(df_filt) > 0 else 0
 panier_max = df_filt["Montant TTC"].max() if len(df_filt) > 0 else 0
 panier_moy  = df_filt["Montant TTC"].mean() if len(df_filt) > 0 else 0
 
-_df_mois = df_vc[df_vc["Année"] == annee_sel].copy()
+_df_mois = df_vc_filt[df_vc_filt["Année"] == annee_sel].copy()
 if mois_sel:
     _df_mois = _df_mois[_df_mois["Mois"].isin(mois_sel)]
 
@@ -1255,8 +1255,8 @@ with tabs[1]:
     # ── CA Journalier ──────────────────────────────────────────
     section("CA Journalier")
 
-    _dj_n  = df_vc[df_vc["Année"] == annee_sel]
-    _dj_n1 = df_vc[df_vc["Année"] == annee_sel - 1]
+_dj_n  = df_vc_filt[df_vc_filt["Année"] == annee_sel]
+        _dj_n1 = df_vc_filt[df_vc_filt["Année"] == annee_sel - 1]
     if mois_sel:
         _dj_n  = _dj_n[_dj_n["Mois"].isin(mois_sel)]
         _dj_n1 = _dj_n1[_dj_n1["Mois"].isin(mois_sel)]
@@ -1324,9 +1324,9 @@ with tabs[2]:
     conv_detail = st.selectbox("Sélectionner une convention", all_convs, key="conv_detail")
 
     if conv_detail:
-        df_cv      = df_vc[df_vc["Nom"] == conv_detail].copy()
-        ca_cv_n    = ca_sum(df_cv, annee_sel)
-        ca_cv_n1   = ca_sum(df_cv, annee_sel - 1)
+        df_cv      = df_vc_filt[df_vc_filt["Nom"] == conv_detail].copy()
+        ca_cv_n    = ca_sum(df_vc_filt, annee_sel, mois_sel)
+        ca_cv_n1   = ca_sum(df_vc_filt, annee_sel - 1, mois_sel)
         ev_cv      = evol_pct(ca_cv_n, ca_cv_n1)
         nb_fact_cv = len(df_cv[df_cv["Année"] == annee_sel])
         panier_cv  = ca_cv_n / nb_fact_cv if nb_fact_cv > 0 else 0
@@ -1349,7 +1349,7 @@ with tabs[2]:
                 df_cv_comp, "Mois Nom", "CA N", "CA N-1",
                 f"CA Mensuel — {conv_detail}", annee_sel,
             )
-            st.plotly_chart(fig_cv_g, width="stretch")
+            st.plotly_chart(fig_cv_g, use_container_width=True)
 
         with col_cv2:
             # Cumulé
@@ -1418,8 +1418,8 @@ with tabs[3]:
     section("Performance réseau magasins")
 
     if "Magasin" in df_vc.columns:
-        _base_n  = df_vc[df_vc["Année"] == annee_sel]
-        _base_n1 = df_vc[df_vc["Année"] == annee_sel - 1]
+        _base_n  = df_vc_filt[df_vc_filt["Année"] == annee_sel]
+        _base_n1 = df_vc_filt[df_vc_filt["Année"] == annee_sel - 1]
         if mois_sel:
             _base_n  = _base_n[_base_n["Mois"].isin(mois_sel)]
             _base_n1 = _base_n1[_base_n1["Mois"].isin(mois_sel)]
