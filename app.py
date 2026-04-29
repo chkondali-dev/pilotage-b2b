@@ -273,7 +273,9 @@ def prepare_data(_raw: dict) -> tuple:
 
 def ca_sum(df: pd.DataFrame, annee: int, mois=None) -> float:
     d = df[df["Année"] == annee]
-    if mois and mois != "Tous":
+    if mois and isinstance(mois, list) and len(mois) > 0:
+        d = d[d["Mois"].isin(mois)]
+    elif mois and isinstance(mois, int):
         d = d[d["Mois"] == mois]
     return float(d["Montant TTC"].sum()) if "Montant TTC" in d.columns else 0.0
 
@@ -862,12 +864,17 @@ with col_l2:
 with st.sidebar:
     st.markdown("### 🔍 Filtres globaux")
     annee_sel = st.selectbox("Année N", [2026, 2025, 2024, 2023], index=0)
-    mois_sel  = st.selectbox(
+    
+    # Filtre mois multiselect
+    all_mois = list(range(1, 13))
+    mois_sel = st.multiselect(
         "Mois",
-        ["Tous"] + list(range(1, 13)),
-        index=pd.Timestamp.now().month,
-        format_func=lambda x: MOIS.get(x, "Tous") if x != "Tous" else "Tous",
+        all_mois,
+        default=all_mois,
+        format_func=lambda x: MOIS.get(x, str(x)),
+        help="Sélectionnez un ou plusieurs mois"
     )
+    
     st.markdown("---")
     if st.button("🔄 Actualiser les données"):
         st.cache_data.clear()
@@ -895,8 +902,8 @@ with st.sidebar:
 
 # ── Slice filtré ──────────────────────────────────────────────
 df_filt = df_vc[df_vc["Année"] == annee_sel].copy()
-if mois_sel != "Tous":
-    df_filt = df_filt[df_filt["Mois"] == mois_sel]
+if mois_sel:
+    df_filt = df_filt[df_filt["Mois"].isin(mois_sel)]
 if conv_sel != "Tous":
     df_filt = df_filt[df_filt["Nom"] == conv_sel]
 
@@ -921,8 +928,8 @@ panier_max = df_filt["Montant TTC"].max() if len(df_filt) > 0 else 0
 panier_moy  = df_filt["Montant TTC"].mean() if len(df_filt) > 0 else 0
 
 _df_mois = df_vc[df_vc["Année"] == annee_sel].copy()
-if mois_sel != "Tous":
-    _df_mois = _df_mois[_df_mois["Mois"] == mois_sel]
+if mois_sel:
+    _df_mois = _df_mois[_df_mois["Mois"].isin(mois_sel)]
 
 min_mag = _df_mois.loc[_df_mois["Montant TTC"].idxmin(), "Nom"] if len(_df_mois) > 0 and "Nom" in _df_mois.columns else ""
 max_mag = _df_mois.loc[_df_mois["Montant TTC"].idxmax(), "Nom"] if len(_df_mois) > 0 and "Nom" in _df_mois.columns else ""
@@ -989,7 +996,7 @@ with tabs[0]:
     s3.metric("Panier max", f"{panier_max:,.0f} TND")
     s4.metric("Panier moyen", f"{panier_moy:,.0f} TND")
 
-    mois_label = MOIS.get(mois_sel, f"Mois {mois_sel}") if mois_sel != "Tous" else f"{annee_sel}"
+    mois_label = ", ".join([MOIS.get(m, str(m)) for m in mois_sel]) if mois_sel else f"{annee_sel}"
     st.caption(f"📌 Panier min: {min_mag}  |  Panier max: {max_mag}  ({mois_label})")
 
     # ── Évolution CA ──────────────────────────────────────────
@@ -1246,9 +1253,9 @@ with tabs[1]:
 
     _dj_n  = df_vc[df_vc["Année"] == annee_sel]
     _dj_n1 = df_vc[df_vc["Année"] == annee_sel - 1]
-    if mois_sel != "Tous":
-        _dj_n  = _dj_n[_dj_n["Mois"]   == mois_sel]
-        _dj_n1 = _dj_n1[_dj_n1["Mois"] == mois_sel]
+    if mois_sel:
+        _dj_n  = _dj_n[_dj_n["Mois"].isin(mois_sel)]
+        _dj_n1 = _dj_n1[_dj_n1["Mois"].isin(mois_sel)]
 
     ca_jn  = _dj_n.groupby("Jour")["Montant TTC"].sum().rename("CA N").reset_index()
     ca_jn1 = _dj_n1.groupby("Jour")["Montant TTC"].sum().rename("CA N-1").reset_index()
@@ -1409,9 +1416,9 @@ with tabs[3]:
     if "Magasin" in df_vc.columns:
         _base_n  = df_vc[df_vc["Année"] == annee_sel]
         _base_n1 = df_vc[df_vc["Année"] == annee_sel - 1]
-        if mois_sel != "Tous":
-            _base_n  = _base_n[_base_n["Mois"]   == mois_sel]
-            _base_n1 = _base_n1[_base_n1["Mois"] == mois_sel]
+        if mois_sel:
+            _base_n  = _base_n[_base_n["Mois"].isin(mois_sel)]
+            _base_n1 = _base_n1[_base_n1["Mois"].isin(mois_sel)]
 
         ca_mag_n  = _base_n.groupby("Magasin")["Montant TTC"].sum().rename("CA N")
         ca_mag_n1 = _base_n1.groupby("Magasin")["Montant TTC"].sum().rename("CA N-1")
@@ -1784,6 +1791,6 @@ st.caption(
     f"Source : VC.CONV. Business Central  ·  "
     f"Genere automatiquement  ·  "
     f"Filtres actifs: Annee {annee_sel} "
-    + (f"| Mois {MOIS.get(mois_sel, str(mois_sel))} " if mois_sel != "Tous" else "")
+    + (f"| Mois: {', '.join([MOIS.get(m, str(m)) for m in mois_sel])} " if mois_sel else "")
     + (f"| Conv. {conv_sel}" if conv_sel != "Tous" else "")
 )
