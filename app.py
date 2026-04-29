@@ -529,53 +529,61 @@ def chart_waterfall(
     return _base(fig, h)
 
 
-def chart_scatter_risk(
+def chart_risk_table(
     df: pd.DataFrame, annee_n: int, title: str, h: int = 480,
 ) -> go.Figure:
     """
-    Matrice risque / opportunité :
-      X = CA N  |  Y = Évolution %  |  Taille = CA N  |  Couleur = Statut
+    Tableau condensé risque / opportunité - Simplifié pour directeurs
     """
     if df is None or df.empty:
         return _empty(title, h)
 
-    _color_map = {
-        "🔴 Inactif":        C["red"],
-        "🔴 Déclin fort":    C["red"],
-        "🟡 Déclin":         C["amber"],
-        "🟢 Nouveau":        C["green"],
-        "🟢 Croissance":     C["green"],
-        "⚫ Aucun historique": C["muted"],
-    }
-    max_ca = max(df["CA N"].max(), 1)  # Évite division par zéro
-    fig = go.Figure()
-    for statut, grp in df.groupby("Statut"):
-        fig.add_trace(go.Scatter(
-            x=grp["CA N"], y=grp["Évolution %"],
-            mode="markers+text",
-            name=statut,
-            text=grp["Nom"],
-            textposition="top center",
-            textfont=dict(size=9, color=C["ink"]),
-            marker=dict(
-                size=grp["CA N"].clip(lower=1).apply(
-                    lambda v: max(8, min(36, v / max_ca * 36))
-                ),
-                color=_color_map.get(statut, C["muted"]),
-                opacity=0.82,
-                line=dict(width=1, color="white"),
-            ),
-        ))
-    # Quadrants
-    fig.add_hline(y=0,  line_dash="dash", line_color=C["muted"], line_width=1, opacity=0.6)
-    fig.add_vline(x=df["CA N"].median(), line_dash="dot", line_color=C["border"],
-                  line_width=1, opacity=0.5)
+    # Préparer les données pour le tableau
+    df_disp = df.head(20).copy()
+    
+    # Ajouter indicateur visuel simple
+    def get_indicateur(statut):
+        if "Croissance" in statut or "Nouveau" in statut:
+            return "✅"
+        elif "Déclin fort" in statut or "Inactif" in statut:
+            return "🔴"
+        elif "Déclin" in statut:
+            return "🟡"
+        else:
+            return "⚫"
+    
+    df_disp["Statut"] = df_disp["Statut"].apply(get_indicateur)
+    
+    # Créer tableau simple
+    fig = go.Figure(data=[go.Table(
+        header=dict(
+            values=["<b>Convention</b>", "<b>CA " + str(annee_n) + "</b>", "<b>CA " + str(annee_n-1) + "</b>", "<b>Évolution</b>", "<b>Statut</b>"],
+            fill_color=C["blue"],
+            font=dict(color="white", size=12),
+            align="left",
+            height=35,
+        ),
+        cells=dict(
+            values=[
+                df_disp["Nom"].astype(str),
+                df_disp["CA N"].apply(lambda x: f"{x:,.0f}"),
+                df_disp["CA N-1"].apply(lambda x: f"{x:,.0f}"),
+                df_disp["Évolution %"].apply(lambda x: f"{x:+.1f}%"),
+                df_disp["Statut"],
+            ],
+            fill_color=[[C["surface"]] * len(df_disp)],
+            font=dict(size=11),
+            align="left",
+            height=30,
+        )
+    )])
+    
     fig.update_layout(
         title=title,
-        xaxis_title=f"CA {annee_n} (TND)",
-        yaxis_title="Évolution vs N-1 (%)",
+        height=h,
+        margin=dict(l=10, r=10, t=40, b=10),
     )
-    return _base(fig, h)
+    return fig
 
 
 def chart_gauge(value: float, ref: float, title: str, h: int = 260) -> go.Figure:
@@ -1022,16 +1030,16 @@ with tabs[0]:
         )
         st.plotly_chart(fig_var, width="stretch")
 
-    # ── Carte risque + Top/Flop ────────────────────────────────
+    # ── Tableau risque simplifié + Top/Flop ────────────────────────────────
     section("Signaux décisionnels — Risques & Opportunités")
     col_e, col_f, col_g = st.columns([3, 1, 1])
 
     with col_e:
-        fig_sc = chart_scatter_risk(
-            risk_mat.head(35), annee_sel,
-            "Carte risque / opportunité — Toutes les conventions", h=400,
+        fig_sc = chart_risk_table(
+            risk_mat.head(20), annee_sel,
+            "État du portefeuille — Vue condensée", h=450,
         )
-        st.plotly_chart(fig_sc, width="stretch")
+        st.plotly_chart(fig_sc, use_container_width=True)
 
     if "Nom" in df_filt.columns and len(df_filt) > 0:
         ca_cli = df_filt.groupby("Nom")["Montant TTC"].sum()
@@ -1283,20 +1291,20 @@ with tabs[2]:
 
     section("Vue globale du portefeuille")
 
-    # Scatter risk matrix plein écran
-    fig_risk_full = chart_scatter_risk(
+    # Tableau risque condensé plein écran
+    fig_risk_full = chart_risk_table(
         risk_mat, annee_sel,
-        f"Matrice risque / opportunité — Portefeuille complet {annee_sel}", h=500,
+        f"État du portefeuille — {len(risk_mat)} conventions", h=500,
     )
-    st.plotly_chart(fig_risk_full, width="stretch")
+    st.plotly_chart(fig_risk_full, use_container_width=True)
 
-    with st.expander("📊 Tableau de pilotage conventions"):
+    with st.expander("📊 Détail complet des conventions"):
         if not risk_mat.empty:
             disp = risk_mat.rename(columns={
                 "CA N":  f"CA {annee_sel}",
                 "CA N-1": f"CA {annee_sel-1}",
             })
-            st.dataframe(disp, width="stretch")
+            st.dataframe(disp, use_container_width=True)
 
     # ── Analyse individuelle ─���─���───────────────────────────────
     section("Analyse individuelle par convention")
