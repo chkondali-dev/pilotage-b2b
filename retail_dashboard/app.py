@@ -445,7 +445,7 @@ def get_cat_evolution(df):
 # COMPOSANTS VISUELS
 # ════════════════════════════════════════════════════════════════════════════════════════════════
 
-def kpi_card(label, value, delta=None, highlight=False):
+def kpi_card(label, value, delta=None, highlight=False, is_badge=False):
     """Affiche une carte KPI corporate"""
     if delta is not None:
         if delta > 0:
@@ -464,6 +464,10 @@ def kpi_card(label, value, delta=None, highlight=False):
         formatted_value = f"{value:,.0f}"
     else:
         formatted_value = str(value)
+    
+    # Badge styling for text values like "Top Produit"
+    if is_badge:
+        formatted_value = f'<span style="background: {COLORS["primary_light"]}; color: white; padding: 0.25rem 0.75rem; border-radius: 4px; font-size: 0.85rem; font-weight: 600;">{formatted_value}</span>'
     
     st.markdown(f"""
     <div class="kpi-card {highlight_class}">
@@ -615,7 +619,7 @@ def render_univers_view(df, univers):
     kpi_card("CA", kpis["CA"], kpis["Evol"])
     kpi_card("Tickets", kpis["Tickets"])
     kpi_card("Panier Moyen", kpis["Panier"])
-    kpi_card("Top Produit", kpis["TopProd"])
+    kpi_card("Top Produit", kpis["TopProd"], is_badge=True)
     st.markdown('</div>', unsafe_allow_html=True)
     
     # Graphiques
@@ -643,11 +647,13 @@ def main():
     
     # ==================== HEADER ====================
     now = datetime.now()
+    last_update = now.strftime('%d/%m/%Y à %H:%M')
     st.markdown(f"""
     <div class="header-container">
         <div>
             <div class="header-title">Pilotage Commercial SMG</div>
             <div class="header-subtitle">Tableau de bord ventes - Electromenager & Multimédia</div>
+            <div style="font-size: 0.7rem; color: rgba(255,255,255,0.5); margin-top: 0.25rem;">Dernière mise à jour: {last_update}</div>
         </div>
         <div class="header-meta">
             <div class="header-badge">🟢 Données en direct</div>
@@ -661,43 +667,98 @@ def main():
     with st.sidebar:
         st.markdown("### Filtres")
         
+        # Période
+        st.markdown("**📅 Période**")
         date_range = st.date_input(
-            "Période",
+            "Sélection période",
             value=(datetime(2024, 1, 1), now),
             help="Sélectionnez la période"
         )
         
+        st.markdown("---")
+        
+        # Catégorie
+        st.markdown("**🏷️ Catégorie**")
         categories = ["Toutes"] + sorted([
             "41 - SON & IMAGE", "42 - GROS ELECTROMENAGER",
             "43 - PRODUITS NOMADES", "44 - CHAUFFAGE ET CLIMATISATION",
             "45 - PETIT ELECTROMENAGER"
         ])
-        cat_sel = st.selectbox("Catégorie", categories)
-        
-        all_magasins = ["Tous"] + sorted([
-            "MG TUNIS", "MG ARIANA", "MG SOUSSE", "MG SFAX", "MG NABEUL",
-            "BATAM TUNIS", "BATAM ARIANA", "BATAM SOUSSE"
-        ])
-        mag_sel = st.selectbox("Magasin", all_magasins)
-        
-        type_sel = st.selectbox("Type de vente", ["Tous", "Convention", "Credit conso", "Credit particulier", "Cash"])
+        cat_sel = st.selectbox("Filtrer par catégorie", categories)
         
         st.markdown("---")
         
-        if st.button("Actualiser les données", use_container_width=True):
+        # Magasin
+        st.markdown("**🏪 Magasin**")
+        all_magasins = ["Tous"] + sorted([
+            "MG TUNIS", "MG ARIANA", "MG SOUSSE", "MG SFAX", "MG NABEUL",
+            "MG KAIROUAN", "MG BEJA", "MG BIZERTE",
+            "BATAM TUNIS", "BATAM ARIANA", "BATAM SOUSSE", "BATAM SFAX"
+        ])
+        mag_sel = st.selectbox("Filtrer par magasin", all_magasins)
+        
+        st.markdown("---")
+        
+        # Enseigne
+        st.markdown("**🏢 Enseigne**")
+        enseigne_sel = st.radio(
+            "Sélection enseigne",
+            ["Toutes", "SMG", "BATAM"],
+            horizontal=True
+        )
+        
+        st.markdown("---")
+        
+        # Type de vente
+        st.markdown("**💳 Type de vente**")
+        type_sel = st.selectbox("Filtrer par type", ["Tous", "Convention", "Credit conso", "Credit particulier", "Cash"])
+        
+        st.markdown("---")
+        
+        # Année
+        st.markdown("**📆 Année**")
+        annee_sel = st.selectbox("Année", [2026, 2025, 2024], index=0)
+        
+        st.markdown("---")
+        
+        # Actions
+        if st.button("🔄 Actualiser les données", use_container_width=True):
             st.cache_data.clear()
             st.rerun()
         
         st.markdown("---")
-        st.caption("Source: SMGTAB/VENTES (SSAS)")
+        st.markdown("### 📊 Accès rapide")
+        
+        # Quick stats
+        if not df.empty:
+            current_year = now.year
+            df_n = df[df["Annee"] == current_year]
+            total_ca = df_n["CA"].sum() if not df_n.empty else 0
+            n_magasins = df_n["Magasin"].nunique() if not df_n.empty else 0
+            n_produits = df_n["Produit"].nunique() if not df_n.empty else 0
+            
+            st.metric("CA Total", f"{total_ca:,.0f} TND")
+            col1, col2 = st.columns(2)
+            with col1: st.metric("Magasins", n_magasins)
+            with col2: st.metric("Produits", n_produits)
+        
+        st.markdown("---")
+        st.caption(f"Source: SMGTAB/VENTES (SSAS) | MAJ: {last_update}")
     
     # ==================== CHARGEMENT DONNÉES ====================
-    with st.spinner("Chargement des données..."):
+    with st.spinner("⏳ Chargement des données..."):
         df = generate_data()
     
     if df.empty:
-        st.error("Aucune donnée disponible")
-        return
+        st.markdown("""
+        <div class="alert-box alert-warning">
+            <div>
+                <strong>⚠️ Aucune donnée disponible</strong><br>
+                Veuillez vérifier la connexion à la base de données ou sélectionner une autre période.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        st.stop()
     
     # ==================== FILTRAGE ====================
     filters = {}
@@ -721,8 +782,8 @@ def main():
     st.markdown('<div class="kpi-row">', unsafe_allow_html=True)
     kpi_card("CHIFFRE D'AFFAIRES", kpis["CA"], kpis["Evol"], highlight=True)
     kpi_card("CA N-1", kpis["CA_N1"])
-    kpi_card("TOP PRODUIT", kpis["TopProd"])
-    kpi_card("ÉVOLUTION N-1", kpis["Evol"], None)
+    kpi_card("TOP PRODUIT", kpis["TopProd"], is_badge=True)
+    kpi_card("ÉVOLUTION N-1", kpis["Evol"], is_badge=False)
     st.markdown('</div>', unsafe_allow_html=True)
     
     # Ligne secondaire
