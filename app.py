@@ -1600,27 +1600,13 @@ with tabs[3]:
             st.markdown("---")
             
             # === REPARTITION PAR TYPE ===
-            col_type1, col_type2 = st.columns(2)
-            with col_type1:
-                if "Type vente à crédit" in store_n.columns:
-                    by_type = store_n.groupby("Type vente à crédit")["Montant TTC"].sum()
-                    by_type = by_type[by_type > 0].sort_values(ascending=False)
-                    fig_pie = px.pie(values=by_type.values, names=by_type.index,
-                                    title="Répartition CA par Type", hole=0.5)
-                    fig_pie.update_traces(textinfo="percent+label")
-                    st.plotly_chart(fig_pie, width="stretch")
-            
-            with col_type2:
-                if "Enseigne" in _base_n.columns:
-                    # Comparaison avec moyenne réseau par enseigne
-                    enseigne_filter = _base_n[_base_n["Enseigne"] == enseigne] if enseigne != "N/A" else pd.DataFrame()
-                    if not enseigne_filter.empty:
-                        ca_mg_ense = enseigne_filter.groupby("Magasin")["Montant TTC"].sum().mean()
-                        perf_vs_ense = ((ca_n - ca_mg_ense) / ca_mg_ense * 100) if ca_mg_ense > 0 else 0
-                        
-                        comp_col1, comp_col2 = st.columns(2)
-                        comp_col1.metric("Moyenne Enseigne", f"{ca_mg_ense:,.0f} TND")
-                        comp_col2.metric("vs Moyenne", f"{perf_vs_ense:+.1f}%", delta_color="normal" if perf_vs_ense >= 0 else "inverse")
+            if "Type vente à crédit" in store_n.columns:
+                by_type = store_n.groupby("Type vente à crédit")["Montant TTC"].sum()
+                by_type = by_type[by_type > 0].sort_values(ascending=False)
+                fig_pie = px.pie(values=by_type.values, names=by_type.index,
+                                title="Répartition CA par Type", hole=0.5)
+                fig_pie.update_traces(textinfo="percent+label")
+                st.plotly_chart(fig_pie, width="stretch")
 
             st.markdown("---")
             
