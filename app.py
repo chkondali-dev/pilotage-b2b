@@ -1664,6 +1664,9 @@ with tabs[3]:
             st.markdown("### 💳 Credit Conso")
             
             if "Type vente à crédit" in store_n.columns:
+                # Debug: voir les types réels
+                all_types = store_n["Type vente à crédit"].dropna().unique()
+                
                 cc_n = store_n[store_n["Type vente à crédit"].fillna("").str.upper().str.contains("CONSO")]
                 cc_n1 = store_n1[store_n1["Type vente à crédit"].fillna("").str.upper().str.contains("CONSO")]
                 
