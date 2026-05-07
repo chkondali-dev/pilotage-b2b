@@ -1663,33 +1663,37 @@ with tabs[3]:
             # === CREDIT CONSO === (using separate file)
             st.markdown("### 💳 Credit Conso")
             
-            # Use df_credit for Credit Conso data (with filters applied)
-            st.caption(f"Debug CC - store: {selected_store}")
-            
-            if "Magasin" in df_credit.columns:
-                # Show all unique Magasin values in df_credit
-                credit_magasins = df_credit["Magasin"].dropna().unique()
-                st.caption(f"CC Magasins sample: {credit_magasins[:5]}")
+            # Use df_credit for Credit Conso data
+            if "Unite Code" in df_credit.columns:
+                # Use Unite Code directly for matching
+                st.caption(f"Debug CC - using Unite Code")
                 
-                # Try direct match first
-                cc_store_n = df_credit[(df_credit["Magasin"] == selected_store) & (df_credit["Année"] == annee_sel)]
-                st.caption(f"Direct match rows: {len(cc_store_n)}")
-                
-                # If no match, try contains
-                if len(cc_store_n) == 0 and selected_store != "Tous":
-                    # Try with partial match
-                    cc_store_n = df_credit[(df_credit["Magasin"].astype(str).str.contains(selected_store.split()[0], na=False)) & (df_credit["Année"] == annee_sel)]
-                    st.caption(f"Partial match rows: {len(cc_store_n)}")
-                
-                if selected_store == "Tous":
+                # First check if we can find the code in df_vc
+                code_col_vc = next((c for c in df_vc.columns if c.lower() == "unite code"), None)
+                if code_col_vc and "Magasin" in df_vc.columns:
+                    # Get codes for this store name from df_vc
+                    store_codes = df_vc[df_vc["Magasin"] == selected_store][code_col_vc].dropna().unique() if selected_store != "Tous" else []
+                    st.caption(f"Codes for {selected_store}: {store_codes}")
+                    
+                    if len(store_codes) > 0:
+                        # Filter by any of the codes
+                        code_strs = [str(c).strip() for c in store_codes]
+                        cc_store_n = df_credit[(df_credit["Unite Code"].astype(str).isin(code_strs)) & (df_credit["Année"] == annee_sel)]
+                        cc_store_n1 = df_credit[(df_credit["Unite Code"].astype(str).isin(code_strs)) & (df_credit["Année"] == annee_sel - 1)]
+                    else:
+                        cc_store_n = df_credit[df_credit["Année"] == annee_sel] if selected_store == "Tous" else pd.DataFrame()
+                        cc_store_n1 = df_credit[df_credit["Année"] == annee_sel - 1]
+                else:
                     cc_store_n = df_credit[df_credit["Année"] == annee_sel]
                     cc_store_n1 = df_credit[df_credit["Année"] == annee_sel - 1]
-                else:
-                    cc_store_n1 = df_credit[(df_credit["Magasin"].astype(str).str.contains(selected_store.split()[0], na=False)) & (df_credit["Année"] == annee_sel - 1)] if len(cc_store_n) > 0 else pd.DataFrame()
+            else:
+                cc_store_n = df_credit[df_credit["Année"] == annee_sel]
+                cc_store_n1 = df_credit[df_credit["Année"] == annee_sel - 1]
                 
                 # Apply month filter
-                if mois_sel:
+                if mois_sel and len(cc_store_n) > 0:
                     cc_store_n = cc_store_n[cc_store_n["Mois"].isin(mois_sel)]
+                if mois_sel and len(cc_store_n1) > 0:
                     cc_store_n1 = cc_store_n1[cc_store_n1["Mois"].isin(mois_sel)]
                 
                 nb_cc = len(cc_store_n)
