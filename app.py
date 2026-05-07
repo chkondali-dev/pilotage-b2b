@@ -293,24 +293,11 @@ def ca_par_mois(df: pd.DataFrame, annee: int) -> pd.DataFrame:
 
 
 def compare_years(df: pd.DataFrame, annee_n: int, annee_n1: int) -> pd.DataFrame:
-    """Comparaison mensuelle N vs N-1 — même date range pour comparaison juste."""
+    """Comparaison mensuelle N vs N-1 — produit la base de données pour les charts trends."""
     if df.empty or "Montant TTC" not in df.columns:
         return pd.DataFrame(columns=["Mois", "CA N", "CA N-1", "Variation %", "Mois Nom"])
-    
-    # Get date range from current year for fair comparison
-    df_n = df[df["Année"] == annee_n]
-    if "Date" in df.columns and not df_n["Date"].isna().all():
-        min_date = df_n["Date"].min()
-        max_date = df_n["Date"].max()
-        
-        # Filter both years to same date range
-        df_n = df[df["Année"] == annee_n]
-        df_n1 = df[(df["Année"] == annee_n1) & (df["Date"] >= min_date) & (df["Date"] <= max_date)]
-    else:
-        df_n1 = df[df["Année"] == annee_n1]
-    
-    n  = ca_par_mois(df_n, annee_n).rename(columns={"Montant TTC": "CA N"})
-    n1 = ca_par_mois(df_n1, annee_n1).rename(columns={"Montant TTC": "CA N-1"})
+    n  = ca_par_mois(df, annee_n).rename(columns={"Montant TTC": "CA N"})
+    n1 = ca_par_mois(df, annee_n1).rename(columns={"Montant TTC": "CA N-1"})
     comp = n.merge(n1, on="Mois", how="outer").sort_values("Mois").fillna(0)
     comp["Variation %"] = (
         (comp["CA N"] - comp["CA N-1"]) / comp["CA N-1"].replace(0, 1) * 100
@@ -1362,20 +1349,10 @@ with tabs[2]:
         # Filter data for this specific convention
         df_cv = df_vc_filt[df_vc_filt["Nom"] == conv_detail].copy()
         
-        # Calculate CA for current and previous year - compare same date range
-        if "Date" in df_cv.columns and not df_cv["Date"].isna().all():
-            min_date = df_cv[df_cv["Année"] == annee_sel]["Date"].min()
-            max_date = df_cv[df_cv["Année"] == annee_sel]["Date"].max()
-            
-            df_cv_n = df_cv[df_cv["Année"] == annee_sel]
-            df_cv_n1 = df_cv[(df_cv["Année"] == annee_sel - 1) & (df_cv["Date"] >= min_date) & (df_cv["Date"] <= max_date)]
-        else:
-            df_cv_n = df_cv[df_cv["Année"] == annee_sel]
-            df_cv_n1 = df_cv[(df_cv["Année"] == annee_sel - 1) & (df_cv["Mois"].isin(mois_sel))] if mois_sel else df_cv[df_cv["Année"] == annee_sel - 1]
-        
-        ca_cv_n = df_cv_n["Montant TTC"].sum() if len(df_cv_n) > 0 else 0
-        ca_cv_n1 = df_cv_n1["Montant TTC"].sum() if len(df_cv_n1) > 0 else 0
-        ev_cv = evol_pct(ca_cv_n, ca_cv_n1)
+        # Calculate CA for current and previous year
+        ca_cv_n    = ca_sum(df_cv, annee_sel, mois_sel)
+        ca_cv_n1   = ca_sum(df_cv, annee_sel - 1, mois_sel)
+        ev_cv      = evol_pct(ca_cv_n, ca_cv_n1)
         
         # Count only filtered data
         nb_fact_cv = len(df_cv[df_cv["Année"] == annee_sel])
@@ -1474,24 +1451,12 @@ with tabs[3]:
     if "Magasin" not in df_vc.columns:
         st.info("Données magasin non disponibles")
     else:
-        # Data preparation - filter both years to same date range for fair comparison
+        # Data preparation - original comparison
         _base_n  = df_vc[df_vc["Année"] == annee_sel].copy()
-        
-        # Get date range from current year to apply same filter to previous year
-        if "Date" in _base_n.columns and not _base_n["Date"].isna().all():
-            min_date_n = _base_n["Date"].min()
-            max_date_n = _base_n["Date"].max()
-            
-            # Filter previous year to same date range
-            _base_n1 = df_vc[df_vc["Année"] == annee_sel - 1].copy()
-            if "Date" in _base_n1.columns:
-                _base_n1 = _base_n1[(_base_n1["Date"] >= min_date_n) & (_base_n1["Date"] <= max_date_n)]
-        else:
-            # Fallback to month filter if no Date column
-            _base_n1 = df_vc[df_vc["Année"] == annee_sel - 1].copy()
-            if mois_sel:
-                _base_n  = _base_n[_base_n["Mois"].isin(mois_sel)]
-                _base_n1 = _base_n1[_base_n1["Mois"].isin(mois_sel)]
+        _base_n1 = df_vc[df_vc["Année"] == annee_sel - 1].copy()
+        if mois_sel:
+            _base_n  = _base_n[_base_n["Mois"].isin(mois_sel)]
+            _base_n1 = _base_n1[_base_n1["Mois"].isin(mois_sel)]
         
         all_stores = sorted(df_vc["Magasin"].dropna().unique())
         
