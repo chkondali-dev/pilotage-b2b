@@ -1664,34 +1664,28 @@ with tabs[3]:
             st.markdown("### 💳 Credit Conso")
             
             # Use df_credit for Credit Conso data (with filters applied)
+            st.caption(f"Debug CC - store: {selected_store}")
+            
             if "Magasin" in df_credit.columns:
-                # Find Unite Code column in df_credit
-                code_col_credit = next((c for c in df_credit.columns if c.lower() == "unite code"), None)
+                # Show all unique Magasin values in df_credit
+                credit_magasins = df_credit["Magasin"].dropna().unique()
+                st.caption(f"CC Magasins sample: {credit_magasins[:5]}")
                 
-                if code_col_credit and "Magasin" in df_vc.columns:
-                    # Build mapping from store name to code using df_vc
-                    code_col_vc = next((c for c in df_vc.columns if c.lower() == "unite code"), None)
-                    if code_col_vc:
-                        name_to_code = dict(zip(
-                            df_vc.drop_duplicates("Magasin")["Magasin"],
-                            df_vc.drop_duplicates("Magasin")[code_col_vc].astype(str).str.strip()
-                        ))
-                        store_code = name_to_code.get(selected_store)
-                    else:
-                        store_code = None
-                else:
-                    store_code = None
+                # Try direct match first
+                cc_store_n = df_credit[(df_credit["Magasin"] == selected_store) & (df_credit["Année"] == annee_sel)]
+                st.caption(f"Direct match rows: {len(cc_store_n)}")
                 
-                if store_code and "Unite Code" in df_credit.columns:
-                    cc_store_n = df_credit[(df_credit["Unite Code"].astype(str).str.strip() == str(store_code)) & (df_credit["Année"] == annee_sel)]
-                    cc_store_n1 = df_credit[(df_credit["Unite Code"].astype(str).str.strip() == str(store_code)) & (df_credit["Année"] == annee_sel - 1)]
-                elif selected_store == "Tous":
+                # If no match, try contains
+                if len(cc_store_n) == 0 and selected_store != "Tous":
+                    # Try with partial match
+                    cc_store_n = df_credit[(df_credit["Magasin"].astype(str).str.contains(selected_store.split()[0], na=False)) & (df_credit["Année"] == annee_sel)]
+                    st.caption(f"Partial match rows: {len(cc_store_n)}")
+                
+                if selected_store == "Tous":
                     cc_store_n = df_credit[df_credit["Année"] == annee_sel]
                     cc_store_n1 = df_credit[df_credit["Année"] == annee_sel - 1]
                 else:
-                    # Direct match on Magasin
-                    cc_store_n = df_credit[(df_credit["Magasin"] == selected_store) & (df_credit["Année"] == annee_sel)]
-                    cc_store_n1 = df_credit[(df_credit["Magasin"] == selected_store) & (df_credit["Année"] == annee_sel - 1)]
+                    cc_store_n1 = df_credit[(df_credit["Magasin"].astype(str).str.contains(selected_store.split()[0], na=False)) & (df_credit["Année"] == annee_sel - 1)] if len(cc_store_n) > 0 else pd.DataFrame()
                 
                 # Apply month filter
                 if mois_sel:
