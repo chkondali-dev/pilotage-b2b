@@ -875,6 +875,23 @@ with st.sidebar:
         help="Sélectionnez un ou plusieurs mois"
     )
     
+    # Filtre Enseigne
+    st.markdown("---")
+    st.markdown("### 🏢 Enseigne")
+    enseige_sel = st.radio(
+        "Enseigne",
+        ["Toutes", "MG", "BATAM"],
+        index=0,
+        horizontal=True
+    )
+    
+    # Filtre Type de vente
+    st.markdown("### 💳 Type de vente")
+    type_vente_sel = st.selectbox(
+        "Type de vente",
+        ["Global", "Convention", "Credit conso", "Credit particulier"]
+    )
+    
     st.markdown("---")
     if st.button("🔄 Actualiser les données"):
         st.cache_data.clear()
@@ -1316,15 +1333,30 @@ with tabs[2]:
     section("Analyse individuelle par convention")
 
     all_convs = sorted(df_vc_filt["Nom"].dropna().unique().tolist()) if "Nom" in df_vc_filt.columns else []
-    conv_detail = st.selectbox("Sélectionner une convention", all_convs, key="conv_detail")
-
+    
+    # Use session state to force update
+    if "selected_conv" not in st.session_state:
+        st.session_state.selected_conv = all_convs[0] if all_convs else None
+    
+    conv_detail = st.selectbox("Sélectionner une convention", all_convs, index=all_convs.index(st.session_state.selected_conv) if st.session_state.selected_conv in all_convs else 0)
+    
+    # Update state when changed
+    if conv_detail != st.session_state.selected_conv:
+        st.session_state.selected_conv = conv_detail
+        st.rerun()
+    
     if conv_detail:
         # Filter data for this specific convention
         df_cv = df_vc_filt[df_vc_filt["Nom"] == conv_detail].copy()
         
-        # Calculate CA for current and previous year using filtered data
-        ca_cv_n    = ca_sum(df_vc_filt, annee_sel, mois_sel)
-        ca_cv_n1   = ca_sum(df_vc_filt, annee_sel - 1, mois_sel)
+        st.write(f"Debug conv: {conv_detail}, rows: {len(df_cv)}")
+        
+        # Calculate CA for current and previous year using filtered data for this convention
+        ca_cv_n    = ca_sum(df_cv, annee_sel, mois_sel)
+        ca_cv_n1   = ca_sum(df_cv, annee_sel - 1, mois_sel)
+        
+        st.write(f"Debug CA N: {ca_cv_n}, CA N-1: {ca_cv_n1}")
+        
         ev_cv      = evol_pct(ca_cv_n, ca_cv_n1)
         
         # Count only filtered data
@@ -1342,8 +1374,8 @@ with tabs[2]:
         ci4.metric("Panier moyen", f"{panier_cv:,.0f} TND")
 
         col_cv1, col_cv2 = st.columns(2)
-        # Use filtered data for comparison
-        df_cv_comp = compare_years(df_vc_filt[df_vc_filt["Nom"] == conv_detail], annee_sel, annee_sel - 1)
+        # Use filtered data for comparison (already filtered by convention in df_cv)
+        df_cv_comp = compare_years(df_cv, annee_sel, annee_sel - 1)
 
         with col_cv1:
             fig_cv_g = chart_grouped_bar(
@@ -1353,9 +1385,9 @@ with tabs[2]:
             st.plotly_chart(fig_cv_g, use_container_width=True)
 
         with col_cv2:
-            # Cumulé - use filtered data for both years
-            _df_filtered_n = df_vc_filt[(df_vc_filt["Nom"] == conv_detail) & (df_vc_filt["Année"] == annee_sel)]
-            _df_filtered_n1 = df_vc_filt[(df_vc_filt["Nom"] == conv_detail) & (df_vc_filt["Année"] == annee_sel - 1)]
+            # Cumulé - use df_cv which already has the month filter
+            _df_filtered_n = df_cv[df_cv["Année"] == annee_sel]
+            _df_filtered_n1 = df_cv[df_cv["Année"] == annee_sel - 1]
             
             _cn  = _df_filtered_n.groupby("Mois")["Montant TTC"].sum().reset_index()
             _cn1 = _df_filtered_n1.groupby("Mois")["Montant TTC"].sum().reset_index()
@@ -1419,53 +1451,247 @@ with tabs[2]:
 # TAB 3 — MAGASINS
 # ══════════════════════════════════════════════════════════════
 with tabs[3]:
-    section("Performance réseau magasins")
+    section("Performance réseau magasinstab")
 
-    if "Magasin" in df_vc.columns:
-        _base_n  = df_vc_filt[df_vc_filt["Année"] == annee_sel]
-        _base_n1 = df_vc_filt[df_vc_filt["Année"] == annee_sel - 1]
+    if "Magasin" not in df_vc.columns:
+        st.info("Données magasin non disponibles")
+    else:
+        # Data preparation
+        _base_n  = df_vc[df_vc["Année"] == annee_sel].copy()
+        _base_n1 = df_vc[df_vc["Année"] == annee_sel - 1].copy()
         if mois_sel:
             _base_n  = _base_n[_base_n["Mois"].isin(mois_sel)]
             _base_n1 = _base_n1[_base_n1["Mois"].isin(mois_sel)]
+        
+        all_stores = sorted(df_vc["Magasin"].dropna().unique())
+        
+        # Search bar with autocomplete
+        st.markdown("### 🔍 Rechercher un magasin")
+        search_query = st.text_input("Tapez le nom du magasin...", key="store_search")
+        
+        if search_query:
+            filtered_stores = [s for s in all_stores if search_query.lower() in s.lower()]
+        else:
+            filtered_stores = all_stores
+        
+        selected_store = st.selectbox(
+            "Sélectionner un magasin", 
+            ["Tous"] + filtered_stores,
+            key="store_selector",
+            format_func=lambda x: "🌐 Tous les magasins" if x == "Tous" else f"🏪 {x}"
+        )
 
-        ca_mag_n  = _base_n.groupby("Magasin")["Montant TTC"].sum().rename("CA N")
-        ca_mag_n1 = _base_n1.groupby("Magasin")["Montant TTC"].sum().rename("CA N-1")
-        ca_mag = pd.concat([ca_mag_n, ca_mag_n1], axis=1).fillna(0).reset_index()
-        ca_mag["Évolution %"] = (
-            (ca_mag["CA N"] - ca_mag["CA N-1"]) / ca_mag["CA N-1"].replace(0, 1) * 100
-        ).round(1)
-        ca_mag = ca_mag.sort_values("CA N", ascending=False)
+        if selected_store == "Tous":
+            # ===== VUE RESEAU =====
+            st.markdown("## 📊 Vue d'ensemble du réseau")
+            
+            ca_mag_n  = _base_n.groupby("Magasin")["Montant TTC"].sum().rename("CA N")
+            ca_mag_n1 = _base_n1.groupby("Magasin")["Montant TTC"].sum().rename("CA N-1")
+            ca_mag = pd.concat([ca_mag_n, ca_mag_n1], axis=1).fillna(0).reset_index()
+            ca_mag["Evolution %"] = (
+                (ca_mag["CA N"] - ca_mag["CA N-1"]) / ca_mag["CA N-1"].replace(0, 1) * 100
+            ).round(1)
+            ca_mag = ca_mag.sort_values("CA N", ascending=False)
 
-        # KPI magasins
-        m1, m2, m3 = st.columns(3)
-        m1.metric("Nb magasins actifs", len(ca_mag[ca_mag["CA N"] > 0]))
-        m2.metric("CA total réseau", f"{ca_mag['CA N'].sum():,.0f} TND")
-        m3.metric("Magasins en hausse",
-                  len(ca_mag[ca_mag["Évolution %"] > 0]),
-                  f"/ {len(ca_mag)} total")
+            # KPI RESEAU
+            k1, k2, k3, k4 = st.columns(4)
+            k1.metric("🏪 Magasins actifs", len(ca_mag[ca_mag["CA N"] > 0]))
+            k2.metric("💰 CA Total", f"{ca_mag['CA N'].sum():,.0f} TND")
+            k3.metric("📈 En croissance", len(ca_mag[ca_mag["Evolution %"] > 0]), f"/ {len(ca_mag)}")
+            k4.metric("📉 En baisse", len(ca_mag[ca_mag["Evolution %"] < 0]))
 
-        col_m1, col_m2 = st.columns(2)
-        with col_m1:
-            fig_mt = chart_bar(
-                ca_mag.head(20), "CA N", "Magasin",
-                f"Top 20 magasins — CA {annee_sel}", C["blue"], h=520, orientation="h",
-            )
-            st.plotly_chart(fig_mt, width="stretch")
+            # Top & Evolution
+            col_m1, col_m2 = st.columns(2)
+            with col_m1:
+                top20 = ca_mag.head(20)
+                fig_top = px.bar(top20, x="CA N", y="Magasin", orientation="h", 
+                                title=f"🏆 Top 20 Magasins - CA {annee_sel}", 
+                                color="CA N", color_continuous_scale=["#1D4ED8", "#3B82F6", "#60A5FA"],
+                                text_auto=".0f")
+                fig_top.update_layout(height=450, yaxis=dict(autorange="reversed"))
+                st.plotly_chart(fig_top, width="stretch")
 
-        with col_m2:
-            fig_mv = chart_variation_bar(
-                ca_mag.head(20), "Magasin", "Évolution %",
-                f"Évolution N/N-1 — Top 20 magasins", h=520,
-            )
-            st.plotly_chart(fig_mv, width="stretch")
+            with col_m2:
+                fig_evo = px.bar(top20, x="Evolution %", y="Magasin", orientation="h",
+                               title="📊 Evolution N/N-1",
+                               color="Evolution %", color_continuous_scale=["#DC2626", "#FCD34D", "#059669"],
+                               text_auto="+.1f")
+                fig_evo.update_layout(height=450, yaxis=dict(autorange="reversed"))
+                fig_evo.add_vline(x=0, line_dash="dash", line_color="grey", annotation_text="Seuil")
+                st.plotly_chart(fig_evo, width="stretch")
 
-        with st.expander("📄 Données complètes réseau"):
-            st.dataframe(
-                ca_mag.rename(columns={"CA N": f"CA {annee_sel}", "CA N-1": f"CA {annee_sel-1}"}),
-                width="stretch",
-            )
-    else:
-        st.info("Données magasins non disponibles (mapping code→nom absent).")
+            # Repartition par enseigne
+            col_ense1, col_ense2 = st.columns(2)
+            with col_ense1:
+                if "Enseigne" in _base_n.columns:
+                    by_ense = _base_n.groupby("Enseigne")["Montant TTC"].sum()
+                    fig_ense = px.pie(values=by_ense.values, names=by_ense.index, 
+                                     title="Répartition CA par Enseigne", hole=0.4)
+                    fig_ense.update_traces(textinfo="percent+label")
+                    st.plotly_chart(fig_ense, width="stretch")
+            
+            with col_ense2:
+                if "Type vente à crédit" in _base_n.columns:
+                    by_type = _base_n.groupby("Type vente à crédit")["Montant TTC"].sum()
+                    by_type = by_type[by_type > 0]
+                    fig_type = px.bar(by_type.reset_index(), x="Type vente à crédit", y="Montant TTC",
+                                    title="CA par Type de vente", text_auto=".0f", color="Montant TTC",
+                                    color_continuous_scale=["#1D4ED8", "#3B82F6"])
+                    st.plotly_chart(fig_type, width="stretch")
+
+            with st.expander("📋 Données complètes"):
+                st.dataframe(ca_mag.rename(columns={"CA N": f"CA {annee_sel}", "CA N-1": f"CA {annee_sel-1}"}), width="stretch")
+
+        else:
+            # ===== VUE DETAILLEE PAR MAGASIN =====
+            store_n = _base_n[_base_n["Magasin"] == selected_store]
+            store_n1 = _base_n1[_base_n1["Magasin"] == selected_store]
+            
+            enseigne = store_n["Enseigne"].iloc[0] if "Enseigne" in store_n.columns and len(store_n) > 0 else "N/A"
+            
+            st.markdown(f"## 🏪 {selected_store} <span style='background-color:#1D4ED8;color:white;padding:2px 8px;border-radius:4px;font-size:12px'>{enseigne}</span>", unsafe_allow_html=True)
+            
+            # === KPIs GLOBAUX ===
+            ca_n = store_n["Montant TTC"].sum() if len(store_n) > 0 else 0
+            ca_n1 = store_n1["Montant TTC"].sum() if len(store_n1) > 0 else 0
+            evol_ca = evol_pct(ca_n, ca_n1)
+            nb_fact = len(store_n)
+            panier_moy = ca_n / nb_fact if nb_fact > 0 else 0
+            
+            k1, k2, k3, k4, k5 = st.columns(5)
+            k1.metric(f"💰 CA {annee_sel}", f"{ca_n:,.0f} TND", f"{evol_ca:+.1f}%", delta_color="normal" if evol_ca >= 0 else "inverse")
+            k2.metric(f"📅 CA {annee_sel-1}", f"{ca_n1:,.0f} TND")
+            k3.metric("🧾 Factures", nb_fact)
+            k4.metric("📊 Panier moyen", f"{panier_moy:,.0f} TND")
+            k5.metric("🏷️ Enseigne", enseigne)
+
+            # === CA MENSUEL ===
+            if "Mois" in store_n.columns:
+                col_chart1, col_chart2 = st.columns(2)
+                with col_chart1:
+                    ca_mens = store_n.groupby("Mois")["Montant TTC"].sum().reset_index()
+                    ca_mens["Mois_nom"] = ca_mens["Mois"].map(MOIS)
+                    ca_mens_n1 = store_n1.groupby("Mois")["Montant TTC"].sum().reindex(ca_mens["Mois"]).fillna(0).values
+                    ca_mens[f"CA {annee_sel-1}"] = ca_mens_n1
+                    
+                    fig_mens = px.bar(ca_mens, x="Mois_nom", y=["Montant TTC", f"CA {annee_sel-1}"],
+                                     title=f"CA Mensuel {annee_sel} vs {annee_sel-1}", barmode="group",
+                                     text_auto=".0f", color_discrete_map={"Montant TTC": "#1D4ED8", f"CA {annee_sel-1}": "#94A3B8"})
+                    fig_mens.update_layout(height=280)
+                    st.plotly_chart(fig_mens, width="stretch")
+                
+                with col_chart2:
+                    ca_cum = store_n.groupby("Mois")["Montant TTC"].sum().cumsum().reset_index()
+                    ca_cum["Mois_nom"] = ca_cum["Mois"].map(MOIS)
+                    fig_cum = px.line(ca_cum, x="Mois_nom", y="Montant TTC", 
+                                     title=f"CA Cumulé {annee_sel}", markers=True)
+                    fig_cum.update_traces(line_color="#1D4ED8", line_width=3)
+                    fig_cum.update_layout(height=280)
+                    st.plotly_chart(fig_cum, width="stretch")
+
+            st.markdown("---")
+            
+            # === REPARTITION PAR TYPE ===
+            col_type1, col_type2 = st.columns(2)
+            with col_type1:
+                if "Type vente à crédit" in store_n.columns:
+                    by_type = store_n.groupby("Type vente à crédit")["Montant TTC"].sum()
+                    by_type = by_type[by_type > 0].sort_values(ascending=False)
+                    fig_pie = px.pie(values=by_type.values, names=by_type.index,
+                                    title="Répartition CA par Type", hole=0.5)
+                    fig_pie.update_traces(textinfo="percent+label")
+                    st.plotly_chart(fig_pie, width="stretch")
+            
+            with col_type2:
+                if "Enseigne" in _base_n.columns:
+                    # Comparaison avec moyenne réseau par enseigne
+                    enseigne_filter = _base_n[_base_n["Enseigne"] == enseigne] if enseigne != "N/A" else pd.DataFrame()
+                    if not enseigne_filter.empty:
+                        ca_mg_ense = enseigne_filter.groupby("Magasin")["Montant TTC"].sum().mean()
+                        perf_vs_ense = ((ca_n - ca_mg_ense) / ca_mg_ense * 100) if ca_mg_ense > 0 else 0
+                        
+                        comp_col1, comp_col2 = st.columns(2)
+                        comp_col1.metric("Moyenne Enseigne", f"{ca_mg_ense:,.0f} TND")
+                        comp_col2.metric("vs Moyenne", f"{perf_vs_ense:+.1f}%", delta_color="normal" if perf_vs_ense >= 0 else "inverse")
+
+            st.markdown("---")
+            
+            # === CONVENTIONS ===
+            st.markdown("### 🏛️ Analyse des Conventions")
+            
+            if "Type vente à crédit" in store_n.columns:
+                conv_n = store_n[store_n["Type vente à crédit"].str.contains("Convention", case=False, na=False)]
+                conv_n1 = store_n1[store_n1.get("Type vente à crédit", "").str.contains("Convention", case=False, na=False)]
+                
+                nb_conv = len(conv_n)
+                ca_conv = conv_n["Montant TTC"].sum() if nb_conv > 0 else 0
+                ca_conv_n1 = conv_n1["Montant TTC"].sum() if len(conv_n1) > 0 else 0
+                evol_conv = evol_pct(ca_conv, ca_conv_n1)
+                panier_conv = ca_conv / nb_conv if nb_conv > 0 else 0
+                
+                c1, c2, c3, c4 = st.columns(4)
+                c1.metric("🏛️ Nb Conventions", nb_conv)
+                c2.metric("💰 CA Conventions", f"{ca_conv:,.0f} TND", f"{evol_conv:+.1f}%" if ca_conv > 0 else None, delta_color="normal" if evol_conv >= 0 else "inverse")
+                c3.metric("📅 CA N-1", f"{ca_conv_n1:,.0f} TND")
+                c4.metric("📊 Panier moyen", f"{panier_conv:,.0f} TND")
+                
+                # Top 10 Conventions
+                if "Nom" in conv_n.columns:
+                    top_conv = conv_n.groupby("Nom")["Montant TTC"].sum().sort_values(ascending=False).head(10)
+                    if len(top_conv) > 0:
+                        df_top = pd.DataFrame({"Convention": top_conv.index, "CA": top_conv.values})
+                        fig_top_conv = px.bar(df_top, x="CA", y="Convention", orientation="h",
+                                            title=f"🏆 Top 10 Conventions - {selected_store}", text_auto=".0f",
+                                            color="CA", color_continuous_scale=["#1D4ED8", "#3B82F6", "#60A5FA"])
+                        fig_top_conv.update_layout(height=320, yaxis=dict(autorange="reversed"))
+                        st.plotly_chart(fig_top_conv, width="stretch")
+
+            st.markdown("---")
+            
+            # === CREDIT CONSO ===
+            st.markdown("### 💳 Credit Conso")
+            
+            if "Type vente à crédit" in store_n.columns:
+                cc_n = store_n[store_n["Type vente à crédit"].str.contains("Conso", case=False, na=False)]
+                cc_n1 = store_n1[store_n1.get("Type vente à crédit", "").str.contains("Conso", case=False, na=False)]
+                
+                nb_cc = len(cc_n)
+                ca_cc = cc_n["Montant TTC"].sum() if nb_cc > 0 else 0
+                ca_cc_n1 = cc_n1["Montant TTC"].sum() if len(cc_n1) > 0 else 0
+                evol_cc = evol_pct(ca_cc, ca_cc_n1)
+                panier_cc = ca_cc / nb_cc if nb_cc > 0 else 0
+                
+                cc1, cc2, cc3, cc4 = st.columns(4)
+                cc1.metric("💳 Nb Dossiers", nb_cc)
+                cc2.metric("💰 CA Credit Conso", f"{ca_cc:,.0f} TND", f"{evol_cc:+.1f}%" if ca_cc > 0 else None, delta_color="normal" if evol_cc >= 0 else "inverse")
+                cc3.metric("📅 CA N-1", f"{ca_cc_n1:,.0f} TND")
+                cc4.metric("📊 Panier moyen", f"{panier_cc:,.0f} TND")
+
+            st.markdown("---")
+            
+            # === CREDIT PARTICULIER ===
+            st.markdown("### 👤 Credit Particulier")
+            
+            if "Type vente à crédit" in store_n.columns:
+                cp_n = store_n[store_n["Type vente à crédit"].str.contains("Particulier", case=False, na=False)]
+                cp_n1 = store_n1[store_n1.get("Type vente à crédit", "").str.contains("Particulier", case=False, na=False)]
+                
+                nb_cp = len(cp_n)
+                ca_cp = cp_n["Montant TTC"].sum() if nb_cp > 0 else 0
+                ca_cp_n1 = cp_n1["Montant TTC"].sum() if len(cp_n1) > 0 else 0
+                evol_cp = evol_pct(ca_cp, ca_cp_n1)
+                panier_cp = ca_cp / nb_cp if nb_cp > 0 else 0
+                
+                cp1, cp2, cp3, cp4 = st.columns(4)
+                cp1.metric("👤 Nb Dossiers", nb_cp)
+                cp2.metric("💰 CA Credit Part.", f"{ca_cp:,.0f} TND", f"{evol_cp:+.1f}%" if ca_cp > 0 else None, delta_color="normal" if evol_cp >= 0 else "inverse")
+                cp3.metric("📅 CA N-1", f"{ca_cp_n1:,.0f} TND")
+                cp4.metric("📊 Panier moyen", f"{panier_cp:,.0f} TND")
+
+            # === DETAIL OPERATIONS ===
+            with st.expander("📄 Détail des opérations"):
+                cols_show = [c for c in store_n.columns if c in ["Date", "Mois", "Nom", "Montant TTC", "Type vente à crédit", "Enseigne"]]
+                st.dataframe(store_n[cols_show].sort_values("Date", ascending=False), width="stretch")
 
 
 # ══════════════════════════════════════════════════════════════
