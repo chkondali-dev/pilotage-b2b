@@ -1664,7 +1664,14 @@ with tabs[3]:
             st.markdown("### 💳 Credit Conso")
             
             # Use df_credit for Credit Conso data (with filters applied)
+            # Debug
+            st.caption(f"Debug: df_credit columns: {list(df_credit.columns[:5])}, Magasin unique: {df_credit['Magasin'].nunique() if 'Magasin' in df_credit.columns else 'no Magasin'}")
+            
             if "Magasin" in df_credit.columns:
+                # Show available stores in credit data
+                available_credit_stores = df_credit["Magasin"].dropna().unique()[:5]
+                st.caption(f"Magasins dispo dans Credit: {available_credit_stores}")
+                
                 cc_store_n = df_credit[(df_credit["Magasin"] == selected_store) & (df_credit["Année"] == annee_sel)]
                 cc_store_n1 = df_credit[(df_credit["Magasin"] == selected_store) & (df_credit["Année"] == annee_sel - 1)]
                 
