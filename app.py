@@ -101,10 +101,14 @@ def _clean(df: pd.DataFrame) -> pd.DataFrame:
 
 def _add_date_cols(df: pd.DataFrame) -> pd.DataFrame:
     """Extrait Année / Mois / Jour depuis 'Date comptabilisation'."""
-    if "Date comptabilisation" not in df.columns:
+    # Try to find the date column case-insensitively
+    date_col = next((c for c in df.columns if "date" in c.lower() and "comptabil" in c.lower()), None)
+    
+    if date_col is None:
         return df
+    
     df = df.copy()
-    df["Date"]  = pd.to_datetime(df["Date comptabilisation"], errors="coerce")
+    df["Date"]  = pd.to_datetime(df[date_col], errors="coerce")
     df["Année"] = df["Date"].dt.year.astype("Int64")
     df["Mois"]  = df["Date"].dt.month.astype("Int64")
     df["Jour"]  = df["Date"].dt.day.astype("Int64")
@@ -1065,6 +1069,11 @@ with tabs[0]:
         delta_color="inverse" if nb_inact > 0 else "off",
     )
     k5.metric("Panier moyen", f"{panier_moy:,.0f} TND")
+
+    # Debug: show date-to-date comparison details
+    if not df_comp.empty:
+        debug_info = " | ".join([f"{r['Mois Nom']}: {int(r['Jours comparés'])}j" for _, r in df_comp.iterrows()])
+        st.caption(f"🔍 Comparaison date à date: {debug_info}")
 
     nb_transactions = len(df_filt) if len(df_filt) > 0 else 0
 
