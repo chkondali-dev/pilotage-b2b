@@ -1660,19 +1660,17 @@ with tabs[3]:
 
             st.markdown("---")
             
-            # === CREDIT CONSO ===
+            # === CREDIT CONSO === (using separate file)
             st.markdown("### 💳 Credit Conso")
             
-            if "Type vente à crédit" in store_n.columns:
-                # Debug: voir les types réels
-                all_types = store_n["Type vente à crédit"].dropna().unique()
+            # Use df_credit for Credit Conso data
+            if "Magasin" in df_credit.columns:
+                cc_store_n = df_credit[(df_credit["Magasin"] == selected_store) & (df_credit["Année"] == annee_sel)]
+                cc_store_n1 = df_credit[(df_credit["Magasin"] == selected_store) & (df_credit["Année"] == annee_sel - 1)]
                 
-                cc_n = store_n[store_n["Type vente à crédit"].fillna("").str.upper().str.contains("CONSO")]
-                cc_n1 = store_n1[store_n1["Type vente à crédit"].fillna("").str.upper().str.contains("CONSO")]
-                
-                nb_cc = len(cc_n)
-                ca_cc = cc_n["Montant TTC"].sum() if nb_cc > 0 else 0
-                ca_cc_n1 = cc_n1["Montant TTC"].sum() if len(cc_n1) > 0 else 0
+                nb_cc = len(cc_store_n)
+                ca_cc = cc_store_n["Montant TTC"].sum() if nb_cc > 0 else 0
+                ca_cc_n1 = cc_store_n1["Montant TTC"].sum() if len(cc_store_n1) > 0 else 0
                 evol_cc = evol_pct(ca_cc, ca_cc_n1)
                 panier_cc = ca_cc / nb_cc if nb_cc > 0 else 0
                 
@@ -1680,20 +1678,23 @@ with tabs[3]:
                 cc1.metric("💳 Nb Dossiers", nb_cc)
                 cc2.metric("💰 CA Credit Conso", f"{ca_cc:,.0f} TND", f"{evol_cc:+.1f}%" if ca_cc > 0 else None, delta_color="normal" if evol_cc >= 0 else "inverse")
                 cc3.metric("📅 CA N-1", f"{ca_cc_n1:,.0f} TND")
-                cc4.metric("📊 Panier moyen", f"{panier_cc:,.0f} TND")
+                cc4.metric("📊 Panier moyen", f"{panier_cc:,.0f} TND" if nb_cc > 0 else "0 TND")
+            else:
+                st.info("Données Credit Conso non disponibles")
 
             st.markdown("---")
             
-            # === CREDIT PARTICULIER ===
+            # === CREDIT PARTICULIER === (using separate file)
             st.markdown("### 👤 Credit Particulier")
             
-            if "Type vente à crédit" in store_n.columns:
-                cp_n = store_n[store_n["Type vente à crédit"].fillna("").str.upper().str.contains("PARTICULIER")]
-                cp_n1 = store_n1[store_n1["Type vente à crédit"].fillna("").str.upper().str.contains("PARTICULIER")]
+            # Use df_credit_part for Credit Particulier data
+            if "Magasin" in df_credit_part.columns:
+                cp_store_n = df_credit_part[(df_credit_part["Magasin"] == selected_store) & (df_credit_part["Année"] == annee_sel)]
+                cp_store_n1 = df_credit_part[(df_credit_part["Magasin"] == selected_store) & (df_credit_part["Année"] == annee_sel - 1)]
                 
-                nb_cp = len(cp_n)
-                ca_cp = cp_n["Montant TTC"].sum() if nb_cp > 0 else 0
-                ca_cp_n1 = cp_n1["Montant TTC"].sum() if len(cp_n1) > 0 else 0
+                nb_cp = len(cp_store_n)
+                ca_cp = cp_store_n["Montant TTC"].sum() if nb_cp > 0 else 0
+                ca_cp_n1 = cp_store_n1["Montant TTC"].sum() if len(cp_store_n1) > 0 else 0
                 evol_cp = evol_pct(ca_cp, ca_cp_n1)
                 panier_cp = ca_cp / nb_cp if nb_cp > 0 else 0
                 
@@ -1701,7 +1702,9 @@ with tabs[3]:
                 cp1.metric("👤 Nb Dossiers", nb_cp)
                 cp2.metric("💰 CA Credit Part.", f"{ca_cp:,.0f} TND", f"{evol_cp:+.1f}%" if ca_cp > 0 else None, delta_color="normal" if evol_cp >= 0 else "inverse")
                 cp3.metric("📅 CA N-1", f"{ca_cp_n1:,.0f} TND")
-                cp4.metric("📊 Panier moyen", f"{panier_cp:,.0f} TND")
+                cp4.metric("📊 Panier moyen", f"{panier_cp:,.0f} TND" if nb_cp > 0 else "0 TND")
+            else:
+                st.info("Données Credit Particulier non disponibles")
 
             # === DETAIL OPERATIONS ===
             with st.expander("📄 Détail des opérations"):
