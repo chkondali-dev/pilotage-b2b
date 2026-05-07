@@ -306,6 +306,69 @@ def compare_years(df: pd.DataFrame, annee_n: int, annee_n1: int) -> pd.DataFrame
     return comp
 
 
+def compare_years_date_to_date(df: pd.DataFrame, annee_n: int, annee_n1: int, mois_sel: list = None) -> pd.DataFrame:
+    """
+    Comparaison N vs N-1 DATE À DATE (même nombre de jours).
+    Si Mai 2026 a des données jusqu'au jour 7, on compare les 7 premiers jours de Mai 2025.
+    """
+    if df.empty or "Montant TTC" not in df.columns:
+        return pd.DataFrame(columns=["Mois", "CA N", "CA N-1", "Variation %", "Mois Nom", "Jours comparés"])
+    
+    # Déterminer les mois à analyser
+    df_n = df[df["Année"] == annee_n].copy()
+    df_n1 = df[df["Année"] == annee_n1].copy()
+    
+    if "Mois" not in df_n.columns or "Jour" not in df_n.columns:
+        # Pas de données jour, fallback sur comparaison mensuelle classique
+        return compare_years(df, annee_n, annee_n1)
+    
+    # Pour chaque mois, trouver le nombre max de jours disponibles en N
+    max_days_per_month = df_n.groupby("Mois")["Jour"].max().to_dict()
+    
+    result_rows = []
+    for mois in sorted(max_days_per_month.keys()):
+        max_jour = max_days_per_month[mois]
+        
+        # Filtrer N et N-1 pour ce mois, jour <= max_jour
+        ca_n = df_n[(df_n["Mois"] == mois) & (df_n["Jour"] <= max_jour)]["Montant TTC"].sum()
+        ca_n1 = df_n1[(df_n1["Mois"] == mois) & (df_n1["Jour"] <= max_jour)]["Montant TTC"].sum()
+        
+        var_pct = ((ca_n - ca_n1) / ca_n1 * 100) if ca_n1 > 0 else (100 if ca_n > 0 else 0)
+        
+        result_rows.append({
+            "Mois": mois,
+            "CA N": ca_n,
+            "CA N-1": ca_n1,
+            "Variation %": round(var_pct, 1),
+            "Mois Nom": MOIS.get(mois, str(mois)),
+            "Jours comparés": max_jour
+        })
+    
+    comp = pd.DataFrame(result_rows)
+    
+    # Filtrer sur les mois sélectionnés si fourni
+    if mois_sel is not None and len(mois_sel) > 0:
+        comp = comp[comp["Mois"].isin(mois_sel)]
+    
+    return comp
+
+
+def ca_sum_date_to_date(df: pd.DataFrame, annee_n: int, annee_n1: int, mois_sel: list = None) -> tuple:
+    """
+    Calcul CA total date à date pour les deux années.
+    Retourne (CA N, CA N-1,Evolution %)
+    """
+    comp = compare_years_date_to_date(df, annee_n, annee_n1, mois_sel)
+    if comp.empty:
+        return 0, 0, 0
+    
+    ca_n = comp["CA N"].sum()
+    ca_n1 = comp["CA N-1"].sum()
+    evo = ((ca_n - ca_n1) / ca_n1 * 100) if ca_n1 > 0 else (100 if ca_n > 0 else 0)
+    
+    return ca_n, ca_n1, round(evo, 1)
+
+
 def get_rolling_3m(df: pd.DataFrame) -> pd.DataFrame:
     """CA des 3 derniers mois glissants — extrait UNIQUE (supprime duplication dans tabs)."""
     now = pd.Timestamp.now()
@@ -927,15 +990,13 @@ df_filt = df_vc_filt[df_vc_filt["Année"] == annee_sel].copy()
 if conv_sel != "Tous":
     df_filt = df_filt[df_filt["Nom"] == conv_sel]
 
-df_comp     = compare_years(df_vc_filt, annee_sel, annee_sel - 1)
+df_comp     = compare_years_date_to_date(df_vc_filt, annee_sel, annee_sel - 1, mois_sel)
 risk_mat    = convention_risk_matrix(df_vc_filt, annee_sel)
 df_inactive = inactive_conventions(df_vc_filt)
 df_3m       = get_rolling_3m(df_vc_filt)
 
-ca_n        = ca_sum(df_vc_filt, annee_sel, mois_sel)
-ca_n1       = ca_sum(df_vc_filt, annee_sel - 1, mois_sel)
+ca_n, ca_n1, ev_nn1 = ca_sum_date_to_date(df_vc_filt, annee_sel, annee_sel - 1, mois_sel)
 ca_n2       = ca_sum(df_vc_filt, annee_sel - 2, mois_sel)
-ev_nn1      = evol_pct(ca_n, ca_n1)
 ev_n1n2     = evol_pct(ca_n1, ca_n2)
 
 nb_actives  = df_vc_filt[df_vc_filt["Année"] == annee_sel]["Nom"].dropna().nunique() \
@@ -985,13 +1046,13 @@ with tabs[0]:
     section("Indicateurs clés")
     k1, k2, k3, k4, k5 = st.columns(5)
     k1.metric(
-        f"CA {annee_sel}",
+        f"CA {annee_sel} (date à date)",
         f"{ca_n:,.0f} TND",
         f"{ev_nn1:+.1f}% vs {annee_sel-1}",
         delta_color="normal" if ev_nn1 >= 0 else "inverse",
     )
     k2.metric(
-        f"CA {annee_sel-1}",
+        f"CA {annee_sel-1} (date à date)",
         f"{ca_n1:,.0f} TND",
         f"{ev_n1n2:+.1f}% vs {annee_sel-2}",
         delta_color="normal" if ev_n1n2 >= 0 else "inverse",
@@ -1663,22 +1724,32 @@ with tabs[3]:
             else:
                 st.info("Données Credit Conso non disponibles")
             
-            # Apply month filter
+            # Apply month filter and date-to-date comparison
             if len(cc_store_n) > 0 and mois_sel:
                 cc_store_n = cc_store_n[cc_store_n["Mois"].isin(mois_sel)]
             if len(cc_store_n1) > 0 and mois_sel:
                 cc_store_n1 = cc_store_n1[cc_store_n1["Mois"].isin(mois_sel)]
             
-            nb_cc = len(cc_store_n)
-            ca_cc = cc_store_n["Montant TTC"].sum() if nb_cc > 0 else 0
-            ca_cc_n1 = cc_store_n1["Montant TTC"].sum() if len(cc_store_n1) > 0 else 0
+            # Date-to-date comparison for Credit Conso
+            if len(cc_store_n) > 0 and "Jour" in cc_store_n.columns and len(cc_store_n1) > 0:
+                cc_comp = compare_years_date_to_date(
+                    pd.concat([cc_store_n, cc_store_n1]), 
+                    annee_sel, annee_sel - 1, mois_sel
+                )
+                ca_cc = cc_comp["CA N"].sum() if not cc_comp.empty else 0
+                ca_cc_n1 = cc_comp["CA N-1"].sum() if not cc_comp.empty else 0
+            else:
+                ca_cc = cc_store_n["Montant TTC"].sum() if len(cc_store_n) > 0 else 0
+                ca_cc_n1 = cc_store_n1["Montant TTC"].sum() if len(cc_store_n1) > 0 else 0
+            
             evol_cc = evol_pct(ca_cc, ca_cc_n1)
+            nb_cc = len(cc_store_n)
             panier_cc = ca_cc / nb_cc if nb_cc > 0 else 0
             
             cc1, cc2, cc3, cc4 = st.columns(4)
             cc1.metric("💳 Nb Dossiers", nb_cc)
             cc2.metric("💰 CA Credit Conso", f"{ca_cc:,.0f} TND", f"{evol_cc:+.1f}%" if ca_cc > 0 else None, delta_color="normal" if evol_cc >= 0 else "inverse")
-            cc3.metric("📅 CA N-1", f"{ca_cc_n1:,.0f} TND")
+            cc3.metric("📅 CA N-1 (date à date)", f"{ca_cc_n1:,.0f} TND")
             cc4.metric("📊 Panier moyen", f"{panier_cc:,.0f} TND" if nb_cc > 0 else "0 TND")
 
             st.markdown("---")
@@ -1714,21 +1785,31 @@ with tabs[3]:
                     cp_store_n = df_credit_part[(df_credit_part["Magasin"] == selected_store) & (df_credit_part["Année"] == annee_sel)]
                     cp_store_n1 = df_credit_part[(df_credit_part["Magasin"] == selected_store) & (df_credit_part["Année"] == annee_sel - 1)]
                 
-                # Apply month filter
+                # Apply month filter and date-to-date comparison
                 if mois_sel:
                     cp_store_n = cp_store_n[cp_store_n["Mois"].isin(mois_sel)]
                     cp_store_n1 = cp_store_n1[cp_store_n1["Mois"].isin(mois_sel)]
                 
-                nb_cp = len(cp_store_n)
-                ca_cp = cp_store_n["Montant TTC"].sum() if nb_cp > 0 else 0
-                ca_cp_n1 = cp_store_n1["Montant TTC"].sum() if len(cp_store_n1) > 0 else 0
+                # Date-to-date comparison for Credit Particulier
+                if len(cp_store_n) > 0 and "Jour" in cp_store_n.columns and len(cp_store_n1) > 0:
+                    cp_comp = compare_years_date_to_date(
+                        pd.concat([cp_store_n, cp_store_n1]), 
+                        annee_sel, annee_sel - 1, mois_sel
+                    )
+                    ca_cp = cp_comp["CA N"].sum() if not cp_comp.empty else 0
+                    ca_cp_n1 = cp_comp["CA N-1"].sum() if not cp_comp.empty else 0
+                else:
+                    ca_cp = cp_store_n["Montant TTC"].sum() if len(cp_store_n) > 0 else 0
+                    ca_cp_n1 = cp_store_n1["Montant TTC"].sum() if len(cp_store_n1) > 0 else 0
+                
                 evol_cp = evol_pct(ca_cp, ca_cp_n1)
+                nb_cp = len(cp_store_n)
                 panier_cp = ca_cp / nb_cp if nb_cp > 0 else 0
                 
                 cp1, cp2, cp3, cp4 = st.columns(4)
                 cp1.metric("👤 Nb Dossiers", nb_cp)
                 cp2.metric("💰 CA Credit Part.", f"{ca_cp:,.0f} TND", f"{evol_cp:+.1f}%" if ca_cp > 0 else None, delta_color="normal" if evol_cp >= 0 else "inverse")
-                cp3.metric("📅 CA N-1", f"{ca_cp_n1:,.0f} TND")
+                cp3.metric("📅 CA N-1 (date à date)", f"{ca_cp_n1:,.0f} TND")
                 cp4.metric("📊 Panier moyen", f"{panier_cp:,.0f} TND" if nb_cp > 0 else "0 TND")
             else:
                 st.info("Données Credit Particulier non disponibles")
@@ -1755,22 +1836,32 @@ with tabs[3]:
                     edc_store_n = df_edc[df_edc["Année"] == annee_sel]
                     edc_store_n1 = df_edc[df_edc["Année"] == annee_sel - 1]
             
-            # Apply month filter
+            # Apply month filter and date-to-date comparison
             if mois_sel and len(edc_store_n) > 0:
                 edc_store_n = edc_store_n[edc_store_n["Mois"].isin(mois_sel)]
             if mois_sel and len(edc_store_n1) > 0:
                 edc_store_n1 = edc_store_n1[edc_store_n1["Mois"].isin(mois_sel)]
             
-            nb_edc = len(edc_store_n)
-            ca_edc = edc_store_n["Montant TTC"].sum() if nb_edc > 0 else 0
-            ca_edc_n1 = edc_store_n1["Montant TTC"].sum() if len(edc_store_n1) > 0 else 0
+            # Date-to-date comparison for EDC
+            if len(edc_store_n) > 0 and "Jour" in edc_store_n.columns and len(edc_store_n1) > 0:
+                edc_comp = compare_years_date_to_date(
+                    pd.concat([edc_store_n, edc_store_n1]), 
+                    annee_sel, annee_sel - 1, mois_sel
+                )
+                ca_edc = edc_comp["CA N"].sum() if not edc_comp.empty else 0
+                ca_edc_n1 = edc_comp["CA N-1"].sum() if not edc_comp.empty else 0
+            else:
+                ca_edc = edc_store_n["Montant TTC"].sum() if len(edc_store_n) > 0 else 0
+                ca_edc_n1 = edc_store_n1["Montant TTC"].sum() if len(edc_store_n1) > 0 else 0
+            
             evol_edc = evol_pct(ca_edc, ca_edc_n1)
+            nb_edc = len(edc_store_n)
             panier_edc = ca_edc / nb_edc if nb_edc > 0 else 0
             
             edc1, edc2, edc3, edc4 = st.columns(4)
             edc1.metric("🏫 Nb Dossiers", nb_edc)
             edc2.metric("💰 CA Convention EDC", f"{ca_edc:,.0f} TND", f"{evol_edc:+.1f}%" if ca_edc > 0 else None, delta_color="normal" if evol_edc >= 0 else "inverse")
-            edc3.metric("📅 CA N-1", f"{ca_edc_n1:,.0f} TND")
+            edc3.metric("📅 CA N-1 (date à date)", f"{ca_edc_n1:,.0f} TND")
             edc4.metric("📊 Panier moyen", f"{panier_edc:,.0f} TND" if nb_edc > 0 else "0 TND")
 
             # === DETAIL OPERATIONS ===
@@ -1790,8 +1881,19 @@ with tabs[4]:
 
         df_edc_n  = df_edc[df_edc["Année"] == edc_yr]
         df_edc_n1 = df_edc[df_edc["Année"] == edc_yr - 1]
-        ca_e_n    = float(df_edc_n["Montant TTC"].sum())  if "Montant TTC" in df_edc_n.columns  else 0.0
-        ca_e_n1   = float(df_edc_n1["Montant TTC"].sum()) if "Montant TTC" in df_edc_n1.columns else 0.0
+        
+        # Date-to-date comparison for EDC tab
+        if len(df_edc_n) > 0 and "Jour" in df_edc_n.columns and len(df_edc_n1) > 0:
+            edc_comp = compare_years_date_to_date(
+                pd.concat([df_edc_n, df_edc_n1]), 
+                edc_yr, edc_yr - 1, None
+            )
+            ca_e_n = edc_comp["CA N"].sum() if not edc_comp.empty else 0.0
+            ca_e_n1 = edc_comp["CA N-1"].sum() if not edc_comp.empty else 0.0
+        else:
+            ca_e_n    = float(df_edc_n["Montant TTC"].sum())  if "Montant TTC" in df_edc_n.columns  else 0.0
+            ca_e_n1   = float(df_edc_n1["Montant TTC"].sum()) if "Montant TTC" in df_edc_n1.columns else 0.0
+        
         ev_edc    = evol_pct(ca_e_n, ca_e_n1)
         nb_f_edc  = len(df_edc_n)
         panier_e  = ca_e_n / nb_f_edc if nb_f_edc > 0 else 0
