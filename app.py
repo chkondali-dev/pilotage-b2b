@@ -318,13 +318,18 @@ def compare_years_date_to_date(df: pd.DataFrame, annee_n: int, annee_n1: int, mo
     if df.empty or "Montant TTC" not in df.columns:
         return pd.DataFrame(columns=["Mois", "CA N", "CA N-1", "Variation %", "Mois Nom", "Jours comparés"])
     
-    # Déterminer les mois à analyser
-    df_n = df[df["Année"] == annee_n].copy()
-    df_n1 = df[df["Année"] == annee_n1].copy()
+    # Appliquer le filtre mois sur les deux années
+    df_filtered = df.copy()
+    if mois_sel is not None and len(mois_sel) > 0:
+        df_filtered = df_filtered[df_filtered["Mois"].isin(mois_sel)]
     
-    if "Mois" not in df_n.columns or "Jour" not in df_n.columns:
+    # Déterminer les mois à analyser
+    df_n = df_filtered[df_filtered["Année"] == annee_n].copy()
+    df_n1 = df_filtered[df_filtered["Année"] == annee_n1].copy()
+    
+    if "Mois" not in df_n.columns or "Jour" not in df_n.columns or df_n.empty:
         # Pas de données jour, fallback sur comparaison mensuelle classique
-        return compare_years(df, annee_n, annee_n1)
+        return compare_years(df_filtered, annee_n, annee_n1)
     
     # Pour chaque mois, trouver le nombre max de jours disponibles en N
     max_days_per_month = df_n.groupby("Mois")["Jour"].max().to_dict()
@@ -349,10 +354,6 @@ def compare_years_date_to_date(df: pd.DataFrame, annee_n: int, annee_n1: int, mo
         })
     
     comp = pd.DataFrame(result_rows)
-    
-    # Filtrer sur les mois sélectionnés si fourni
-    if mois_sel is not None and len(mois_sel) > 0:
-        comp = comp[comp["Mois"].isin(mois_sel)]
     
     return comp
 
