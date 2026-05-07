@@ -899,6 +899,11 @@ with st.sidebar:
     st.caption("Filtres appliqués à tous les onglets")
 
 # ── Chargement données ────────────────────────────────────────
+# Bouton pour forcer actualisation
+if st.sidebar.button("🔄 Actualiser les données"):
+    st.cache_data.clear()
+    st.rerun()
+
 with st.spinner("Chargement des données…"):
     _raw = load_all_data()
 
