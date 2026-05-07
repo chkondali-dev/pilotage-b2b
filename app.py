@@ -899,13 +899,8 @@ with st.sidebar:
     st.caption("Filtres appliqués à tous les onglets")
 
 # ── Chargement données ────────────────────────────────────────
-# Bouton pour forcer actualisation
-if st.sidebar.button("🔄 Actualiser les données"):
-    st.cache_data.clear()
-    st.rerun()
-
-with st.spinner("Chargement des données…"):
-    _raw = load_all_data()
+@st.cache_data(show_spinner=False, ttl=3600)
+def load_all_data() -> dict:
 
 df_vc, df_credit, df_edc, df_conv, code_df, df_credit_part = prepare_data(_raw)
 _raw_part = _raw.get("credit_particulier", pd.DataFrame())
