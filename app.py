@@ -1678,8 +1678,12 @@ with tabs[3]:
                     if len(store_codes) > 0:
                         # Filter by any of the codes
                         code_strs = [str(c).strip() for c in store_codes]
+                        # Debug: show what we're comparing
+                        st.caption(f"Filtering by codes: {code_strs}")
+                        st.caption(f"df_credit Unite Code sample: {df_credit['Unite Code'].dropna().unique()[:5]}")
                         cc_store_n = df_credit[(df_credit["Unite Code"].astype(str).isin(code_strs)) & (df_credit["Année"] == annee_sel)]
                         cc_store_n1 = df_credit[(df_credit["Unite Code"].astype(str).isin(code_strs)) & (df_credit["Année"] == annee_sel - 1)]
+                        st.caption(f"CC rows after filter: {len(cc_store_n)}")
                     else:
                         cc_store_n = df_credit[df_credit["Année"] == annee_sel] if selected_store == "Tous" else pd.DataFrame()
                         cc_store_n1 = df_credit[df_credit["Année"] == annee_sel - 1]
