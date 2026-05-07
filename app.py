@@ -1687,28 +1687,25 @@ with tabs[3]:
                     cc_store_n = df_credit[df_credit["Année"] == annee_sel]
                     cc_store_n1 = df_credit[df_credit["Année"] == annee_sel - 1]
             else:
-                cc_store_n = df_credit[df_credit["Année"] == annee_sel]
-                cc_store_n1 = df_credit[df_credit["Année"] == annee_sel - 1]
-                
-                # Apply month filter
-                if mois_sel and len(cc_store_n) > 0:
-                    cc_store_n = cc_store_n[cc_store_n["Mois"].isin(mois_sel)]
-                if mois_sel and len(cc_store_n1) > 0:
-                    cc_store_n1 = cc_store_n1[cc_store_n1["Mois"].isin(mois_sel)]
-                
-                nb_cc = len(cc_store_n)
-                ca_cc = cc_store_n["Montant TTC"].sum() if nb_cc > 0 else 0
-                ca_cc_n1 = cc_store_n1["Montant TTC"].sum() if len(cc_store_n1) > 0 else 0
-                evol_cc = evol_pct(ca_cc, ca_cc_n1)
-                panier_cc = ca_cc / nb_cc if nb_cc > 0 else 0
-                
-                cc1, cc2, cc3, cc4 = st.columns(4)
-                cc1.metric("💳 Nb Dossiers", nb_cc)
-                cc2.metric("💰 CA Credit Conso", f"{ca_cc:,.0f} TND", f"{evol_cc:+.1f}%" if ca_cc > 0 else None, delta_color="normal" if evol_cc >= 0 else "inverse")
-                cc3.metric("📅 CA N-1", f"{ca_cc_n1:,.0f} TND")
-                cc4.metric("📊 Panier moyen", f"{panier_cc:,.0f} TND" if nb_cc > 0 else "0 TND")
-            else:
                 st.info("Données Credit Conso non disponibles")
+            
+            # Apply month filter
+            if len(cc_store_n) > 0 and mois_sel:
+                cc_store_n = cc_store_n[cc_store_n["Mois"].isin(mois_sel)]
+            if len(cc_store_n1) > 0 and mois_sel:
+                cc_store_n1 = cc_store_n1[cc_store_n1["Mois"].isin(mois_sel)]
+            
+            nb_cc = len(cc_store_n)
+            ca_cc = cc_store_n["Montant TTC"].sum() if nb_cc > 0 else 0
+            ca_cc_n1 = cc_store_n1["Montant TTC"].sum() if len(cc_store_n1) > 0 else 0
+            evol_cc = evol_pct(ca_cc, ca_cc_n1)
+            panier_cc = ca_cc / nb_cc if nb_cc > 0 else 0
+            
+            cc1, cc2, cc3, cc4 = st.columns(4)
+            cc1.metric("💳 Nb Dossiers", nb_cc)
+            cc2.metric("💰 CA Credit Conso", f"{ca_cc:,.0f} TND", f"{evol_cc:+.1f}%" if ca_cc > 0 else None, delta_color="normal" if evol_cc >= 0 else "inverse")
+            cc3.metric("📅 CA N-1", f"{ca_cc_n1:,.0f} TND")
+            cc4.metric("📊 Panier moyen", f"{panier_cc:,.0f} TND" if nb_cc > 0 else "0 TND")
 
             st.markdown("---")
             
