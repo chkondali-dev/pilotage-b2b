@@ -1665,15 +1665,11 @@ with tabs[3]:
             
             # Use df_credit for Credit Conso data
             if "Unite Code" in df_credit.columns:
-                # Use Unite Code directly for matching
-                st.caption(f"Debug CC - using Unite Code")
-                
                 # First check if we can find the code in df_vc
                 code_col_vc = next((c for c in df_vc.columns if c.lower() == "unite code"), None)
                 if code_col_vc and "Magasin" in df_vc.columns:
                     # Get codes for this store name from df_vc
                     store_codes = df_vc[df_vc["Magasin"] == selected_store][code_col_vc].dropna().unique() if selected_store != "Tous" else []
-                    st.caption(f"Codes for {selected_store}: {store_codes}")
                     
                     if len(store_codes) > 0:
                         # Filter by any of the codes - handle float format with .0
