@@ -1736,7 +1736,7 @@ with tabs[3]:
             st.markdown("---")
             
             # === CONVENTION EDC === (using separate file)
-            st.markdown("🏫 Convention EDC")
+            st.markdown("### 🏫 Convention EDC")
             
             # Use df_edc for EDC data
             edc_store_n = pd.DataFrame()
@@ -1768,8 +1768,8 @@ with tabs[3]:
             panier_edc = ca_edc / nb_edc if nb_edc > 0 else 0
             
             edc1, edc2, edc3, edc4 = st.columns(4)
-            edc1.metric("🏫 Nb Dossiers EDC", nb_edc)
-            edc2.metric("💰 CA EDC", f"{ca_edc:,.0f} TND", f"{evol_edc:+.1f}%" if ca_edc > 0 else None, delta_color="normal" if evol_edc >= 0 else "inverse")
+            edc1.metric("🏫 Nb Dossiers", nb_edc)
+            edc2.metric("💰 CA Convention EDC", f"{ca_edc:,.0f} TND", f"{evol_edc:+.1f}%" if ca_edc > 0 else None, delta_color="normal" if evol_edc >= 0 else "inverse")
             edc3.metric("📅 CA N-1", f"{ca_edc_n1:,.0f} TND")
             edc4.metric("📊 Panier moyen", f"{panier_edc:,.0f} TND" if nb_edc > 0 else "0 TND")
 
