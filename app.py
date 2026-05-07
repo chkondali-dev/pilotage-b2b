@@ -1633,8 +1633,12 @@ with tabs[3]:
             st.markdown("### 🏛️ Analyse des Conventions")
             
             if "Type vente à crédit" in store_n.columns:
-                conv_n = store_n[store_n["Type vente à crédit"].str.contains("Convention", case=False, na=False)]
-                conv_n1 = store_n1[store_n1.get("Type vente à crédit", "").str.contains("Convention", case=False, na=False)]
+                # Trouver les types qui contiennent "CONV" ou "CONVENTION"
+                conv_mask_n = store_n["Type vente à crédit"].fillna("").str.upper().str.contains("CONV")
+                conv_mask_n1 = store_n1["Type vente à crédit"].fillna("").str.upper().str.contains("CONV")
+                
+                conv_n = store_n[conv_mask_n]
+                conv_n1 = store_n1[conv_mask_n1]
                 
                 nb_conv = len(conv_n)
                 ca_conv = conv_n["Montant TTC"].sum() if nb_conv > 0 else 0
@@ -1646,7 +1650,7 @@ with tabs[3]:
                 c1.metric("🏛️ Nb Conventions", nb_conv)
                 c2.metric("💰 CA Conventions", f"{ca_conv:,.0f} TND", f"{evol_conv:+.1f}%" if ca_conv > 0 else None, delta_color="normal" if evol_conv >= 0 else "inverse")
                 c3.metric("📅 CA N-1", f"{ca_conv_n1:,.0f} TND")
-                c4.metric("📊 Panier moyen", f"{panier_conv:,.0f} TND")
+                c4.metric("📊 Panier moyen", f"{panier_conv:,.0f} TND" if nb_conv > 0 else "0 TND")
                 
                 # Top 10 Conventions
                 if "Nom" in conv_n.columns:
@@ -1665,8 +1669,8 @@ with tabs[3]:
             st.markdown("### 💳 Credit Conso")
             
             if "Type vente à crédit" in store_n.columns:
-                cc_n = store_n[store_n["Type vente à crédit"].str.contains("Conso", case=False, na=False)]
-                cc_n1 = store_n1[store_n1.get("Type vente à crédit", "").str.contains("Conso", case=False, na=False)]
+                cc_n = store_n[store_n["Type vente à crédit"].fillna("").str.upper().str.contains("CONSO")]
+                cc_n1 = store_n1[store_n1["Type vente à crédit"].fillna("").str.upper().str.contains("CONSO")]
                 
                 nb_cc = len(cc_n)
                 ca_cc = cc_n["Montant TTC"].sum() if nb_cc > 0 else 0
@@ -1686,8 +1690,8 @@ with tabs[3]:
             st.markdown("### 👤 Credit Particulier")
             
             if "Type vente à crédit" in store_n.columns:
-                cp_n = store_n[store_n["Type vente à crédit"].str.contains("Particulier", case=False, na=False)]
-                cp_n1 = store_n1[store_n1.get("Type vente à crédit", "").str.contains("Particulier", case=False, na=False)]
+                cp_n = store_n[store_n["Type vente à crédit"].fillna("").str.upper().str.contains("PARTICULIER")]
+                cp_n1 = store_n1[store_n1["Type vente à crédit"].fillna("").str.upper().str.contains("PARTICULIER")]
                 
                 nb_cp = len(cp_n)
                 ca_cp = cp_n["Montant TTC"].sum() if nb_cp > 0 else 0
