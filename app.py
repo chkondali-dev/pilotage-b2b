@@ -1663,10 +1663,15 @@ with tabs[3]:
             # === CREDIT CONSO === (using separate file)
             st.markdown("### 💳 Credit Conso")
             
-            # Use df_credit for Credit Conso data
+            # Use df_credit for Credit Conso data (with filters applied)
             if "Magasin" in df_credit.columns:
                 cc_store_n = df_credit[(df_credit["Magasin"] == selected_store) & (df_credit["Année"] == annee_sel)]
                 cc_store_n1 = df_credit[(df_credit["Magasin"] == selected_store) & (df_credit["Année"] == annee_sel - 1)]
+                
+                # Apply month filter
+                if mois_sel:
+                    cc_store_n = cc_store_n[cc_store_n["Mois"].isin(mois_sel)]
+                    cc_store_n1 = cc_store_n1[cc_store_n1["Mois"].isin(mois_sel)]
                 
                 nb_cc = len(cc_store_n)
                 ca_cc = cc_store_n["Montant TTC"].sum() if nb_cc > 0 else 0
@@ -1687,10 +1692,15 @@ with tabs[3]:
             # === CREDIT PARTICULIER === (using separate file)
             st.markdown("### 👤 Credit Particulier")
             
-            # Use df_credit_part for Credit Particulier data
+            # Use df_credit_part for Credit Particulier data (with filters applied)
             if "Magasin" in df_credit_part.columns:
                 cp_store_n = df_credit_part[(df_credit_part["Magasin"] == selected_store) & (df_credit_part["Année"] == annee_sel)]
                 cp_store_n1 = df_credit_part[(df_credit_part["Magasin"] == selected_store) & (df_credit_part["Année"] == annee_sel - 1)]
+                
+                # Apply month filter
+                if mois_sel:
+                    cp_store_n = cp_store_n[cp_store_n["Mois"].isin(mois_sel)]
+                    cp_store_n1 = cp_store_n1[cp_store_n1["Mois"].isin(mois_sel)]
                 
                 nb_cp = len(cp_store_n)
                 ca_cp = cp_store_n["Montant TTC"].sum() if nb_cp > 0 else 0
