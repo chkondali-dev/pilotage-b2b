@@ -1467,16 +1467,29 @@ with tabs[3]:
         
         # Search bar with autocomplete
         st.markdown("### 🔍 Rechercher un magasin")
-        search_query = st.text_input("Tapez le nom du magasin...", key="store_search")
         
-        if search_query:
-            filtered_stores = [s for s in all_stores if search_query.lower() in s.lower()]
+        # Create searchable selectbox with filtering
+        if "store_search_idx" not in st.session_state:
+            st.session_state.store_search_idx = 0
+            
+        search_term = st.text_input("Tapez pour chercher...", key="store_search_input", value="")
+        
+        # Filter stores based on search
+        if search_term:
+            filtered_stores = [s for s in all_stores if search_term.lower() in s.lower()]
         else:
-            filtered_stores = all_stores
+            filtered_stores = all_stores[:50]  # Show first 50 by default
+        
+        # Add "Tous" option
+        options = ["Tous"] + filtered_stores
+        
+        # Find index of current selection or default to 0
+        current_idx = 0
         
         selected_store = st.selectbox(
             "Sélectionner un magasin", 
-            ["Tous"] + filtered_stores,
+            options,
+            index=current_idx,
             key="store_selector",
             format_func=lambda x: "🌐 Tous les magasins" if x == "Tous" else f"🏪 {x}"
         )
