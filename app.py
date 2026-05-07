@@ -1758,6 +1758,46 @@ with tabs[3]:
             else:
                 st.info("Données Credit Particulier non disponibles")
 
+            st.markdown("---")
+            
+            # === CONVENTION EDC === (using separate file)
+            st.markdown("🏫 Convention EDC")
+            
+            # Use df_edc for EDC data
+            edc_store_n = pd.DataFrame()
+            edc_store_n1 = pd.DataFrame()
+            
+            if "Unite Code" in df_edc.columns:
+                code_col_vc = next((c for c in df_vc.columns if c.lower() == "unite code"), None)
+                if code_col_vc and "Magasin" in df_vc.columns and selected_store != "Tous":
+                    store_codes = df_vc[df_vc["Magasin"] == selected_store][code_col_vc].dropna().unique()
+                    code_strs = [str(c).strip() for c in store_codes]
+                    code_strs_with_float = [c + ".0" if not c.endswith(".0") else c for c in code_strs]
+                    
+                    edc_store_n = df_edc[((df_edc["Unite Code"].astype(str).str.strip().isin(code_strs)) | (df_edc["Unite Code"].astype(str).str.strip().isin(code_strs_with_float))) & (df_edc["Année"] == annee_sel)]
+                    edc_store_n1 = df_edc[((df_edc["Unite Code"].astype(str).str.strip().isin(code_strs)) | (df_edc["Unite Code"].astype(str).str.strip().isin(code_strs_with_float))) & (df_edc["Année"] == annee_sel - 1)]
+                elif selected_store == "Tous":
+                    edc_store_n = df_edc[df_edc["Année"] == annee_sel]
+                    edc_store_n1 = df_edc[df_edc["Année"] == annee_sel - 1]
+            
+            # Apply month filter
+            if mois_sel and len(edc_store_n) > 0:
+                edc_store_n = edc_store_n[edc_store_n["Mois"].isin(mois_sel)]
+            if mois_sel and len(edc_store_n1) > 0:
+                edc_store_n1 = edc_store_n1[edc_store_n1["Mois"].isin(mois_sel)]
+            
+            nb_edc = len(edc_store_n)
+            ca_edc = edc_store_n["Montant TTC"].sum() if nb_edc > 0 else 0
+            ca_edc_n1 = edc_store_n1["Montant TTC"].sum() if len(edc_store_n1) > 0 else 0
+            evol_edc = evol_pct(ca_edc, ca_edc_n1)
+            panier_edc = ca_edc / nb_edc if nb_edc > 0 else 0
+            
+            edc1, edc2, edc3, edc4 = st.columns(4)
+            edc1.metric("🏫 Nb Dossiers EDC", nb_edc)
+            edc2.metric("💰 CA EDC", f"{ca_edc:,.0f} TND", f"{evol_edc:+.1f}%" if ca_edc > 0 else None, delta_color="normal" if evol_edc >= 0 else "inverse")
+            edc3.metric("📅 CA N-1", f"{ca_edc_n1:,.0f} TND")
+            edc4.metric("📊 Panier moyen", f"{panier_edc:,.0f} TND" if nb_edc > 0 else "0 TND")
+
             # === DETAIL OPERATIONS ===
             with st.expander("📄 Détail des opérations"):
                 cols_show = [c for c in store_n.columns if c in ["Date", "Mois", "Nom", "Montant TTC", "Type vente à crédit", "Enseigne"]]
