@@ -1599,17 +1599,6 @@ with tabs[3]:
 
             st.markdown("---")
             
-            # === REPARTITION PAR TYPE ===
-            if "Type vente à crédit" in store_n.columns:
-                by_type = store_n.groupby("Type vente à crédit")["Montant TTC"].sum()
-                by_type = by_type[by_type > 0].sort_values(ascending=False)
-                fig_pie = px.pie(values=by_type.values, names=by_type.index,
-                                title="Répartition CA par Type", hole=0.5)
-                fig_pie.update_traces(textinfo="percent+label")
-                st.plotly_chart(fig_pie, width="stretch")
-
-            st.markdown("---")
-            
             # === CONVENTIONS ===
             st.markdown("### 🏛️ Analyse des Conventions")
             
