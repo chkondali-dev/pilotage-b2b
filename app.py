@@ -1142,11 +1142,6 @@ with tabs[0]:
     )
     k5.metric("Panier moyen", f"{panier_moy:,.0f} TND")
 
-    # Debug: show date-to-date comparison details
-    if not df_comp.empty:
-        debug_info = " | ".join([f"{r['Mois Nom']}: {int(r['Jours comparés'])}j" for _, r in df_comp.iterrows()])
-        
-
     nb_transactions = len(df_filt) if len(df_filt) > 0 else 0
 
     # ── Statistiques journalières ────────────────────────────
