@@ -35,6 +35,7 @@ FILES = {
     "credit_particulier": "CREDIT%20PARTICULIER.xlsx",
     "conventions_signees": "TDC%20CONVENTION%201.xlsm",
     "code_magasin":       "Code%20MAGASIN%20Business%20Central.xlsx",
+    "cube_magasin":       "CUBE%20MAGASIN.xlsx",
 }
 
 # ─── Palette sémantique ───────────────────────────────────────
@@ -268,7 +269,8 @@ def prepare_data(_raw: dict) -> tuple:
     df_edc    = _add_date_cols(_raw.get("vc_edc", pd.DataFrame()))
     df_conv   = _raw.get("conventions_signees", pd.DataFrame())
     df_credit_part = _map_magasins(_add_date_cols(_raw.get("credit_particulier", pd.DataFrame())), code_df)
-    return df_vc, df_credit, df_edc, df_conv, code_df, df_credit_part
+    df_cube_mag = load_cube_magasin(_raw.get("cube_magasin", pd.DataFrame()), code_df)
+    return df_vc, df_credit, df_edc, df_conv, code_df, df_credit_part, df_cube_mag
 
 
 # ══════════════════════════════════════════════════════════════
@@ -286,6 +288,70 @@ def ca_sum(df: pd.DataFrame, annee: int, mois=None) -> float:
 
 def evol_pct(n: float, n1: float) -> float:
     return round((n - n1) / n1 * 100, 1) if n1 > 0 else 0.0
+
+
+def load_cube_magasin(df_raw: pd.DataFrame, code_df: pd.DataFrame = pd.DataFrame()) -> pd.DataFrame:
+    """Parse CUBE MAGASIN - extract BC code, map to Unite name, melt to long format."""
+    if df_raw.empty:
+        return pd.DataFrame()
+    df_raw = df_raw.copy()
+    df_raw.columns = df_raw.columns.str.strip()
+    # Find header row (row with store names)
+    header_row = None
+    for i, val in enumerate(df_raw.iloc[:, 0]):
+        if pd.notna(val) and ("étiquettes" in str(val) or "lignes" in str(val).lower()):
+            header_row = i
+            break
+    if header_row is None:
+        return pd.DataFrame()
+    # Headers are in row header_row, first column is "Date", rest are store names
+    headers = df_raw.iloc[header_row].tolist()
+    # Data starts after header row
+    data = df_raw.iloc[header_row + 1:].copy()
+    data.columns = headers
+    data = data.rename(columns={headers[0]: "Date"})
+    # Remove rows with NaN dates
+    data = data[data["Date"].notna()].copy()
+    
+    # Build BC code -> Unite mapping from code_df
+    bc_to_unite = {}
+    if not code_df.empty:
+        code_df = code_df.copy()
+        bc_col = next((c for c in code_df.columns if "business" in c.lower() or "central" in c.lower()), None)
+        unite_col = next((c for c in code_df.columns if c not in [bc_col, code_df.columns[0], "enseigne"] and "code" not in c.lower()), None)
+        if bc_col and unite_col:
+            code_df[bc_col] = pd.to_numeric(code_df[bc_col], errors="coerce")
+            bc_to_unite = code_df.dropna(subset=[bc_col]).set_index(bc_col)[unite_col].to_dict()
+    
+    # Map store names: extract BC code prefix, map to Unite name, fallback to raw name
+    def map_store_name(store_name):
+        s = str(store_name).strip()
+        parts = s.split(" - ")
+        if len(parts) >= 1:
+            try:
+                bc_code = float(parts[0])
+                if bc_code in bc_to_unite:
+                    return bc_to_unite[bc_code].strip()
+            except:
+                pass
+        # Fallback: try to extract store name after " - "
+        if " - " in s:
+            return s.split(" - ", 1)[1].strip()
+        return s
+    
+    store_cols = [c for c in data.columns if c != "Date" and pd.notna(c)]
+    data_long = data.melt(id_vars=["Date"], value_vars=store_cols, var_name="StoreRaw", value_name="CA Magasin")
+    data_long["Magasin"] = data_long["StoreRaw"].apply(map_store_name)
+    data_long["Date"] = pd.to_datetime(data_long["Date"], errors="coerce")
+    data_long["Année"] = data_long["Date"].dt.year
+    data_long["Mois"] = data_long["Date"].dt.month
+    data_long = data_long.dropna(subset=["Date", "CA Magasin"])
+    data_long["CA Magasin"] = pd.to_numeric(data_long["CA Magasin"], errors="coerce").fillna(0)
+    return data_long[["Date", "Magasin", "CA Magasin", "Année", "Mois"]]
+    data_long["Mois"] = data_long["Date"].dt.month
+    data_long = data_long.dropna(subset=["Date", "CA Magasin"])
+    data_long["CA Magasin"] = pd.to_numeric(data_long["CA Magasin"], errors="coerce").fillna(0)
+    return data_long
 
 
 def ca_par_mois(df: pd.DataFrame, annee: int) -> pd.DataFrame:
@@ -970,7 +1036,7 @@ with st.sidebar:
 with st.spinner("Chargement des données…"):
     _raw = load_all_data()
 
-df_vc, df_credit, df_edc, df_conv, code_df, df_credit_part = prepare_data(_raw)
+df_vc, df_credit, df_edc, df_conv, code_df, df_credit_part, df_cube_mag = prepare_data(_raw)
 _raw_part = _raw.get("credit_particulier", pd.DataFrame())
 
 if df_vc.empty or "Année" not in df_vc.columns:
@@ -1522,6 +1588,8 @@ with tabs[3]:
     if "Magasin" not in df_vc.columns:
         st.info("Données magasin non disponibles")
     else:
+        st.warning(f"DEBUG: df_vc Magasin OK, df_cube_mag rows={len(df_cube_mag)}")
+        
         # Data preparation - original comparison
         _base_n  = df_vc[df_vc["Année"] == annee_sel].copy()
         _base_n1 = df_vc[df_vc["Année"] == annee_sel - 1].copy()
@@ -1564,12 +1632,52 @@ with tabs[3]:
             # ===== VUE RESEAU =====
             st.markdown("## 📊 Vue d'ensemble du réseau")
             
-            ca_mag_n  = _base_n.groupby("Magasin")["Montant TTC"].sum().rename("CA N")
-            ca_mag_n1 = _base_n1.groupby("Magasin")["Montant TTC"].sum().rename("CA N-1")
-            ca_mag = pd.concat([ca_mag_n, ca_mag_n1], axis=1).fillna(0).reset_index()
+            # Date-to-date comparison per store
+            if "Jour" in _base_n.columns and "Jour" in _base_n1.columns:
+                # Get max days per month for 2026
+                max_days_per_month = _base_n.groupby("Mois")["Jour"].max().to_dict()
+                
+                # Calculate date-to-date CA per store
+                ca_mag_data = []
+                for mag in _base_n["Magasin"].unique():
+                    ca_n_total = 0
+                    ca_n1_total = 0
+                    
+                    for mois, max_jour in max_days_per_month.items():
+                        # CA N: sum of days 1 to max_jour
+                        ca_n = _base_n[(_base_n["Magasin"] == mag) & (_base_n["Mois"] == mois) & (_base_n["Jour"] <= max_jour)]["Montant TTC"].sum()
+                        # CA N-1: same days in same month
+                        ca_n1 = _base_n1[(_base_n1["Magasin"] == mag) & (_base_n1["Mois"] == mois) & (_base_n1["Jour"] <= max_jour)]["Montant TTC"].sum()
+                        ca_n_total += ca_n
+                        ca_n1_total += ca_n1
+                    
+                    ca_mag_data.append({"Magasin": mag, "CA N": ca_n_total, "CA N-1": ca_n1_total})
+                
+                ca_mag = pd.DataFrame(ca_mag_data)
+            else:
+                # Fallback: simple comparison
+                ca_mag_n  = _base_n.groupby("Magasin")["Montant TTC"].sum().rename("CA N")
+                ca_mag_n1 = _base_n1.groupby("Magasin")["Montant TTC"].sum().rename("CA N-1")
+                ca_mag = pd.concat([ca_mag_n, ca_mag_n1], axis=1).fillna(0).reset_index()
+            
             ca_mag["Evolution %"] = (
                 (ca_mag["CA N"] - ca_mag["CA N-1"]) / ca_mag["CA N-1"].replace(0, 1) * 100
             ).round(1)
+            
+            # Merge with CUBE data to get CA total mag and weight
+            st.warning(f"DEBUG CUBE: empty={df_cube_mag.empty}, Magasin in cols={'Magasin' in df_cube_mag.columns if not df_cube_mag.empty else 'N/A'}")
+            if not df_cube_mag.empty and "Magasin" in df_cube_mag.columns:
+                cube_agg = df_cube_mag.groupby("Magasin")["CA Magasin"].sum().reset_index()
+                cube_agg.columns = ["Magasin", "CA Total Magasin"]
+                st.warning(f"DEBUG cube_agg: {len(cube_agg)} stores, cols={cube_agg.columns.tolist()}")
+                ca_mag = ca_mag.merge(cube_agg, on="Magasin", how="left").fillna(0)
+                st.warning(f"DEBUG after merge: ca_mag cols={ca_mag.columns.tolist()}, CA Total sum={ca_mag['CA Total Magasin'].sum():,.0f}")
+                # Poids = CA Convention / CA Total Magasin (penetration rate)
+                ca_mag["Poids %"] = (ca_mag["CA N"] / ca_mag["CA Total Magasin"] * 100).round(1).replace([float("inf"), float("-inf")], 0).fillna(0)
+            else:
+                ca_mag["CA Total Magasin"] = 0
+                ca_mag["Poids %"] = 0
+            
             ca_mag = ca_mag.sort_values("CA N", ascending=False)
 
             # KPI RESEAU
@@ -1598,7 +1706,20 @@ with tabs[3]:
                 fig_evo.update_layout(height=450, yaxis=dict(autorange="reversed"))
                 fig_evo.add_vline(x=0, line_dash="dash", line_color="grey", annotation_text="Seuil")
                 st.plotly_chart(fig_evo, width="stretch")
-
+            
+            # Tableau CA Convention vs CA Total Magasin avec Poids
+            st.markdown("### 📋 CA Convention vs CA Total Magasin")
+            display_cols = ["Magasin", "CA N", "CA Total Magasin", "Poids %", "Evolution %"]
+            available = [c for c in display_cols if c in ca_mag.columns]
+            st.dataframe(
+                ca_mag[available].head(30).style.format(
+                    {"CA N": "{:,.0f}", "CA Total Magasin": "{:,.0f}", "Poids %": "{:.1f}%", "Evolution %": "{:+.1f}%"},
+                    na_rep="—"
+                ),
+                width="stretch",
+                height=400,
+            )
+            
             # Repartition par enseigne
             col_ense1, col_ense2 = st.columns(2)
             with col_ense1:
