@@ -1140,7 +1140,7 @@ with tabs[0]:
     # Debug: show date-to-date comparison details
     if not df_comp.empty:
         debug_info = " | ".join([f"{r['Mois Nom']}: {int(r['Jours comparés'])}j" for _, r in df_comp.iterrows()])
-        st.caption(f"🔍 Comparaison date à date: {debug_info}")
+        
 
     nb_transactions = len(df_filt) if len(df_filt) > 0 else 0
 
@@ -1588,7 +1588,7 @@ with tabs[3]:
     if "Magasin" not in df_vc.columns:
         st.info("Données magasin non disponibles")
     else:
-        st.warning(f"DEBUG: df_vc Magasin OK, df_cube_mag rows={len(df_cube_mag)}")
+        
         
         # Data preparation - original comparison
         _base_n  = df_vc[df_vc["Année"] == annee_sel].copy()
@@ -1665,13 +1665,13 @@ with tabs[3]:
             ).round(1)
             
             # Merge with CUBE data to get CA total mag and weight
-            st.warning(f"DEBUG CUBE: empty={df_cube_mag.empty}, Magasin in cols={'Magasin' in df_cube_mag.columns if not df_cube_mag.empty else 'N/A'}")
+            
             if not df_cube_mag.empty and "Magasin" in df_cube_mag.columns:
                 cube_agg = df_cube_mag.groupby("Magasin")["CA Magasin"].sum().reset_index()
                 cube_agg.columns = ["Magasin", "CA Total Magasin"]
-                st.warning(f"DEBUG cube_agg: {len(cube_agg)} stores, cols={cube_agg.columns.tolist()}")
+                
                 ca_mag = ca_mag.merge(cube_agg, on="Magasin", how="left").fillna(0)
-                st.warning(f"DEBUG after merge: ca_mag cols={ca_mag.columns.tolist()}, CA Total sum={ca_mag['CA Total Magasin'].sum():,.0f}")
+                
                 # Poids = CA Convention / CA Total Magasin (penetration rate)
                 ca_mag["Poids %"] = (ca_mag["CA N"] / ca_mag["CA Total Magasin"] * 100).round(1).replace([float("inf"), float("-inf")], 0).fillna(0)
             else:
