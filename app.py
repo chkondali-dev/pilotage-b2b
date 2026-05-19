@@ -996,41 +996,29 @@ with col_l2:
 
 # ── Sidebar ───────────────────────────────────────────────────
 with st.sidebar:
-    st.markdown("### 🔍 Filtres globaux")
-    annee_sel = st.selectbox("Année N", [2026, 2025, 2024, 2023], index=0)
+    st.markdown("### 🔍 Filtres")
+    annee_sel = st.selectbox("Année", [2026, 2025, 2024, 2023], index=0)
     
-    # Filtre mois multiselect
+    # Filtre mois - default to current month
+    current_month = datetime.now().month
     all_mois = list(range(1, 13))
     mois_sel = st.multiselect(
         "Mois",
         all_mois,
-        default=all_mois,
-        format_func=lambda x: MOIS.get(x, str(x)),
-        help="Sélectionnez un ou plusieurs mois"
-    )
-    
-    # Filtre Enseigne
-    st.markdown("---")
-    st.markdown("### 🏢 Enseigne")
-    enseige_sel = st.radio(
-        "Enseigne",
-        ["Toutes", "MG", "BATAM"],
-        index=0,
-        horizontal=True
+        default=[current_month],
+        format_func=lambda x: MOIS.get(x, str(x))
     )
     
     # Filtre Type de vente
-    st.markdown("### 💳 Type de vente")
     type_vente_sel = st.selectbox(
         "Type de vente",
         ["Global", "Convention", "Credit conso", "Credit particulier"]
     )
     
     st.markdown("---")
-    if st.button("🔄 Actualiser les données"):
+    if st.button("🔄 Actualiser"):
         st.cache_data.clear()
         st.rerun()
-    st.caption("Filtres appliqués à tous les onglets")
 
 # ── Chargement données ────────────────────────────────────────
 with st.spinner("Chargement des données…"):
@@ -1697,9 +1685,7 @@ with tabs[3]:
             k3.metric("📈 En croissance", len(ca_mag[ca_mag["Evolution %"] > 0]), f"/ {len(ca_mag)}")
             k4.metric("📉 En baisse", len(ca_mag[ca_mag["Evolution %"] < 0]))
             
-            # Debug info
-            debug_n = _base_n["Montant TTC"].sum()
-            st.caption(f"Debug: _base_n={debug_n:,.0f}, ca_mag sum={ca_mag['CA N'].sum():,.0f}, df_vc_filt sum={df_vc_filt[df_vc_filt['Année']==annee_sel]['Montant TTC'].sum():,.0f}")
+            
             k3.metric("📈 En croissance", len(ca_mag[ca_mag["Evolution %"] > 0]), f"/ {len(ca_mag)}")
             k4.metric("📉 En baisse", len(ca_mag[ca_mag["Evolution %"] < 0]))
 
