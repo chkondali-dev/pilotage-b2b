@@ -1588,16 +1588,37 @@ with tabs[3]:
     if "Magasin" not in df_vc.columns:
         st.info("Données magasin non disponibles")
     else:
+        # Apply Type de vente filter
+        if type_vente_sel == "Global":
+            df_type_n = df_vc[df_vc["Année"] == annee_sel].copy()
+            df_type_n1 = df_vc[df_vc["Année"] == annee_sel - 1].copy()
+            if not df_credit.empty and "Montant TTC" in df_credit.columns:
+                df_type_n = pd.concat([df_type_n, df_credit[df_credit["Année"] == annee_sel]], ignore_index=True)
+                df_type_n1 = pd.concat([df_type_n1, df_credit[df_credit["Année"] == annee_sel - 1]], ignore_index=True)
+            if not df_credit_part.empty and "Montant TTC" in df_credit_part.columns:
+                df_type_n = pd.concat([df_type_n, df_credit_part[df_credit_part["Année"] == annee_sel]], ignore_index=True)
+                df_type_n1 = pd.concat([df_type_n1, df_credit_part[df_credit_part["Année"] == annee_sel - 1]], ignore_index=True)
+        elif type_vente_sel == "Convention":
+            df_type_n = df_vc[df_vc["Année"] == annee_sel].copy()
+            df_type_n1 = df_vc[df_vc["Année"] == annee_sel - 1].copy()
+        elif type_vente_sel == "Credit conso":
+            df_type_n = df_credit[df_credit["Année"] == annee_sel].copy() if not df_credit.empty else pd.DataFrame()
+            df_type_n1 = df_credit[df_credit["Année"] == annee_sel - 1].copy() if not df_credit.empty else pd.DataFrame()
+        elif type_vente_sel == "Credit particulier":
+            df_type_n = df_credit_part[df_credit_part["Année"] == annee_sel].copy() if not df_credit_part.empty else pd.DataFrame()
+            df_type_n1 = df_credit_part[df_credit_part["Année"] == annee_sel - 1].copy() if not df_credit_part.empty else pd.DataFrame()
+        else:
+            df_type_n = df_vc[df_vc["Année"] == annee_sel].copy()
+            df_type_n1 = df_vc[df_vc["Année"] == annee_sel - 1].copy()
         
-        
-        # Data preparation - original comparison
-        _base_n  = df_vc[df_vc["Année"] == annee_sel].copy()
-        _base_n1 = df_vc[df_vc["Année"] == annee_sel - 1].copy()
+        # Apply month filter
+        _base_n = df_type_n.copy()
+        _base_n1 = df_type_n1.copy()
         if mois_sel:
-            _base_n  = _base_n[_base_n["Mois"].isin(mois_sel)]
+            _base_n = _base_n[_base_n["Mois"].isin(mois_sel)]
             _base_n1 = _base_n1[_base_n1["Mois"].isin(mois_sel)]
         
-        all_stores = sorted(df_vc["Magasin"].dropna().unique())
+        all_stores = sorted(_base_n["Magasin"].dropna().unique()) if "Magasin" in _base_n.columns else []
         
         # Search bar with autocomplete
         st.markdown("### 🔍 Rechercher un magasin")
