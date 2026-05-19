@@ -1064,14 +1064,16 @@ df_filt = df_vc_filt[df_vc_filt["Année"] == annee_sel].copy()
 if conv_sel != "Tous":
     df_filt = df_filt[df_filt["Nom"] == conv_sel]
 
-df_comp     = compare_years_date_to_date(df_vc_filt, annee_sel, annee_sel - 1, mois_sel)
+df_comp     = compare_years(df_vc_filt, annee_sel, annee_sel - 1)
 risk_mat    = convention_risk_matrix(df_vc_filt, annee_sel)
 df_inactive = inactive_conventions(df_vc_filt)
 df_3m       = get_rolling_3m(df_vc_filt)
 
-ca_n, ca_n1, ev_nn1 = ca_sum_date_to_date(df_vc_filt, annee_sel, annee_sel - 1, mois_sel)
-ca_n2       = ca_sum(df_vc_filt, annee_sel - 2, mois_sel)
-ev_n1n2     = evol_pct(ca_n1, ca_n2)
+ca_n = df_vc_filt[df_vc_filt["Année"] == annee_sel]["Montant TTC"].sum()
+ca_n1 = df_vc_filt[df_vc_filt["Année"] == annee_sel - 1]["Montant TTC"].sum()
+ca_n2 = df_vc_filt[df_vc_filt["Année"] == annee_sel - 2]["Montant TTC"].sum()
+ev_nn1 = evol_pct(ca_n, ca_n1)
+ev_n1n2 = evol_pct(ca_n1, ca_n2)
 
 nb_actives  = df_vc_filt[df_vc_filt["Année"] == annee_sel]["Nom"].dropna().nunique() \
               if "Nom" in df_vc_filt.columns else 0
@@ -1630,33 +1632,10 @@ with tabs[3]:
             # ===== VUE RESEAU =====
             st.markdown("## 📊 Vue d'ensemble du réseau")
             
-            # Date-to-date comparison per store
-            if "Jour" in _base_n.columns and "Jour" in _base_n1.columns:
-                # Get max days per month for 2026
-                max_days_per_month = _base_n.groupby("Mois")["Jour"].max().to_dict()
-                
-                # Calculate date-to-date CA per store
-                ca_mag_data = []
-                for mag in _base_n["Magasin"].unique():
-                    ca_n_total = 0
-                    ca_n1_total = 0
-                    
-                    for mois, max_jour in max_days_per_month.items():
-                        # CA N: sum of days 1 to max_jour
-                        ca_n = _base_n[(_base_n["Magasin"] == mag) & (_base_n["Mois"] == mois) & (_base_n["Jour"] <= max_jour)]["Montant TTC"].sum()
-                        # CA N-1: same days in same month
-                        ca_n1 = _base_n1[(_base_n1["Magasin"] == mag) & (_base_n1["Mois"] == mois) & (_base_n1["Jour"] <= max_jour)]["Montant TTC"].sum()
-                        ca_n_total += ca_n
-                        ca_n1_total += ca_n1
-                    
-                    ca_mag_data.append({"Magasin": mag, "CA N": ca_n_total, "CA N-1": ca_n1_total})
-                
-                ca_mag = pd.DataFrame(ca_mag_data)
-            else:
-                # Fallback: simple comparison
-                ca_mag_n  = _base_n.groupby("Magasin")["Montant TTC"].sum().rename("CA N")
-                ca_mag_n1 = _base_n1.groupby("Magasin")["Montant TTC"].sum().rename("CA N-1")
-                ca_mag = pd.concat([ca_mag_n, ca_mag_n1], axis=1).fillna(0).reset_index()
+            # Simple comparison (same as Vue Exécutive)
+            ca_mag_n  = _base_n.groupby("Magasin")["Montant TTC"].sum().rename("CA N")
+            ca_mag_n1 = _base_n1.groupby("Magasin")["Montant TTC"].sum().rename("CA N-1")
+            ca_mag = pd.concat([ca_mag_n, ca_mag_n1], axis=1).fillna(0).reset_index()
             
             ca_mag["Evolution %"] = (
                 (ca_mag["CA N"] - ca_mag["CA N-1"]) / ca_mag["CA N-1"].replace(0, 1) * 100
@@ -1678,14 +1657,12 @@ with tabs[3]:
             
             ca_mag = ca_mag.sort_values("CA N", ascending=False)
 
-            # KPI RESEAU
+            # KPI RESEAU - Use simple sum instead of date-to-date
+            simple_sum = _base_n["Montant TTC"].sum()
+            
             k1, k2, k3, k4 = st.columns(4)
             k1.metric("🏪 Magasins actifs", len(ca_mag[ca_mag["CA N"] > 0]))
-            k2.metric("💰 CA Total", f"{ca_mag['CA N'].sum():,.0f} TND")
-            k3.metric("📈 En croissance", len(ca_mag[ca_mag["Evolution %"] > 0]), f"/ {len(ca_mag)}")
-            k4.metric("📉 En baisse", len(ca_mag[ca_mag["Evolution %"] < 0]))
-            
-            
+            k2.metric("💰 CA Total", f"{simple_sum:,.0f} TND")
             k3.metric("📈 En croissance", len(ca_mag[ca_mag["Evolution %"] > 0]), f"/ {len(ca_mag)}")
             k4.metric("📉 En baisse", len(ca_mag[ca_mag["Evolution %"] < 0]))
 
