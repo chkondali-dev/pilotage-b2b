@@ -1122,13 +1122,13 @@ with tabs[0]:
     section("Indicateurs clés")
     k1, k2, k3, k4, k5 = st.columns(5)
     k1.metric(
-        f"CA {annee_sel} (date à date)",
+        f"CA {annee_sel}",
         f"{ca_n:,.0f} TND",
         f"{ev_nn1:+.1f}% vs {annee_sel-1}",
         delta_color="normal" if ev_nn1 >= 0 else "inverse",
     )
     k2.metric(
-        f"CA {annee_sel-1} (date à date)",
+        f"CA {annee_sel-1}",
         f"{ca_n1:,.0f} TND",
         f"{ev_n1n2:+.1f}% vs {annee_sel-2}",
         delta_color="normal" if ev_n1n2 >= 0 else "inverse",
