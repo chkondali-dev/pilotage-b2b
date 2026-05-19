@@ -1696,6 +1696,12 @@ with tabs[3]:
             k2.metric("💰 CA Total", f"{ca_mag['CA N'].sum():,.0f} TND")
             k3.metric("📈 En croissance", len(ca_mag[ca_mag["Evolution %"] > 0]), f"/ {len(ca_mag)}")
             k4.metric("📉 En baisse", len(ca_mag[ca_mag["Evolution %"] < 0]))
+            
+            # Debug info
+            debug_n = _base_n["Montant TTC"].sum()
+            st.caption(f"Debug: _base_n={debug_n:,.0f}, ca_mag sum={ca_mag['CA N'].sum():,.0f}, df_vc_filt sum={df_vc_filt[df_vc_filt['Année']==annee_sel]['Montant TTC'].sum():,.0f}")
+            k3.metric("📈 En croissance", len(ca_mag[ca_mag["Evolution %"] > 0]), f"/ {len(ca_mag)}")
+            k4.metric("📉 En baisse", len(ca_mag[ca_mag["Evolution %"] < 0]))
 
             # Top & Evolution
             col_m1, col_m2 = st.columns(2)
