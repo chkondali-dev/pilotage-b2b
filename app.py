@@ -1044,7 +1044,22 @@ if df_vc.empty or "Année" not in df_vc.columns:
     st.stop()
 
 # ── Pré-calculs partagés (calculés une seule fois) ────────────
-df_vc_filt = df_vc.copy()
+# Apply type_vente filter first
+if type_vente_sel == "Global":
+    df_vc_filt = df_vc.copy()
+    if not df_credit.empty:
+        df_vc_filt = pd.concat([df_vc_filt, df_credit], ignore_index=True)
+    if not df_credit_part.empty:
+        df_vc_filt = pd.concat([df_vc_filt, df_credit_part], ignore_index=True)
+elif type_vente_sel == "Convention":
+    df_vc_filt = df_vc.copy()
+elif type_vente_sel == "Credit conso":
+    df_vc_filt = df_credit.copy() if not df_credit.empty else pd.DataFrame()
+elif type_vente_sel == "Credit particulier":
+    df_vc_filt = df_credit_part.copy() if not df_credit_part.empty else pd.DataFrame()
+else:
+    df_vc_filt = df_vc.copy()
+
 if mois_sel:
     df_vc_filt = df_vc_filt[df_vc_filt["Mois"].isin(mois_sel)]
 
