@@ -1226,12 +1226,13 @@ with tabs[0]:
 with tabs[1]:
 
     # ══════════════════════════════════════════════════════
-    # SECTION VEILLE (J-1) — DECISIONNELLE
+    # SECTION VEILLE — DECISIONNELLE (date sélectionnable)
     # ══════════════════════════════════════════════════════
-    st.markdown("### 📊 Performance de la veille (J-1)")
+    st.markdown("### 📊 Performance veille")
     
-    # Donnees veille (hier)
-    hier_date = (datetime.now() - timedelta(days=1)).date()
+    # Date sélectionnable (par défaut hier)
+    default_date = (datetime.now() - timedelta(days=1)).date()
+    hier_date = st.date_input("Choisir une date", value=default_date, key="veille_date")
     annee_hier = hier_date.year
     mois_hier = hier_date.month
     
@@ -1252,7 +1253,7 @@ with tabs[1]:
     kp3.metric("Nb Tickets", nb_tickets_veille)
     kp4.metric("Panier Moyen", f"{panier_veille:,.0f} TND")
     
-    st.caption(f"📅 Date de reference: {hier_date.strftime('%d/%m/%Y')}")
+    st.caption(f"📅 Date sélectionnée: {hier_date.strftime('%d/%m/%Y')}")
     
     # Analyse par segment
     col_seg1, col_seg2 = st.columns(2)
