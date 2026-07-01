@@ -1149,11 +1149,18 @@ with st.sidebar:
         if st.button("Generer maintenant", type="primary", use_container_width=True):
             with st.spinner("Generation en cours (~2 min)..."):
                 env = os.environ.copy()
-                # Injecter la cle API depuis les secrets Streamlit Cloud si pas deja dans env
-                try:
-                    env["LLM_API_KEY"] = st.secrets["LLM_API_KEY"]
-                except (KeyError, AttributeError):
-                    pass
+                # Forcer LLM_API_KEY depuis st.secrets (Streamlit Cloud) ou depuis la variable existante
+                api_key = ""
+                for src in [st.secrets, os.environ]:
+                    try:
+                        k = src.get("LLM_API_KEY", "")
+                        if k:
+                            api_key = k
+                            break
+                    except Exception:
+                        continue
+                if api_key:
+                    env["LLM_API_KEY"] = api_key
                 result = subprocess.run(
                     [sys.executable, str(Path(__file__).parent / "monthly_report.py"),
                      "--month", str(rapport_mois),
