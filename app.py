@@ -10,6 +10,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import requests
 import subprocess
+import sys
 import os
 import glob
 from io import BytesIO
@@ -1100,7 +1101,7 @@ with st.sidebar:
             with st.spinner("Generation en cours (~2 min)..."):
                 env = os.environ.copy()
                 result = subprocess.run(
-                    ["python", str(Path(__file__).parent / "monthly_report.py"),
+                    [sys.executable, str(Path(__file__).parent / "monthly_report.py"),
                      "--month", str(datetime.now().month - 1 or 12),
                      "--year", str(datetime.now().year),
                      "--no-email"],
