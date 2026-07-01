@@ -9,8 +9,12 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 import requests
+import subprocess
+import os
+import glob
 from io import BytesIO
 from datetime import datetime, timedelta
+from pathlib import Path
 
 st.set_page_config(
     page_title="Pilotage B2B — SMG",
@@ -490,7 +494,7 @@ def convention_risk_matrix(df_vc: pd.DataFrame, annee_n: int) -> pd.DataFrame:
     return mat.sort_values("CA N", ascending=False)
 
 
-def inactive_conventions(df_vc: pd.DataFrame, threshold_days: int = 30) -> pd.DataFrame:
+def inactive_conventions(df_vc: pd.DataFrame, threshold_days: int = 60) -> pd.DataFrame:
     """Détecte les conventions sans facture depuis N jours."""
     if df_vc.empty or "Nom" not in df_vc.columns or "Date" not in df_vc.columns:
         return pd.DataFrame()
@@ -1058,6 +1062,55 @@ _conv_options = (
 )
 with st.sidebar:
     conv_sel = st.selectbox("Convention", _conv_options)
+    seuil_inactif = st.slider(
+        "Seuil d'inactivite (jours)",
+        min_value=15, max_value=180, value=60, step=15,
+        help="Conventions sans facture depuis plus de N jours",
+    )
+
+    st.markdown("---")
+    with st.expander("📄 Rapport Mensuel IA", expanded=False):
+        RAPPORT_DIR = Path.home() / "Downloads" / "rapport_mensuel"
+        RAPPORT_DIR.mkdir(parents=True, exist_ok=True)
+
+        # Lister les rapports existants
+        txt_files = sorted(
+            RAPPORT_DIR.glob("rapport_mensuel_*.txt"),
+            key=os.path.getmtime, reverse=True
+        )
+
+        if txt_files:
+            latest = txt_files[0]
+            mtime = datetime.fromtimestamp(os.path.getmtime(latest))
+            st.caption(f"Dernier rapport : {mtime.strftime('%d/%m/%Y a %H:%M')}")
+
+            if st.button("Voir le rapport", use_container_width=True):
+                content = latest.read_text(encoding="utf-8")
+                st.text_area("", content, height=400, label_visibility="collapsed")
+
+                html_file = RAPPORT_DIR / latest.name.replace(".txt", ".html")
+                if html_file.exists():
+                    with open(html_file, "r", encoding="utf-8") as f:
+                        st.download_button("Telecharger .html", data=f,
+                                           file_name=html_file.name, mime="text/html")
+        else:
+            st.caption("Aucun rapport disponible.")
+
+        if st.button("Generer maintenant", type="primary", use_container_width=True):
+            with st.spinner("Generation en cours (~2 min)..."):
+                env = os.environ.copy()
+                result = subprocess.run(
+                    ["python", str(Path(__file__).parent / "monthly_report.py"),
+                     "--month", str(datetime.now().month - 1 or 12),
+                     "--year", str(datetime.now().year),
+                     "--no-email"],
+                    capture_output=True, text=True, timeout=300, env=env,
+                )
+            if result.returncode == 0:
+                st.success("Rapport genere !")
+                st.rerun()
+            else:
+                st.error(f"Erreur : {result.stderr[:200]}")
 
 # ── Slice filtré ──────────────────────────────────────────────
 df_filt = df_vc_filt[df_vc_filt["Année"] == annee_sel].copy()
@@ -1066,7 +1119,7 @@ if conv_sel != "Tous":
 
 df_comp     = compare_years(df_vc_filt, annee_sel, annee_sel - 1)
 risk_mat    = convention_risk_matrix(df_vc_filt, annee_sel)
-df_inactive = inactive_conventions(df_vc_filt)
+df_inactive = inactive_conventions(df_vc_filt, seuil_inactif)
 df_3m       = get_rolling_3m(df_vc_filt)
 
 ca_n = df_vc_filt[df_vc_filt["Année"] == annee_sel]["Montant TTC"].sum()
@@ -1110,6 +1163,7 @@ tabs = st.tabs([
     "🏫 EDC",
     "🔔 Alertes & Risques",
     "🏬 Pilotage par magasin",
+    "📋 Conventions SMG",
 ])
 
 # ══════════════════════════════════════════════════════════════
@@ -1137,7 +1191,7 @@ with tabs[0]:
     k4.metric(
         "Conventions inactives",
         nb_inact,
-        "⚠️ >30j sans facture" if nb_inact > 0 else "✅ Aucune",
+        f"⚠️ >{seuil_inactif}j sans facture" if nb_inact > 0 else "✅ Aucune",
         delta_color="inverse" if nb_inact > 0 else "off",
     )
     k5.metric("Panier moyen", f"{panier_moy:,.0f} TND")
@@ -2065,23 +2119,23 @@ with tabs[5]:
     b1, b2, b3, b4 = st.columns(4)
     b1.metric("🔴 Déclin fort (>-20%)",  nb_declin_fort)
     b2.metric("⬛ Conventions inactives", nb_inactif_cv)
-    b3.metric("⚠️ En inactivité >30j",   nb_inact)
+    b3.metric(f"⚠️ En inactivité >{seuil_inactif}j", nb_inact)
     b4.metric("🟢 En croissance",         nb_croissance)
 
-    # ── Inactivité >30 jours ───────────────────────────────────
-    section("Conventions à réactiver — inactivité > 30 jours")
+    # ── Inactivité ──────────────────────────────────────────────
+    section(f"Conventions à réactiver — inactivité > {seuil_inactif} jours")
 
     if not df_inactive.empty:
         fig_ia = chart_inactive_bar(
             df_inactive,
-            f"Conventions inactives — {len(df_inactive)} comptes sans facture depuis >30j",
+            f"Conventions inactives — {len(df_inactive)} comptes sans facture depuis >{seuil_inactif}j",
         )
         st.plotly_chart(fig_ia, width="stretch")
 
         with st.expander(f"📋 Liste complète ({len(df_inactive)} conventions)"):
             st.dataframe(df_inactive, width="stretch")
     else:
-        st.success("✅ Aucune convention inactive détectée (seuil : 30 jours).")
+        st.success(f"✅ Aucune convention inactive détectée (seuil : {seuil_inactif} jours).")
 
     # ── Conventions en déclin ──────────────────────────────────
     section("Conventions en déclin — Analyse des pertes")
@@ -2310,6 +2364,123 @@ with tabs[6]:
             csv = detail.to_csv(index=False).encode("utf-8")
             st.download_button("📥 Export CSV", data=csv, file_name="pilotage_magasin.csv", mime="text/csv")
 
+
+# ══════════════════════════════════════════════════════════════
+# TAB 7 — CONVENTIONS SMG (suivi, DSO, alertes, GPO)
+# ══════════════════════════════════════════════════════════════
+with tabs[7]:
+
+    st.markdown("### 📋 Pilotage Conventions SMG — GPO View")
+
+    # ── Session state for conventions data ──
+    if "smg_convs" not in st.session_state:
+        st.session_state.smg_convs = [
+            {"ref":"CONV-2026-001","client":"SONEDE","scenario":3,"regime":"Classique","plafond":3000,"duree":18,"taux":0.75,"encours":1200,"ds":22,"statut":"Active","date_fin":"2027-07-15","contact":"H. Chkondali","notes":"Paiements OK"},
+            {"ref":"CONV-2026-002","client":"MUTUELLE CIMENTERIE","scenario":9,"regime":"PLUS","plafond":25000,"duree":12,"taux":0.75,"encours":8500,"ds":35,"statut":"Active","date_fin":"2027-02-01","contact":"H. Chkondali","notes":"Phase pilote 3 mois"},
+            {"ref":"CONV-2026-003","client":"ONTT","scenario":6,"regime":"PLUS","plafond":2000,"duree":6,"taux":0.75,"encours":400,"ds":18,"statut":"En cours signature","date_fin":"2026-09-10","contact":"H. Chkondali","notes":"500 adherents pilote"},
+            {"ref":"CONV-2026-004","client":"BEN AROUS AMICALE","scenario":4,"regime":"Classique","plafond":3000,"duree":18,"taux":0.75,"encours":2800,"ds":48,"statut":"Active","date_fin":"2026-12-01","contact":"H. Chkondali","notes":"Utilisation quasi max"},
+            {"ref":"CONV-2025-012","client":"SOCIETE X","scenario":1,"regime":"Classique","plafond":3000,"duree":18,"taux":0.75,"encours":500,"ds":42,"statut":"Expiree","date_fin":"2026-07-20","contact":"H. Chkondali","notes":"A renouveler"},
+        ]
+
+    def jours_restants(date_str):
+        try:
+            return (datetime.strptime(date_str, "%Y-%m-%d") - datetime.now()).days
+        except:
+            return 999
+
+    def niveau_alerte(jrs):
+        if jrs < 0: return ("\U0001f534 Expiree", "inverse")
+        if jrs <= 30: return ("\U0001f534 Urgent", "inverse")
+        if jrs <= 60: return ("\U0001f7e0 Attention", "off")
+        if jrs <= 90: return ("\U0001f535 Anticiper", "off")
+        return ("\U0001f7e2 OK", "normal")
+
+    def util_pct(encours, plafond):
+        return round(encours / plafond * 100, 1) if plafond > 0 else 0
+
+    # ── Refresh data ──
+    df_smg = pd.DataFrame(st.session_state.smg_convs)
+    df_smg["jrs_restants"] = df_smg["date_fin"].apply(jours_restants)
+    df_smg["alerte"] = df_smg["jrs_restants"].apply(lambda j: niveau_alerte(j)[0])
+    df_smg["util_pct"] = df_smg.apply(lambda r: util_pct(r["encours"], r["plafond"]), axis=1)
+
+    # ── Top KPIs ──
+    actives = df_smg[df_smg["statut"] == "Active"]
+    alert_rouge = len(df_smg[df_smg["jrs_restants"].between(0, 30)])
+    alert_jaune = len(df_smg[df_smg["jrs_restants"].between(31, 60)])
+    encours_total = actives["encours"].sum()
+    dso_moy = round(actives["ds"].mean(), 1) if len(actives) > 0 else 0
+    util_moy = round(actives["util_pct"].mean(), 1) if len(actives) > 0 else 0
+
+    kpi1, kpi2, kpi3, kpi4, kpi5, kpi6 = st.columns(6)
+    kpi1.metric("Conventions actives", len(actives))
+    kpi2.metric("Encours total", f"{encours_total:,.0f} TND")
+    kpi3.metric("DSO moyen", f"{dso_moy} jrs")
+    kpi4.metric("Utilisation ligne moy.", f"{util_moy}%")
+    kpi5.metric("Alertes rouges", alert_rouge, delta_color="inverse")
+    kpi6.metric("Alertes jaunes", alert_jaune, delta_color="off")
+
+    # ── Tableau de suivi ──
+    st.markdown("### Suivi des conventions")
+    display_cols = {
+        "ref": "Convention", "client": "Client", "scenario": "Sc.", "regime": "Regime",
+        "plafond": "Plafond", "duree": "Mois", "encours": "Encours",
+        "util_pct": "Util.%", "ds": "DSO(j)", "jrs_restants": "Jours",
+        "alerte": "Alerte", "statut": "Statut", "date_fin": "Echeance",
+        "notes": "Notes",
+    }
+    df_display = df_smg[list(display_cols.keys())].rename(columns=display_cols)
+    df_display["Util.%"] = df_display["Util.%"].apply(lambda x: f"{x}%")
+    st.dataframe(df_display, use_container_width=True, height=280)
+
+    # ── Alertes échéances ──
+    st.markdown("### \U0001f514 Alertes echeances (prochains 90 jours)")
+    alertes = df_smg[(df_smg["jrs_restants"] >= 0) & (df_smg["jrs_restants"] <= 90)].sort_values("jrs_restants")
+    if len(alertes) > 0:
+        for _, r in alertes.iterrows():
+            lvl, delta = niveau_alerte(r["jrs_restants"])
+            st.metric(f"{r['client']} - {r['ref']}", f"{r['jrs_restants']} jours restants",
+                      f"{lvl}", delta_color=delta)
+    else:
+        st.success("Aucune echeance dans les 90 jours.")
+
+    # ── Gestion rapide ──
+    st.markdown("### \u2699\ufe0f Ajouter / Modifier une convention")
+    with st.expander("Formulaire convention"):
+        with st.form("smg_form"):
+            col1, col2 = st.columns(2)
+            with col1:
+                ref = st.text_input("Ref convention", "CONV-2026-005")
+                client = st.text_input("Client", "")
+                scenario = st.selectbox("Scenario", range(1, 11), format_func=lambda x: f"S{x:02d}")
+            with col2:
+                regime = st.selectbox("Regime", ["Classique", "PLUS"])
+                plafond = st.number_input("Plafond (TND)", 300, 50000, 3000)
+                encours = st.number_input("Encours (TND)", 0, 50000, 0)
+            col3, col4 = st.columns(2)
+            with col3:
+                duree = st.number_input("Duree (mois)", 1, 24, 12)
+                dso = st.number_input("DSO (jours)", 0, 365, 30)
+            with col4:
+                statut = st.selectbox("Statut", ["Active", "En cours signature", "Expiree", "Resiliee"])
+                date_fin = st.date_input("Date echeance", datetime.now() + timedelta(days=365))
+            notes = st.text_area("Notes", "")
+            submitted = st.form_submit_button("Ajouter / Mettre a jour")
+            if submitted and client and ref:
+                exists = [i for i, c in enumerate(st.session_state.smg_convs) if c["ref"] == ref]
+                entry = {"ref":ref,"client":client,"scenario":scenario,"regime":regime,
+                         "plafond":plafond,"duree":duree,"taux":0.75,"encours":encours,
+                         "ds":dso,"statut":statut,"date_fin":date_fin.strftime("%Y-%m-%d"),
+                         "contact":"H. Chkondali","notes":notes}
+                if exists:
+                    st.session_state.smg_convs[exists[0]] = entry
+                else:
+                    st.session_state.smg_convs.append(entry)
+                st.rerun()
+
+    # ── Export CSV ──
+    csv_data = df_display.to_csv(index=False).encode("utf-8")
+    st.download_button("Exporter CSV", data=csv_data, file_name="conventions_smg.csv", mime="text/csv")
 
 # ── Footer ────────────────────────────────────────────────────
 st.markdown("---")
