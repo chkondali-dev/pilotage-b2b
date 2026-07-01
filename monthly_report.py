@@ -581,36 +581,38 @@ def generer_html(data: dict, analyse_ia: dict | None = None) -> str:
             <p class="ia-text">{analyse_ia.get("synthese_globale", "")}</p>
         </div>"""
 
-        for c in analyse_ia.get("conventions", []):
-            signal_icon = {"green": "[green]", "amber": "🟡", "red": "[red]"}.get(c.get("signal", ""), "⚪")
-            risk_label = {"faible": "Faible", "moyen": "Moyen", "eleve": "Éleve"}.get(c.get("risque", ""), c.get("risque", ""))
-            reco_label = {
-                "reconduire": "✅ RECONDUIRE",
-                "surveiller": "[eye]️ SURVEILLER",
-                "renegocier": "[recyc] RENÉGOCIER",
-                "relancer_urgent": "[red] RELANCE URGENTE",
-                "suspendre": "⛔ SUSPENDRE",
-            }.get(c.get("recommandation", ""), c.get("recommandation", ""))
-            ca_f = format_k(c.get("ca_mois", 0))
-            evol_f = c.get("evolution_pct", 0)
-            evol_cls = "green" if evol_f >= 0 else "red"
-            arrow = "▲" if evol_f >= 0 else "▼"
-            evol_str = f"{abs(evol_f):.1f}"
+        ia_conventions_html = f"""
+        <h3 style="font-size:13px;font-weight:700;margin:16px 0 8px;color:#0F172A;">Conventions</h3>
+        <table>
+        <tr><th>Convention</th><th style="text-align:right">CA {mois_court} {a}</th><th style="text-align:right">CA {mois_court} {a-1}</th><th style="text-align:right">Evol</th></tr>"""
 
+        for c in data["conventions"]:
+            ca_f = format_k(c["ca_mois"])
+            ca_n1_f = format_k(c["ca_mois_n1"])
+            ev = c["evolution_pct"]
+            arrow = "▲" if ev >= 0 else "▼"
+            cls = "green" if ev >= 0 else "red"
+            ev_str = f"{abs(ev):.1f}"
             ia_conventions_html += f"""
-            <div class="conv-card conv-{c.get('signal', 'amber')}">
-                <div class="conv-header">
-                    <span class="conv-name">{signal_icon} {c['nom']}</span>
-                    <span class="conv-reco">{reco_label}</span>
-                </div>
-                <div class="conv-kpis">
-                    <span class="kpi">CA: <strong>{ca_f} TND</strong></span>
-                    <span class="kpi evol {evol_cls}">{arrow} {evol_str}%</span>
-                    <span class="kpi risk">Risque: {risk_label}</span>
-                </div>
-                <p class="conv-comment">{c.get("commentaire", "")}</p>
-                {c.get('action') and '<div class="conv-action"><strong>Action :</strong> ' + c['action'] + '</div>' or ''}
-            </div>"""
+        <tr>
+            <td>{c['nom']}</td>
+            <td class="num">{ca_f} TND</td>
+            <td class="num">{ca_n1_f} TND</td>
+            <td class="num {cls}">{arrow} {ev_str}%</td>
+        </tr>"""
+        ia_conventions_html += "</table>"
+
+        # Commentaires IA condenses pour les conventions en baisse
+        alertes = [c for c in analyse_ia.get("conventions", []) if c.get("signal") == "red" and c.get("commentaire")]
+        if alertes:
+            ia_conventions_html += """
+        <div class="ia-box" style="background:#FEF2F2;border-color:#FECACA;border-left-color:#DC2626;margin-top:12px;">
+            <div class="ia-label" style="color:#991B1B;">Alertes IA - Conventions en baisse</div>"""
+            for c in alertes[:5]:
+                ia_conventions_html += f"""
+            <p style="font-size:12px;margin:4px 0;color:#1E293B;"><strong>{c['nom']}:</strong> {c.get('commentaire','')[:150]}</p>"""
+            ia_conventions_html += """
+        </div>"""
 
         priorites = analyse_ia.get("priorites", [])
         if priorites:
@@ -1014,22 +1016,25 @@ def generer_texte(data: dict, analyse_ia: dict | None = None) -> str:
         lignes.append(f"  {i}. {f[0]:<35} {f[1]:>+.1f}%")
     lignes.append("")
 
-    # Analyse par convention (IA)
+    # Analyse par convention (tableau compact)
+    lignes.append("2. ANALYSE PAR CONVENTION")
+    lignes.append("-" * 70)
+    lignes.append(f"{'Convention':<35} {mois_nom} {a:<12} {mois_nom} {a-1:<12} Evol")
+    lignes.append("-" * 70)
+    for c in data["conventions"]:
+        ev = c["evolution_pct"]
+        arrow = "+" if ev >= 0 else "-"
+        lignes.append(f"{c['nom']:<35} {format_k(c['ca_mois']):>8} TND  {format_k(c['ca_mois_n1']):>8} TND  {arrow}{abs(ev):>7.1f}%")
+    lignes.append("")
+
+    # Commentaires IA condenses (conventions signalees uniquement)
     if analyse_ia and analyse_ia.get("conventions"):
-        lignes.append("2. ANALYSE PAR CONVENTION")
-        lignes.append("-" * 70)
-        for c in analyse_ia["conventions"]:
-            signal_icon = {"green": "[green]", "amber": "🟡", "red": "[red]"}.get(c.get("signal", ""), "⚪")
-            reco_label = {
-                "reconduire": "✅ Recond.", "surveiller": "[eye]️ Surv.",
-                "renegocier": "[recyc] Reneg.", "relancer_urgent": "[red] Urg.", "suspendre": "⛔ Susp.",
-            }.get(c.get("recommandation", ""), "")
-            lignes.append(f"  {signal_icon} {c['nom']:<35} {reco_label}")
-            lignes.append(f"     CA: {format_k(c.get('ca_mois',0)):>8} TND  |  Évol: {c.get('evolution_pct',0):>+.1f}%  |  Risque: {c.get('risque','')}")
-            if c.get("commentaire"):
-                lignes.append(f"     → {c['commentaire']}")
-            if c.get("action"):
-                lignes.append(f"     [target] {c['action']}")
+        alertes = [c for c in analyse_ia["conventions"] if c.get("signal") == "red" and c.get("commentaire")]
+        if alertes:
+            lignes.append("  [!] ALERTES IA - Conventions en baisse")
+            for c in alertes[:5]:
+                com = c["commentaire"][:120]
+                lignes.append(f"      {c['nom']}: {com}")
             lignes.append("")
 
     # Magasins
