@@ -1074,6 +1074,21 @@ with st.sidebar:
         RAPPORT_DIR = Path.home() / "Downloads" / "rapport_mensuel"
         RAPPORT_DIR.mkdir(parents=True, exist_ok=True)
 
+        # Selecteurs mois/annee pour le rapport
+        default_month = datetime.now().month - 1 or 12
+        default_year = datetime.now().year if default_month != 12 else datetime.now().year - 1
+        mois_noms = ["Janvier","Fevrier","Mars","Avril","Mai","Juin",
+                     "Juillet","Aout","Septembre","Octobre","Novembre","Decembre"]
+
+        col_m, col_a = st.columns(2)
+        with col_m:
+            rapport_mois = st.selectbox("Mois", range(1, 13),
+                index=default_month - 1,
+                format_func=lambda m: mois_noms[m - 1])
+        with col_a:
+            rapport_annee = st.selectbox("Annee", [2023, 2024, 2025, 2026],
+                index=[2023, 2024, 2025, 2026].index(default_year))
+
         # Lister les rapports existants
         txt_files = sorted(
             RAPPORT_DIR.glob("rapport_mensuel_*.txt"),
@@ -1101,8 +1116,8 @@ with st.sidebar:
                 env = os.environ.copy()
                 result = subprocess.run(
                     [sys.executable, str(Path(__file__).parent / "monthly_report.py"),
-                     "--month", str(datetime.now().month - 1 or 12),
-                     "--year", str(datetime.now().year),
+                     "--month", str(rapport_mois),
+                     "--year", str(rapport_annee),
                      "--no-email"],
                     capture_output=True, text=True, timeout=300, env=env,
                 )
