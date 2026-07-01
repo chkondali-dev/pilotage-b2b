@@ -1075,8 +1075,8 @@ with st.sidebar:
         RAPPORT_DIR.mkdir(parents=True, exist_ok=True)
 
         # Selecteurs mois/annee pour le rapport
-        default_month = datetime.now().month - 1 or 12
-        default_year = datetime.now().year if default_month != 12 else datetime.now().year - 1
+        default_month = datetime.now().month
+        default_year = datetime.now().year
         mois_noms = ["Janvier","Fevrier","Mars","Avril","Mai","Juin",
                      "Juillet","Aout","Septembre","Octobre","Novembre","Decembre"]
 
