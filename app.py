@@ -859,7 +859,42 @@ def inject_css():
         border-radius: 10px;
         border: 1px solid {C["border"]};
         padding: 0.5rem 1rem;
-        font-weight: 600; font-size: 0.88rem; color: {C["muted"]};
+        font-weight: 600; font-size: 0.88rem; color: {C["ink"]};
+    }}
+
+    /* ── Expander dans la sidebar : fond clair lisible ── */
+    [data-testid="stSidebar"] [data-testid="stExpander"] {{
+        background: rgba(255,255,255,0.10);
+        border-radius: 12px;
+        padding: 2px;
+    }}
+    [data-testid="stSidebar"] [data-testid="stExpander"] summary {{
+        background: rgba(255,255,255,0.12);
+        border: 1px solid rgba(255,255,255,0.08);
+        color: #f1f5f9 !important;
+    }}
+    [data-testid="stSidebar"] [data-testid="stExpander"] [data-testid="stExpanderDetails"] {{
+        background: #f8fafc;
+        border-radius: 0 0 10px 10px;
+        padding: 8px 12px 4px;
+        margin-top: -2px;
+    }}
+    [data-testid="stSidebar"] [data-testid="stExpander"] [data-testid="stExpanderDetails"] * {{
+        color: #1e293b !important;
+    }}
+    [data-testid="stSidebar"] [data-testid="stExpander"] [data-testid="stExpanderDetails"] label {{
+        color: #475569 !important;
+    }}
+    [data-testid="stSidebar"] [data-testid="stExpander"] [data-testid="stExpanderDetails"] .stCaption {{
+        color: #64748b !important;
+    }}
+    /* Selectboxes dans l'expander */
+    [data-testid="stSidebar"] [data-testid="stExpander"] div[data-baseweb="select"] > div {{
+        background: white !important;
+        border: 1px solid #cbd5e1 !important;
+    }}
+    [data-testid="stSidebar"] [data-testid="stExpander"] div[data-baseweb="select"] * {{
+        color: #1e293b !important;
     }}
 
     /* ── Tabs ── */
