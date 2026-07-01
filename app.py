@@ -1085,15 +1085,12 @@ with st.sidebar:
             mtime = datetime.fromtimestamp(os.path.getmtime(latest))
             st.caption(f"Dernier rapport : {mtime.strftime('%d/%m/%Y a %H:%M')}")
 
-            if st.button("Voir le rapport", use_container_width=True):
-                content = latest.read_text(encoding="utf-8")
-                st.text_area("", content, height=400, label_visibility="collapsed")
-
-                html_file = RAPPORT_DIR / latest.name.replace(".txt", ".html")
-                if html_file.exists():
-                    with open(html_file, "r", encoding="utf-8") as f:
-                        st.download_button("Telecharger .html", data=f,
-                                           file_name=html_file.name, mime="text/html")
+            html_file = RAPPORT_DIR / latest.name.replace(".txt", ".html")
+            if html_file.exists():
+                with open(html_file, "r", encoding="utf-8") as f:
+                    st.download_button("Telecharger .html", data=f,
+                                       file_name=html_file.name, mime="text/html",
+                                       use_container_width=True)
         else:
             st.caption("Aucun rapport disponible.")
 
