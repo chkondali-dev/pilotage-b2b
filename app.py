@@ -1083,7 +1083,9 @@ with st.sidebar:
         if txt_files:
             latest = txt_files[0]
             mtime = datetime.fromtimestamp(os.path.getmtime(latest))
-            st.caption(f"Dernier rapport : {mtime.strftime('%d/%m/%Y a %H:%M')}")
+            parts = latest.stem.split("_")
+            periode = f"{parts[2]}/{parts[3]}" if len(parts) >= 4 else ""
+            st.caption(f"Periode : {periode} | Genere le {mtime.strftime('%d/%m/%Y a %H:%M')}")
 
             html_file = RAPPORT_DIR / latest.name.replace(".txt", ".html")
             if html_file.exists():
