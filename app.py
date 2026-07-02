@@ -1224,7 +1224,6 @@ tabs = st.tabs([
     "📋 Conventions",
     "🏪 Magasins",
     "🏫 EDC",
-    "🔔 Alertes & Risques",
     "🏬 Pilotage par magasin",
     "📋 Conventions SMG",
     "🤝 CRM",
@@ -2164,86 +2163,7 @@ with tabs[4]:
 
 
 # ══════════════════════════════════════════════════════════════
-# TAB 5 — ALERTES & RISQUES
-# ══════════════════════════════════════════════════════════════
 with tabs[5]:
-
-    section("Tableau de bord des risques")
-
-    # ── Résumé badges ─────────────────────────────────────────
-    b1, b2, b3, b4 = st.columns(4)
-    b1.metric("🔴 Déclin fort (>-20%)",  nb_declin_fort)
-    b2.metric("⬛ Conventions inactives", nb_inactif_cv)
-    b3.metric(f"⚠️ En inactivité >{seuil_inactif}j", nb_inact)
-    b4.metric("🟢 En croissance",         nb_croissance)
-
-    # ── Inactivité ──────────────────────────────────────────────
-    section(f"Conventions à réactiver — inactivité > {seuil_inactif} jours")
-
-    if not df_inactive.empty:
-        fig_ia = chart_inactive_bar(
-            df_inactive,
-            f"Conventions inactives — {len(df_inactive)} comptes sans facture depuis >{seuil_inactif}j",
-        )
-        st.plotly_chart(fig_ia, use_container_width=True)
-
-        with st.expander(f"📋 Liste complète ({len(df_inactive)} conventions)"):
-            st.dataframe(df_inactive, use_container_width=True)
-    else:
-        st.success(f"✅ Aucune convention inactive détectée (seuil : {seuil_inactif} jours).")
-
-    # ── Conventions en déclin ──────────────────────────────────
-    section("Conventions en déclin — Analyse des pertes")
-
-    if not risk_mat.empty:
-        declining = risk_mat[
-            risk_mat["Statut"].isin(["🔴 Déclin fort", "🟡 Déclin"])
-        ].copy()
-        declining["Perte TND"] = (declining["CA N-1"] - declining["CA N"]).clip(lower=0)
-        declining = declining.sort_values("Perte TND", ascending=False)
-
-        col_d1, col_d2 = st.columns(2)
-        with col_d1:
-            if not declining.empty:
-                fig_perte = chart_bar(
-                    declining.head(15), "Perte TND", "Nom",
-                    "Perte CA vs N-1 (TND)", C["red"], h=460, orientation="h",
-                )
-                st.plotly_chart(fig_perte, use_container_width=True)
-            else:
-                st.success("✅ Aucune convention en déclin.")
-
-        with col_d2:
-            if not declining.empty:
-                fig_dec_pct = chart_variation_bar(
-                    declining.head(15), "Nom", "Évolution %",
-                    "Variation % — Conventions en déclin", h=460,
-                )
-                st.plotly_chart(fig_dec_pct, use_container_width=True)
-
-    # ── Opportunités ───────────────────────────────────────────
-    section("Opportunités — Conventions à fort potentiel")
-
-    if not risk_mat.empty:
-        opps = (
-            risk_mat[risk_mat["Statut"].isin(["🟢 Croissance", "🟢 Nouveau"])]
-            .sort_values("CA N", ascending=False)
-            .head(10)
-        )
-        if not opps.empty:
-            fig_opp = chart_bar(
-                opps, "CA N", "Nom",
-                f"Top opportunités — CA {annee_sel}", C["green"], h=380, orientation="h",
-            )
-            st.plotly_chart(fig_opp, use_container_width=True)
-        else:
-            st.info("Aucune convention en croissance détectée pour cette période.")
-
-
-# ══════════════════════════════════════════════════════════════
-# TAB 6 — PILOTAGE PAR MAGASIN
-# ══════════════════════════════════════════════════════════════
-with tabs[6]:
     section("Pilotage par magasin")
 
     df_vc_tmp     = df_vc.copy()
@@ -2421,9 +2341,9 @@ with tabs[6]:
 
 
 # ══════════════════════════════════════════════════════════════
-# TAB 7 — CONVENTIONS SMG (suivi, DSO, alertes, GPO)
+# TAB 6 — CONVENTIONS SMG (suivi, DSO, alertes, GPO)
 # ══════════════════════════════════════════════════════════════
-with tabs[7]:
+with tabs[6]:
 
     st.markdown("### 📋 Pilotage Conventions SMG — GPO View")
 
@@ -2539,7 +2459,7 @@ with tabs[7]:
 
 
 # --- CRM ---
-with tabs[8]:
+with tabs[7]:
     try:
         import sys as _cs, os as _co, importlib as _ci
         _cp = _co.path.join(_co.path.dirname(__file__), "crm.py")
