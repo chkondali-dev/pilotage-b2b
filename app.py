@@ -1590,16 +1590,7 @@ with tabs[2]:
 
     all_convs = sorted(df_vc_filt["Nom"].dropna().unique().tolist()) if "Nom" in df_vc_filt.columns else []
     
-    # Use session state to force update
-    if "selected_conv" not in st.session_state:
-        st.session_state.selected_conv = all_convs[0] if all_convs else None
-    
-    conv_detail = st.selectbox("SÃ©lectionner une convention", all_convs, index=all_convs.index(st.session_state.selected_conv) if st.session_state.selected_conv in all_convs else 0)
-    
-    # Update state when changed
-    if conv_detail != st.session_state.selected_conv:
-        st.session_state.selected_conv = conv_detail
-        st.rerun()
+    conv_detail = st.selectbox("Sélectionner une convention", all_convs, index=0) if all_convs else None
     
     if conv_detail:
         # Filter data for this specific convention
