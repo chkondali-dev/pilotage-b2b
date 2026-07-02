@@ -2480,14 +2480,12 @@ with tabs[7]:
 
     if df_crm is not None and len(df_crm) > 0:
         # KPIs
-        k1, k2, k3, k4 = st.columns(4)
+        k1, k2, k3 = st.columns(3)
         k1.metric("Total prospects", len(df_crm))
         en_cours = len(df_crm[df_crm["Statut pipeline"]=="En cours"])
         k2.metric("En cours", en_cours)
         cloture = len(df_crm[df_crm["Statut pipeline"]=="Cloture"])
         k3.metric("Cloturees", cloture)
-        ca_pot = df_crm["CA potentiel"].sum()
-        k4.metric("CA potentiel", str(round(ca_pot)) + " TND")
 
         col1, col2 = st.columns(2)
         with col1:
@@ -2503,9 +2501,9 @@ with tabs[7]:
             st.plotly_chart(fig_prio, use_container_width=True)
 
         st.markdown("<div class='sec-hdr'>TOP Prospects</div>", unsafe_allow_html=True)
-        cols_show = ["Nom entreprise", "Statut pipeline", "Priorite relance", "Secteur", "Contact", "CA potentiel", "Date derniere activite"]
+        cols_show = ["Nom entreprise", "Statut pipeline", "Priorite relance", "Secteur", "Contact", "Date derniere activite"]
         cols_ok = [c for c in cols_show if c in df_crm.columns]
-        df_disp = df_crm[cols_ok].sort_values("CA potentiel", ascending=False).head(15)
+        df_disp = df_crm[cols_ok].head(15)
         ev = st.dataframe(df_disp, use_container_width=True, height=400,
                           on_select="rerun", selection_mode="single-row")
         sel = ev.selection.rows if hasattr(ev, 'selection') else []
