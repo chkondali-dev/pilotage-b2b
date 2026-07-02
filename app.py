@@ -1165,7 +1165,8 @@ with st.sidebar:
                     [sys.executable, str(Path(__file__).parent / "monthly_report.py"),
                      "--month", str(rapport_mois),
                      "--year", str(rapport_annee),
-                     "--no-email"],
+                     "--no-email",
+                     "--api-key", api_key],
                     capture_output=True, text=True, timeout=300, env=env,
                 )
             if result.returncode == 0:

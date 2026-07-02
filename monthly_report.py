@@ -390,13 +390,14 @@ def analyse_par_magasin(df: pd.DataFrame, annee: int, mois: int, annee_n1: int) 
 
 # ─── LLM Integration ───────────────────────────────────────────
 
-def call_llm(prompt: str) -> str | None:
+def call_llm(prompt: str, api_key: str | None = None) -> str | None:
     """Appelle l'API LLM avec le prompt structure."""
-    if not LLM_API_KEY:
+    key = api_key or LLM_API_KEY or os.getenv("LLM_API_KEY", "")
+    if not key:
         print("  ⚠️  Pas de cle API LLM configuree (LLM_API_KEY)")
         return None
     headers = {
-        "Authorization": f"Bearer {LLM_API_KEY}",
+        "Authorization": f"Bearer {key}",
         "Content-Type": "application/json",
     }
     payload = {
@@ -1122,7 +1123,7 @@ def copy_to_clipboard(text: str):
 
 # ─── Main ──────────────────────────────────────────────────────
 
-def analyse(annee: int, mois: int, with_ai: bool = True, with_email: bool = True):
+def analyse(annee: int, mois: int, with_ai: bool = True, with_email: bool = True, api_key: str | None = None):
     """Point d'entree principal."""
     mois_nom = MOIS_NOMS.get(mois, str(mois))
     annee_n1 = annee - 1
@@ -1206,7 +1207,7 @@ def analyse(annee: int, mois: int, with_ai: bool = True, with_email: bool = True
         data["_df_vc"] = df_vc  # Passer le DataFrame complet pour les tendances
         prompt = build_llm_prompt(data)
         print(f"      Prompt: {len(prompt)} chars")
-        response = call_llm(prompt)
+        response = call_llm(prompt, api_key=api_key)
         if response:
             try:
                 raw = json.loads(response)
@@ -1274,6 +1275,8 @@ def main():
                         help="Desactiver l'envoi email")
     parser.add_argument("--no-ai", action="store_true",
                         help="Desactiver l'analyse IA")
+    parser.add_argument("--api-key", type=str, default=None,
+                        help="Cle API LLM (alternative a LLM_API_KEY env)")
     args = parser.parse_args()
 
     # Mois par defaut : mois precedent
@@ -1292,7 +1295,7 @@ def main():
         print("❌ Mois invalide (1-12)")
         sys.exit(1)
 
-    analyse(annee, mois, with_ai=not args.no_ai, with_email=not args.no_email)
+    analyse(annee, mois, with_ai=not args.no_ai, with_email=not args.no_email, api_key=args.api_key)
 
 
 if __name__ == "__main__":
