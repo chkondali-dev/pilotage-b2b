@@ -1624,7 +1624,7 @@ with tabs[2]:
                 df_cv_comp, "Mois Nom", "CA N", "CA N-1",
                 f"CA Mensuel — {conv_detail}", annee_sel,
             )
-            st.plotly_chart(fig_cv_g, use_container_width=True)
+            st.plotly_chart(fig_cv_g, use_container_width=True, key=f"cv_bar_{conv_detail}")
 
         with col_cv2:
             # Cumulé - use df_cv which already has the month filter
@@ -1643,7 +1643,7 @@ with tabs[2]:
                 df_cum, "Mois Nom", "CA Cum N", "CA Cum N-1",
                 f"CA Cumulé — {conv_detail}", annee_sel,
             )
-            st.plotly_chart(fig_cum, use_container_width=True)
+            st.plotly_chart(fig_cum, use_container_width=True, key=f"cv_cum_{conv_detail}")
 
         col_cv3, col_cv4 = st.columns(2)
         with col_cv3:
@@ -1657,7 +1657,7 @@ with tabs[2]:
                     mag, "Montant TTC", "Magasin",
                     "Top Magasins", C["purple"], h=360, orientation="h",
                 )
-                st.plotly_chart(fig_mag_cv, use_container_width=True)
+                st.plotly_chart(fig_mag_cv, use_container_width=True, key=f"cv_mag_{conv_detail}")
 
         with col_cv4:
             ca_cash   = _df_filtered_n["Montant TTC"].sum() if len(_df_filtered_n) > 0 else 0
@@ -1670,7 +1670,7 @@ with tabs[2]:
                     [ca_cash, ca_credit], ["Cash", "Crédit"],
                     f"Cash vs Crédit — {conv_detail}",
                 )
-                st.plotly_chart(fig_pie_cv, use_container_width=True)
+                st.plotly_chart(fig_pie_cv, use_container_width=True, key=f"cv_pie_{conv_detail}")
 
     # TDC conventions signées
     if not df_conv.empty:
