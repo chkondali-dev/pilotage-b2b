@@ -1,6 +1,6 @@
 """
-Dashboard Pilotage B2B — SMG (MG & BATAM)
-Refactored: architecture modulaire, BI décisionnel, visualisation executive
+Dashboard Pilotage B2B â€” SMG (MG & BATAM)
+Refactored: architecture modulaire, BI dÃ©cisionnel, visualisation executive
 """
 
 import streamlit as st
@@ -18,15 +18,15 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 st.set_page_config(
-    page_title="Pilotage B2B — SMG",
+    page_title="Pilotage B2B â€” SMG",
     layout="wide",
-    page_icon="📊",
+    page_icon="ðŸ“Š",
     initial_sidebar_state="expanded",
 )
 
-# ══════════════════════════════════════════════════════════════
-# SECTION 1 — CONFIGURATION
-# ══════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# SECTION 1 â€” CONFIGURATION
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 GITHUB_RAW        = "https://raw.githubusercontent.com/chkondali-dev/pilotage-b2b/main/2025/"
 GITHUB_RAW_IMAGES = "https://raw.githubusercontent.com/chkondali-dev/pilotage-b2b/main/"
@@ -43,15 +43,15 @@ FILES = {
     "cube_magasin":       "CUBE%20MAGASIN.xlsx",
 }
 
-# ─── Palette sémantique ───────────────────────────────────────
-# Règle stricte : vert = croissance, rouge = déclin/alerte,
+# â”€â”€â”€ Palette sÃ©mantique â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# RÃ¨gle stricte : vert = croissance, rouge = dÃ©clin/alerte,
 # bleu = N courant, ardoise = N-1 (neutre, jamais rouge)
 C = {
     "green":   "#059669",  # croissance / positif
-    "red":     "#DC2626",  # déclin / alerte
-    "blue":    "#1D4ED8",  # année N (valeur principale)
-    "slate":   "#94A3B8",  # année N-1 (référence neutre)
-    "amber":   "#D97706",  # avertissement / modéré
+    "red":     "#DC2626",  # dÃ©clin / alerte
+    "blue":    "#1D4ED8",  # annÃ©e N (valeur principale)
+    "slate":   "#94A3B8",  # annÃ©e N-1 (rÃ©fÃ©rence neutre)
+    "amber":   "#D97706",  # avertissement / modÃ©rÃ©
     "purple":  "#6D28D9",  # accent secondaire
     "ink":     "#0F172A",
     "muted":   "#64748B",
@@ -60,18 +60,18 @@ C = {
 }
 
 MOIS = {
-    1: "Jan", 2: "Fév",  3: "Mar", 4: "Avr",
-    5: "Mai", 6: "Juin", 7: "Juil",8: "Aoû",
-    9: "Sep", 10:"Oct",  11:"Nov", 12:"Déc",
+    1: "Jan", 2: "FÃ©v",  3: "Mar", 4: "Avr",
+    5: "Mai", 6: "Juin", 7: "Juil",8: "AoÃ»",
+    9: "Sep", 10:"Oct",  11:"Nov", 12:"DÃ©c",
 }
 
-# ══════════════════════════════════════════════════════════════
-# SECTION 2 — DATA LOADING  (cache agressif)
-# ══════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# SECTION 2 â€” DATA LOADING  (cache agressif)
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 @st.cache_data(show_spinner=False, ttl=3600)
 def _fetch(url: str) -> bytes:
-    """HTTP fetch avec cache 1h — évite les re-téléchargements."""
+    """HTTP fetch avec cache 1h â€” Ã©vite les re-tÃ©lÃ©chargements."""
     r = requests.get(url, timeout=30)
     r.raise_for_status()
     return r.content
@@ -89,7 +89,7 @@ def load_all_data() -> dict:
             else:
                 dfs[key] = _clean(pd.read_excel(BytesIO(raw), engine="openpyxl"))
         except Exception as exc:
-            st.sidebar.warning(f"⚠️ Fichier {key} : {exc}")
+            st.sidebar.warning(f"âš ï¸ Fichier {key} : {exc}")
             dfs[key] = pd.DataFrame()
     return dfs
 
@@ -101,12 +101,12 @@ def _clean(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-# ══════════════════════════════════════════════════════════════
-# SECTION 3 — DATA PROCESSING
-# ══════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# SECTION 3 â€” DATA PROCESSING
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 def _add_date_cols(df: pd.DataFrame) -> pd.DataFrame:
-    """Extrait Année / Mois / Jour depuis 'Date comptabilisation'."""
+    """Extrait AnnÃ©e / Mois / Jour depuis 'Date comptabilisation'."""
     # Try to find the date column case-insensitively
     date_col = next((c for c in df.columns if "date" in c.lower() and "comptabil" in c.lower()), None)
     
@@ -115,7 +115,7 @@ def _add_date_cols(df: pd.DataFrame) -> pd.DataFrame:
     
     df = df.copy()
     df["Date"]  = pd.to_datetime(df[date_col], errors="coerce")
-    df["Année"] = df["Date"].dt.year.astype("Int64")
+    df["AnnÃ©e"] = df["Date"].dt.year.astype("Int64")
     df["Mois"]  = df["Date"].dt.month.astype("Int64")
     df["Jour"]  = df["Date"].dt.day.astype("Int64")
     return df
@@ -123,7 +123,7 @@ def _add_date_cols(df: pd.DataFrame) -> pd.DataFrame:
 
 def _map_magasins(df: pd.DataFrame, code_df: pd.DataFrame) -> pd.DataFrame:
     """
-    Mapping code Navision → nom magasin + enseigne.
+    Mapping code Navision â†’ nom magasin + enseigne.
     """
     if len(df) == 0:
         return df
@@ -239,7 +239,7 @@ def _map_magasins(df: pd.DataFrame, code_df: pd.DataFrame) -> pd.DataFrame:
     
     return df
     
-    # Mapping code → nom + enseigne
+    # Mapping code â†’ nom + enseigne
     mapping_nom = code_df.set_index(code_col)[name_col].to_dict()
     mapping_ense = code_df.set_index(code_col)["Enseigne"].to_dict()
     
@@ -261,11 +261,11 @@ def _map_magasins(df: pd.DataFrame, code_df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-# NOTE: _raw commence par _ → Streamlit skip le hashing de ce paramètre
+# NOTE: _raw commence par _ â†’ Streamlit skip le hashing de ce paramÃ¨tre
 @st.cache_data(show_spinner=False)
 def prepare_data(_raw: dict) -> tuple:
     """
-    Point d'entrée unique pour tout le processing.
+    Point d'entrÃ©e unique pour tout le processing.
     Retourne (df_vc, df_credit, df_edc, df_conv, code_df, df_credit_part).
     """
     code_df   = _raw.get("code_magasin", pd.DataFrame())
@@ -278,12 +278,12 @@ def prepare_data(_raw: dict) -> tuple:
     return df_vc, df_credit, df_edc, df_conv, code_df, df_credit_part, df_cube_mag
 
 
-# ══════════════════════════════════════════════════════════════
-# SECTION 4 — KPI ENGINE  (logique métier centralisée)
-# ══════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# SECTION 4 â€” KPI ENGINE  (logique mÃ©tier centralisÃ©e)
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 def ca_sum(df: pd.DataFrame, annee: int, mois=None) -> float:
-    d = df[df["Année"] == annee]
+    d = df[df["AnnÃ©e"] == annee]
     if mois and isinstance(mois, list) and len(mois) > 0:
         d = d[d["Mois"].isin(mois)]
     elif mois and isinstance(mois, int):
@@ -304,7 +304,7 @@ def load_cube_magasin(df_raw: pd.DataFrame, code_df: pd.DataFrame = pd.DataFrame
     # Find header row (row with store names)
     header_row = None
     for i, val in enumerate(df_raw.iloc[:, 0]):
-        if pd.notna(val) and ("étiquettes" in str(val) or "lignes" in str(val).lower()):
+        if pd.notna(val) and ("Ã©tiquettes" in str(val) or "lignes" in str(val).lower()):
             header_row = i
             break
     if header_row is None:
@@ -348,11 +348,11 @@ def load_cube_magasin(df_raw: pd.DataFrame, code_df: pd.DataFrame = pd.DataFrame
     data_long = data.melt(id_vars=["Date"], value_vars=store_cols, var_name="StoreRaw", value_name="CA Magasin")
     data_long["Magasin"] = data_long["StoreRaw"].apply(map_store_name)
     data_long["Date"] = pd.to_datetime(data_long["Date"], errors="coerce")
-    data_long["Année"] = data_long["Date"].dt.year
+    data_long["AnnÃ©e"] = data_long["Date"].dt.year
     data_long["Mois"] = data_long["Date"].dt.month
     data_long = data_long.dropna(subset=["Date", "CA Magasin"])
     data_long["CA Magasin"] = pd.to_numeric(data_long["CA Magasin"], errors="coerce").fillna(0)
-    return data_long[["Date", "Magasin", "CA Magasin", "Année", "Mois"]]
+    return data_long[["Date", "Magasin", "CA Magasin", "AnnÃ©e", "Mois"]]
     data_long["Mois"] = data_long["Date"].dt.month
     data_long = data_long.dropna(subset=["Date", "CA Magasin"])
     data_long["CA Magasin"] = pd.to_numeric(data_long["CA Magasin"], errors="coerce").fillna(0)
@@ -361,14 +361,14 @@ def load_cube_magasin(df_raw: pd.DataFrame, code_df: pd.DataFrame = pd.DataFrame
 
 def ca_par_mois(df: pd.DataFrame, annee: int) -> pd.DataFrame:
     return (
-        df[df["Année"] == annee]
+        df[df["AnnÃ©e"] == annee]
         .groupby("Mois")["Montant TTC"].sum()
         .reset_index()
     )
 
 
 def compare_years(df: pd.DataFrame, annee_n: int, annee_n1: int) -> pd.DataFrame:
-    """Comparaison mensuelle N vs N-1 — produit la base de données pour les charts trends."""
+    """Comparaison mensuelle N vs N-1 â€” produit la base de donnÃ©es pour les charts trends."""
     if df.empty or "Montant TTC" not in df.columns:
         return pd.DataFrame(columns=["Mois", "CA N", "CA N-1", "Variation %", "Mois Nom"])
     n  = ca_par_mois(df, annee_n).rename(columns={"Montant TTC": "CA N"})
@@ -383,23 +383,23 @@ def compare_years(df: pd.DataFrame, annee_n: int, annee_n1: int) -> pd.DataFrame
 
 def compare_years_date_to_date(df: pd.DataFrame, annee_n: int, annee_n1: int, mois_sel: list = None) -> pd.DataFrame:
     """
-    Comparaison N vs N-1 DATE À DATE (même nombre de jours).
-    Si Mai 2026 a des données jusqu'au jour 7, on compare les 7 premiers jours de Mai 2025.
+    Comparaison N vs N-1 DATE Ã€ DATE (mÃªme nombre de jours).
+    Si Mai 2026 a des donnÃ©es jusqu'au jour 7, on compare les 7 premiers jours de Mai 2025.
     """
     if df.empty or "Montant TTC" not in df.columns:
-        return pd.DataFrame(columns=["Mois", "CA N", "CA N-1", "Variation %", "Mois Nom", "Jours comparés"])
+        return pd.DataFrame(columns=["Mois", "CA N", "CA N-1", "Variation %", "Mois Nom", "Jours comparÃ©s"])
     
-    # Appliquer le filtre mois sur les deux années
+    # Appliquer le filtre mois sur les deux annÃ©es
     df_filtered = df.copy()
     if mois_sel is not None and len(mois_sel) > 0:
         df_filtered = df_filtered[df_filtered["Mois"].isin(mois_sel)]
     
-    # Déterminer les mois à analyser
-    df_n = df_filtered[df_filtered["Année"] == annee_n].copy()
-    df_n1 = df_filtered[df_filtered["Année"] == annee_n1].copy()
+    # DÃ©terminer les mois Ã  analyser
+    df_n = df_filtered[df_filtered["AnnÃ©e"] == annee_n].copy()
+    df_n1 = df_filtered[df_filtered["AnnÃ©e"] == annee_n1].copy()
     
     if "Mois" not in df_n.columns or "Jour" not in df_n.columns or df_n.empty:
-        # Pas de données jour, fallback sur comparaison mensuelle classique
+        # Pas de donnÃ©es jour, fallback sur comparaison mensuelle classique
         return compare_years(df_filtered, annee_n, annee_n1)
     
     # Pour chaque mois, trouver le nombre max de jours disponibles en N
@@ -421,7 +421,7 @@ def compare_years_date_to_date(df: pd.DataFrame, annee_n: int, annee_n1: int, mo
             "CA N-1": ca_n1,
             "Variation %": round(var_pct, 1),
             "Mois Nom": MOIS.get(mois, str(mois)),
-            "Jours comparés": max_jour
+            "Jours comparÃ©s": max_jour
         })
     
     comp = pd.DataFrame(result_rows)
@@ -431,7 +431,7 @@ def compare_years_date_to_date(df: pd.DataFrame, annee_n: int, annee_n1: int, mo
 
 def ca_sum_date_to_date(df: pd.DataFrame, annee_n: int, annee_n1: int, mois_sel: list = None) -> tuple:
     """
-    Calcul CA total date à date pour les deux années.
+    Calcul CA total date Ã  date pour les deux annÃ©es.
     Retourne (CA N, CA N-1,Evolution %)
     """
     comp = compare_years_date_to_date(df, annee_n, annee_n1, mois_sel)
@@ -446,32 +446,32 @@ def ca_sum_date_to_date(df: pd.DataFrame, annee_n: int, annee_n1: int, mois_sel:
 
 
 def get_rolling_3m(df: pd.DataFrame) -> pd.DataFrame:
-    """CA des 3 derniers mois glissants — extrait UNIQUE (supprime duplication dans tabs)."""
+    """CA des 3 derniers mois glissants â€” extrait UNIQUE (supprime duplication dans tabs)."""
     now = pd.Timestamp.now()
     periods = [(now - pd.DateOffset(months=i)) for i in range(2, -1, -1)]
-    masks = [(df["Année"] == p.year) & (df["Mois"] == p.month) for p in periods]
+    masks = [(df["AnnÃ©e"] == p.year) & (df["Mois"] == p.month) for p in periods]
     combined = masks[0] | masks[1] | masks[2]
     d = (
         df[combined]
-        .groupby(["Année", "Mois"])["Montant TTC"].sum()
+        .groupby(["AnnÃ©e", "Mois"])["Montant TTC"].sum()
         .reset_index()
     )
-    d["Periode"] = d["Mois"].map(MOIS) + " " + d["Année"].astype(str)
-    return d.sort_values(["Année", "Mois"])
+    d["Periode"] = d["Mois"].map(MOIS) + " " + d["AnnÃ©e"].astype(str)
+    return d.sort_values(["AnnÃ©e", "Mois"])
 
 
 def convention_risk_matrix(df_vc: pd.DataFrame, annee_n: int) -> pd.DataFrame:
     """
-    Matrice risque / opportunité par convention.
-    Classifie chaque convention selon CA et évolution N/N-1.
-    Version vectorisée pour performance.
+    Matrice risque / opportunitÃ© par convention.
+    Classifie chaque convention selon CA et Ã©volution N/N-1.
+    Version vectorisÃ©e pour performance.
     """
     if df_vc.empty or "Nom" not in df_vc.columns:
         return pd.DataFrame()
-    ca_n  = df_vc[df_vc["Année"] == annee_n].groupby("Nom")["Montant TTC"].sum().rename("CA N")
-    ca_n1 = df_vc[df_vc["Année"] == annee_n - 1].groupby("Nom")["Montant TTC"].sum().rename("CA N-1")
+    ca_n  = df_vc[df_vc["AnnÃ©e"] == annee_n].groupby("Nom")["Montant TTC"].sum().rename("CA N")
+    ca_n1 = df_vc[df_vc["AnnÃ©e"] == annee_n - 1].groupby("Nom")["Montant TTC"].sum().rename("CA N-1")
     mat = pd.concat([ca_n, ca_n1], axis=1).fillna(0).reset_index()
-    mat["Évolution %"] = (
+    mat["Ã‰volution %"] = (
         (mat["CA N"] - mat["CA N-1"]) / mat["CA N-1"].replace(0, 1) * 100
     ).round(1)
 
@@ -480,29 +480,29 @@ def convention_risk_matrix(df_vc: pd.DataFrame, annee_n: int) -> pd.DataFrame:
         (mat["CA N"] == 0) & (mat["CA N-1"] == 0),
         mat["CA N"] == 0,
         mat["CA N-1"] == 0,
-        mat["Évolution %"] <= -20,
-        mat["Évolution %"] < 0,
+        mat["Ã‰volution %"] <= -20,
+        mat["Ã‰volution %"] < 0,
     ]
     choices = [
-        "⚫ Aucun historique",
-        "🔴 Inactif",
-        "🟢 Nouveau",
-        "🔴 Déclin fort",
-        "🟡 Déclin",
+        "âš« Aucun historique",
+        "ðŸ”´ Inactif",
+        "ðŸŸ¢ Nouveau",
+        "ðŸ”´ DÃ©clin fort",
+        "ðŸŸ¡ DÃ©clin",
     ]
-    mat["Statut"] = np.select(conditions, choices, default="🟢 Croissance")
+    mat["Statut"] = np.select(conditions, choices, default="ðŸŸ¢ Croissance")
     
     return mat.sort_values("CA N", ascending=False)
 
 
 def inactive_conventions(df_vc: pd.DataFrame, threshold_days: int = 60) -> pd.DataFrame:
-    """Détecte les conventions sans facture depuis N jours."""
+    """DÃ©tecte les conventions sans facture depuis N jours."""
     if df_vc.empty or "Nom" not in df_vc.columns or "Date" not in df_vc.columns:
         return pd.DataFrame()
     today = pd.Timestamp.today().normalize()
     last = df_vc.groupby("Nom")["Date"].max().reset_index()
-    last.columns = ["Convention", "Dernière Facture"]
-    last["Jours inactifs"] = (today - last["Dernière Facture"]).dt.days
+    last.columns = ["Convention", "DerniÃ¨re Facture"]
+    last["Jours inactifs"] = (today - last["DerniÃ¨re Facture"]).dt.days
     return (
         last[last["Jours inactifs"] > threshold_days]
         .sort_values("Jours inactifs", ascending=False)
@@ -510,11 +510,11 @@ def inactive_conventions(df_vc: pd.DataFrame, threshold_days: int = 60) -> pd.Da
     )
 
 
-# ══════════════════════════════════════════════════════════════
-# SECTION 5 — CHART FACTORY  (fonctions réutilisables)
-# ══════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# SECTION 5 â€” CHART FACTORY  (fonctions rÃ©utilisables)
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-# Layout de base appliqué à tous les graphiques
+# Layout de base appliquÃ© Ã  tous les graphiques
 _BASE = dict(
     template="plotly_white",
     paper_bgcolor="rgba(0,0,0,0)",
@@ -539,7 +539,7 @@ def _base(fig: go.Figure, h: int = 380) -> go.Figure:
 def _empty(title: str, h: int = 380) -> go.Figure:
     fig = go.Figure()
     fig.add_annotation(
-        text="Aucune donnée disponible",
+        text="Aucune donnÃ©e disponible",
         xref="paper", yref="paper", x=0.5, y=0.5,
         showarrow=False, font=dict(color=C["muted"], size=14),
     )
@@ -569,7 +569,7 @@ def chart_grouped_bar(
     df: pd.DataFrame, x: str, y_n: str, y_n1: str,
     title: str, annee_n: int, h: int = 380,
 ) -> go.Figure:
-    """Barres groupées N vs N-1 avec couleurs sémantiques."""
+    """Barres groupÃ©es N vs N-1 avec couleurs sÃ©mantiques."""
     if df is None or df.empty:
         return _empty(title, h)
     fig = go.Figure([
@@ -622,8 +622,8 @@ def chart_variation_bar(
     title: str, h: int = 380,
 ) -> go.Figure:
     """
-    Barres horizontales colorées vert/rouge par signe de la variation.
-    Remplace px.bar(..., color='Évol_Category') pour une sémantique plus claire.
+    Barres horizontales colorÃ©es vert/rouge par signe de la variation.
+    Remplace px.bar(..., color='Ã‰vol_Category') pour une sÃ©mantique plus claire.
     """
     if df is None or df.empty:
         return _empty(title, h)
@@ -636,7 +636,7 @@ def chart_variation_bar(
         text=labels, textposition="outside", textfont_size=10,
     ))
     fig.add_vline(x=0, line_color=C["muted"], line_width=1)
-    fig.update_layout(title=title, xaxis_title="Évolution %")
+    fig.update_layout(title=title, xaxis_title="Ã‰volution %")
     return _base(fig, h)
 
 
@@ -644,7 +644,7 @@ def chart_waterfall(
     df_years: pd.DataFrame, year_col: str, val_col: str,
     title: str, h: int = 380,
 ) -> go.Figure:
-    """Waterfall CA par année — montre l'évolution cumulée."""
+    """Waterfall CA par annÃ©e â€” montre l'Ã©volution cumulÃ©e."""
     if df_years is None or df_years.empty:
         return _empty(title, h)
     df_sorted = df_years.sort_values(year_col)
@@ -674,31 +674,31 @@ def chart_risk_table(
     df: pd.DataFrame, annee_n: int, title: str, h: int = 480,
 ) -> go.Figure:
     """
-    Tableau condensé risque / opportunité - Simplifié pour directeurs
+    Tableau condensÃ© risque / opportunitÃ© - SimplifiÃ© pour directeurs
     """
     if df is None or df.empty:
         return _empty(title, h)
 
-    # Préparer les données pour le tableau
+    # PrÃ©parer les donnÃ©es pour le tableau
     df_disp = df.head(20).copy()
     
     # Ajouter indicateur visuel simple
     def get_indicateur(statut):
         if "Croissance" in statut or "Nouveau" in statut:
-            return "✅"
-        elif "Déclin fort" in statut or "Inactif" in statut:
-            return "🔴"
-        elif "Déclin" in statut:
-            return "🟡"
+            return "âœ…"
+        elif "DÃ©clin fort" in statut or "Inactif" in statut:
+            return "ðŸ”´"
+        elif "DÃ©clin" in statut:
+            return "ðŸŸ¡"
         else:
-            return "⚫"
+            return "âš«"
     
     df_disp["Statut"] = df_disp["Statut"].apply(get_indicateur)
     
-    # Créer tableau simple
+    # CrÃ©er tableau simple
     fig = go.Figure(data=[go.Table(
         header=dict(
-            values=["<b>Convention</b>", "<b>CA " + str(annee_n) + "</b>", "<b>CA " + str(annee_n-1) + "</b>", "<b>Évolution</b>", "<b>Statut</b>"],
+            values=["<b>Convention</b>", "<b>CA " + str(annee_n) + "</b>", "<b>CA " + str(annee_n-1) + "</b>", "<b>Ã‰volution</b>", "<b>Statut</b>"],
             fill_color=C["blue"],
             font=dict(color="white", size=12),
             align="left",
@@ -709,7 +709,7 @@ def chart_risk_table(
                 df_disp["Nom"].astype(str),
                 df_disp["CA N"].apply(lambda x: f"{x:,.0f}"),
                 df_disp["CA N-1"].apply(lambda x: f"{x:,.0f}"),
-                df_disp["Évolution %"].apply(lambda x: f"{x:+.1f}%"),
+                df_disp["Ã‰volution %"].apply(lambda x: f"{x:+.1f}%"),
                 df_disp["Statut"],
             ],
             fill_color=[[C["surface"]] * len(df_disp)],
@@ -767,7 +767,7 @@ def chart_pie(values, names, title: str, h: int = 340) -> go.Figure:
 
 
 def chart_inactive_bar(df: pd.DataFrame, title: str, h: int = 380) -> go.Figure:
-    """Barres horizontales d'inactivité, dégradé amber→rouge selon l'ancienneté."""
+    """Barres horizontales d'inactivitÃ©, dÃ©gradÃ© amberâ†’rouge selon l'anciennetÃ©."""
     if df is None or df.empty:
         return _empty(title, h)
     df = df.copy().head(20)
@@ -789,18 +789,18 @@ def chart_inactive_bar(df: pd.DataFrame, title: str, h: int = 380) -> go.Figure:
     return _base(fig, max(300, len(df) * 28))
 
 
-# ══════════════════════════════════════════════════════════════
-# SECTION 6 — UI COMPONENTS  (CSS + helpers)
-# ══════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# SECTION 6 â€” UI COMPONENTS  (CSS + helpers)
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 def inject_css():
     st.markdown(f"""
     <style>
-    /* ── Typographie Google Fonts ── */
+    /* â”€â”€ Typographie Google Fonts â”€â”€ */
     @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Figtree:wght@400;600;700;800&display=swap');
     html, body, [class*="css"] {{ font-family: 'DM Sans', sans-serif; }}
 
-    /* ── Fond global ── */
+    /* â”€â”€ Fond global â”€â”€ */
     .stApp {{
         background:
             radial-gradient(ellipse at 0% 0%, rgba(29,78,216,0.08) 0%, transparent 40%),
@@ -809,7 +809,7 @@ def inject_css():
     }}
     .block-container {{ padding: 1rem 2rem 3rem; max-width: 1400px; }}
 
-    /* ── Sidebar ── */
+    /* â”€â”€ Sidebar â”€â”€ */
     [data-testid="stSidebar"] {{
         background: linear-gradient(180deg, #0a0f1e 0%, #0f2040 60%, #0d2e28 100%);
         border-right: 1px solid rgba(255,255,255,0.05);
@@ -824,7 +824,7 @@ def inject_css():
     }}
     [data-testid="stSidebar"] .stButton>button:hover {{ opacity: 0.88; }}
 
-    /* ── Metrics ── */
+    /* â”€â”€ Metrics â”€â”€ */
     [data-testid="stMetric"] {{
         background: rgba(255,255,255,0.92);
         border: 1px solid {C["border"]};
@@ -842,7 +842,7 @@ def inject_css():
         font-size: 1.6rem; font-weight: 800; color: {C["ink"]}; line-height: 1.1;
     }}
 
-    /* ── Charts ── */
+    /* â”€â”€ Charts â”€â”€ */
     div[data-testid="stPlotlyChart"] {{
         background: rgba(255,255,255,0.88);
         border: 1px solid {C["border"]};
@@ -853,7 +853,7 @@ def inject_css():
     }}
     div[data-testid="stPlotlyChart"]:hover {{ box-shadow: 0 8px 28px rgba(15,23,42,0.09); }}
 
-    /* ── Expanders ── */
+    /* â”€â”€ Expanders â”€â”€ */
     [data-testid="stExpander"] summary {{
         background: rgba(248,250,252,0.85);
         border-radius: 10px;
@@ -862,7 +862,7 @@ def inject_css():
         font-weight: 600; font-size: 0.88rem; color: {C["ink"]};
     }}
 
-    /* ── Expander dans la sidebar : fond clair lisible ── */
+    /* â”€â”€ Expander dans la sidebar : fond clair lisible â”€â”€ */
     [data-testid="stSidebar"] [data-testid="stExpander"] {{
         background: rgba(255,255,255,0.10);
         border-radius: 12px;
@@ -897,7 +897,7 @@ def inject_css():
         color: #1e293b !important;
     }}
 
-    /* ── Tabs ── */
+    /* â”€â”€ Tabs â”€â”€ */
     [data-testid="stTabs"] button[role="tab"] {{
         border-radius: 11px; padding: 0.45rem 0.9rem;
         font-weight: 600; font-size: 0.88rem;
@@ -911,7 +911,7 @@ def inject_css():
         color: {C["ink"]} !important; font-weight: 700;
     }}
 
-    /* ── Hero banner ── */
+    /* â”€â”€ Hero banner â”€â”€ */
     .hero {{
         background: linear-gradient(135deg, #0a0f1e 0%, #1a3060 52%, #0d3d34 100%);
         border-radius: 22px; padding: 1.6rem 2rem;
@@ -940,7 +940,7 @@ def inject_css():
         font-size:0.78rem; font-weight:500;
     }}
 
-    /* ── Section headers ── */
+    /* â”€â”€ Section headers â”€â”€ */
     .sec-hdr {{
         font-size:0.72rem; font-weight:800; color:{C["muted"]};
         text-transform:uppercase; letter-spacing:0.10em;
@@ -948,7 +948,7 @@ def inject_css():
         border-bottom:2px solid {C["border"]};
     }}
 
-    /* ── Alert / status badges ── */
+    /* â”€â”€ Alert / status badges â”€â”€ */
     .badge {{
         display:inline-flex; align-items:center; gap:5px;
         padding:4px 12px; border-radius:99px;
@@ -959,7 +959,7 @@ def inject_css():
     .b-green  {{ background:#f0fdf4; color:#166534; border:1px solid #bbf7d0; }}
     .b-blue   {{ background:#eff6ff; color:#1e40af; border:1px solid #bfdbfe; }}
 
-    /* ── Convention rank cards ── */
+    /* â”€â”€ Convention rank cards â”€â”€ */
     .rank-card {{
         border-radius:14px; padding:11px 14px; margin-bottom:8px;
         transition: transform .15s;
@@ -982,7 +982,7 @@ def hero(title: str, subtitle: str, chips: list):
     chips_html = "".join(f"<span class='hero-chip'>{c}</span>" for c in chips)
     st.markdown(f"""
     <div class="hero">
-      <div class="hero-tag">Pilotage Commercial B2B — SMG</div>
+      <div class="hero-tag">Pilotage Commercial B2B â€” SMG</div>
       <h1 class="hero-title">{title}</h1>
       <p class="hero-sub">{subtitle}</p>
       <div class="hero-chips">{chips_html}</div>
@@ -1009,19 +1009,19 @@ def rank_card(rank: int, name: str, value: str, variant: str = "top"):
     </div>""", unsafe_allow_html=True)
 
 
-# ══════════════════════════════════════════════════════════════
-# SECTION 7 — BOOTSTRAP
-# ══════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# SECTION 7 â€” BOOTSTRAP
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 inject_css()
 
-# ── Header ────────────────────────────────────────────────────
+# â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 col_h, col_l1, col_l2 = st.columns([8, 1, 1])
 with col_h:
     hero(
         "Dashboard Pilotage B2B",
-        "Performance des conventions MG & BATAM — Outil de décision commerciale direction",
-        ["Business Central VC.CONV", "MG + BATAM", "Mis à jour automatiquement"],
+        "Performance des conventions MG & BATAM â€” Outil de dÃ©cision commerciale direction",
+        ["Business Central VC.CONV", "MG + BATAM", "Mis Ã  jour automatiquement"],
     )
 with col_l1:
     try:
@@ -1034,10 +1034,10 @@ with col_l2:
     except Exception:
         pass
 
-# ── Sidebar ───────────────────────────────────────────────────
+# â”€â”€ Sidebar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 with st.sidebar:
-    st.markdown("### 🔍 Filtres")
-    annee_sel = st.selectbox("Année", [2026, 2025, 2024, 2023], index=0)
+    st.markdown("### ðŸ” Filtres")
+    annee_sel = st.selectbox("AnnÃ©e", [2026, 2025, 2024, 2023], index=0)
     
     # Filtre mois - default to current month
     current_month = datetime.now().month
@@ -1056,22 +1056,22 @@ with st.sidebar:
     )
     
     st.markdown("---")
-    if st.button("🔄 Actualiser"):
+    if st.button("ðŸ”„ Actualiser"):
         st.cache_data.clear()
         st.rerun()
 
-# ── Chargement données ────────────────────────────────────────
-with st.spinner("Chargement des données…"):
+# â”€â”€ Chargement donnÃ©es â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+with st.spinner("Chargement des donnÃ©esâ€¦"):
     _raw = load_all_data()
 
 df_vc, df_credit, df_edc, df_conv, code_df, df_credit_part, df_cube_mag = prepare_data(_raw)
 _raw_part = _raw.get("credit_particulier", pd.DataFrame())
 
-if df_vc.empty or "Année" not in df_vc.columns:
-    st.error("⚠️ Aucune donnée VC chargée. Vérifiez la connexion GitHub.")
+if df_vc.empty or "AnnÃ©e" not in df_vc.columns:
+    st.error("âš ï¸ Aucune donnÃ©e VC chargÃ©e. VÃ©rifiez la connexion GitHub.")
     st.stop()
 
-# ── Pré-calculs partagés (calculés une seule fois) ────────────
+# â”€â”€ PrÃ©-calculs partagÃ©s (calculÃ©s une seule fois) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Apply type_vente filter first
 if type_vente_sel == "Global":
     df_vc_filt = df_vc.copy()
@@ -1091,7 +1091,7 @@ else:
 if mois_sel:
     df_vc_filt = df_vc_filt[df_vc_filt["Mois"].isin(mois_sel)]
 
-# Convention filter (dépend de l'année)
+# Convention filter (dÃ©pend de l'annÃ©e)
 _conv_options = (
     ["Tous"] + sorted(df_vc_filt["Nom"].dropna().unique().tolist())
     if "Nom" in df_vc.columns else ["Tous"]
@@ -1105,7 +1105,7 @@ with st.sidebar:
     )
 
     st.markdown("---")
-    with st.expander("📄 Rapport Mensuel IA", expanded=False):
+    with st.expander("ðŸ“„ Rapport Mensuel IA", expanded=False):
         RAPPORT_DIR = Path.home() / "Downloads" / "rapport_mensuel"
         RAPPORT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -1175,8 +1175,8 @@ with st.sidebar:
             else:
                 st.error(f"Erreur : {result.stderr[:200]}")
 
-# ── Slice filtré ──────────────────────────────────────────────
-df_filt = df_vc_filt[df_vc_filt["Année"] == annee_sel].copy()
+# â”€â”€ Slice filtrÃ© â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+df_filt = df_vc_filt[df_vc_filt["AnnÃ©e"] == annee_sel].copy()
 if conv_sel != "Tous":
     df_filt = df_filt[df_filt["Nom"] == conv_sel]
 
@@ -1185,13 +1185,13 @@ risk_mat    = convention_risk_matrix(df_vc_filt, annee_sel)
 df_inactive = inactive_conventions(df_vc_filt, seuil_inactif)
 df_3m       = get_rolling_3m(df_vc_filt)
 
-ca_n = df_vc_filt[df_vc_filt["Année"] == annee_sel]["Montant TTC"].sum()
-ca_n1 = df_vc_filt[df_vc_filt["Année"] == annee_sel - 1]["Montant TTC"].sum()
-ca_n2 = df_vc_filt[df_vc_filt["Année"] == annee_sel - 2]["Montant TTC"].sum()
+ca_n = df_vc_filt[df_vc_filt["AnnÃ©e"] == annee_sel]["Montant TTC"].sum()
+ca_n1 = df_vc_filt[df_vc_filt["AnnÃ©e"] == annee_sel - 1]["Montant TTC"].sum()
+ca_n2 = df_vc_filt[df_vc_filt["AnnÃ©e"] == annee_sel - 2]["Montant TTC"].sum()
 ev_nn1 = evol_pct(ca_n, ca_n1)
 ev_n1n2 = evol_pct(ca_n1, ca_n2)
 
-nb_actives  = df_vc_filt[df_vc_filt["Année"] == annee_sel]["Nom"].dropna().nunique() \
+nb_actives  = df_vc_filt[df_vc_filt["AnnÃ©e"] == annee_sel]["Nom"].dropna().nunique() \
               if "Nom" in df_vc_filt.columns else 0
 nb_total    = len(df_conv) if not df_conv.empty else 0
 nb_inact    = len(df_inactive)
@@ -1199,44 +1199,44 @@ panier_min = df_filt["Montant TTC"].min() if len(df_filt) > 0 else 0
 panier_max = df_filt["Montant TTC"].max() if len(df_filt) > 0 else 0
 panier_moy  = df_filt["Montant TTC"].mean() if len(df_filt) > 0 else 0
 
-_df_mois = df_vc_filt[df_vc_filt["Année"] == annee_sel].copy()
+_df_mois = df_vc_filt[df_vc_filt["AnnÃ©e"] == annee_sel].copy()
 if mois_sel:
     _df_mois = _df_mois[_df_mois["Mois"].isin(mois_sel)]
 
 min_mag = _df_mois.loc[_df_mois["Montant TTC"].idxmin(), "Nom"] if len(_df_mois) > 0 and "Nom" in _df_mois.columns else ""
 max_mag = _df_mois.loc[_df_mois["Montant TTC"].idxmax(), "Nom"] if len(_df_mois) > 0 and "Nom" in _df_mois.columns else ""
 
-# ── Compteurs risques ─────────────────────────────────────────
+# â”€â”€ Compteurs risques â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 if not risk_mat.empty:
-    nb_declin_fort = len(risk_mat[risk_mat["Statut"] == "🔴 Déclin fort"])
-    nb_inactif_cv  = len(risk_mat[risk_mat["Statut"] == "🔴 Inactif"])
-    nb_croissance  = len(risk_mat[risk_mat["Statut"].isin(["🟢 Croissance", "🟢 Nouveau"])])
+    nb_declin_fort = len(risk_mat[risk_mat["Statut"] == "ðŸ”´ DÃ©clin fort"])
+    nb_inactif_cv  = len(risk_mat[risk_mat["Statut"] == "ðŸ”´ Inactif"])
+    nb_croissance  = len(risk_mat[risk_mat["Statut"].isin(["ðŸŸ¢ Croissance", "ðŸŸ¢ Nouveau"])])
 else:
     nb_declin_fort = nb_inactif_cv = nb_croissance = 0
 
-# ══════════════════════════════════════════════════════════════
-# SECTION 8 — TABS
-# ══════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# SECTION 8 â€” TABS
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 tabs = st.tabs([
-    "🏠 Vue Exécutive",
-    "📈 CA & Tendances",
-    "📋 Conventions",
-    "🏪 Magasins",
-    "🏫 EDC",
-    "🔔 Alertes & Risques",
-    "🏬 Pilotage par magasin",
-    "📋 Conventions SMG",
+    "ðŸ  Vue ExÃ©cutive",
+    "ðŸ“ˆ CA & Tendances",
+    "ðŸ“‹ Conventions",
+    "ðŸª Magasins",
+    "ðŸ« EDC",
+    "ðŸ”” Alertes & Risques",
+    "ðŸ¬ Pilotage par magasin",
+    "ðŸ“‹ Conventions SMG",
 ])
 
-# ══════════════════════════════════════════════════════════════
-# TAB 0 — VUE EXÉCUTIVE
-# (Fusionne l'ancien ACCUEIL + DASHBOARD GLOBAL — 100% dédupliqué)
-# ══════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# TAB 0 â€” VUE EXÃ‰CUTIVE
+# (Fusionne l'ancien ACCUEIL + DASHBOARD GLOBAL â€” 100% dÃ©dupliquÃ©)
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 with tabs[0]:
 
-    # ── KPI strip ─────────────────────────────────────────────
-    section("Indicateurs clés")
+    # â”€â”€ KPI strip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    section("Indicateurs clÃ©s")
     k1, k2, k3, k4, k5 = st.columns(5)
     k1.metric(
         f"CA {annee_sel}",
@@ -1254,15 +1254,15 @@ with tabs[0]:
     k4.metric(
         "Conventions inactives",
         nb_inact,
-        f"⚠️ >{seuil_inactif}j sans facture" if nb_inact > 0 else "✅ Aucune",
+        f"âš ï¸ >{seuil_inactif}j sans facture" if nb_inact > 0 else "âœ… Aucune",
         delta_color="inverse" if nb_inact > 0 else "off",
     )
     k5.metric("Panier moyen", f"{panier_moy:,.0f} TND")
 
     nb_transactions = len(df_filt) if len(df_filt) > 0 else 0
 
-    # ── Statistiques journalières ────────────────────────────
-    section("Statistiques journalières")
+    # â”€â”€ Statistiques journaliÃ¨res â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    section("Statistiques journaliÃ¨res")
     s1, s2, s3, s4 = st.columns(4)
     s1.metric("Nb transactions", nb_transactions)
     s2.metric("Panier min", f"{panier_min:,.0f} TND")
@@ -1270,54 +1270,54 @@ with tabs[0]:
     s4.metric("Panier moyen", f"{panier_moy:,.0f} TND")
 
     mois_label = ", ".join([MOIS.get(m, str(m)) for m in mois_sel]) if mois_sel else f"{annee_sel}"
-    st.caption(f"📌 Panier min: {min_mag}  |  Panier max: {max_mag}  ({mois_label})")
+    st.caption(f"ðŸ“Œ Panier min: {min_mag}  |  Panier max: {max_mag}  ({mois_label})")
 
-    # ── Évolution CA ──────────────────────────────────────────
-    section("Évolution du chiffre d'affaires")
+    # â”€â”€ Ã‰volution CA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    section("Ã‰volution du chiffre d'affaires")
     col_a, col_b = st.columns(2)
 
     with col_a:
         ca_by_year = (
-            df_vc.groupby("Année")["Montant TTC"].sum().reset_index().sort_values("Année")
+            df_vc.groupby("AnnÃ©e")["Montant TTC"].sum().reset_index().sort_values("AnnÃ©e")
         )
-        fig_wf = chart_waterfall(ca_by_year, "Année", "Montant TTC",
-                                  "CA par année — Waterfall évolution")
-        st.plotly_chart(fig_wf, width="stretch")
+        fig_wf = chart_waterfall(ca_by_year, "AnnÃ©e", "Montant TTC",
+                                  "CA par annÃ©e â€” Waterfall Ã©volution")
+        st.plotly_chart(fig_wf, use_container_width=True)
 
     with col_b:
         fig_gb = chart_grouped_bar(
             df_comp, "Mois Nom", "CA N", "CA N-1",
-            f"CA Mensuel — {annee_sel} vs {annee_sel-1}", annee_sel,
+            f"CA Mensuel â€” {annee_sel} vs {annee_sel-1}", annee_sel,
         )
-        st.plotly_chart(fig_gb, width="stretch")
+        st.plotly_chart(fig_gb, use_container_width=True)
 
-    # ── Portefeuille conventions ───────────────────────────────
-    section("Portefeuille conventions — Performance")
+    # â”€â”€ Portefeuille conventions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    section("Portefeuille conventions â€” Performance")
     col_c, col_d = st.columns(2)
 
     with col_c:
         top10 = df_filt.groupby("Nom")["Montant TTC"].sum().nlargest(10).reset_index()
         fig_t10 = chart_bar(
             top10, "Montant TTC", "Nom",
-            f"Top 10 conventions — {annee_sel}", C["blue"], h=400, orientation="h",
+            f"Top 10 conventions â€” {annee_sel}", C["blue"], h=400, orientation="h",
         )
-        st.plotly_chart(fig_t10, width="stretch")
+        st.plotly_chart(fig_t10, use_container_width=True)
 
     with col_d:
         fig_var = chart_variation_bar(
-            risk_mat.head(20), "Nom", "Évolution %",
-            f"Évolution N/N-1 — Top 20 conventions", h=400,
+            risk_mat.head(20), "Nom", "Ã‰volution %",
+            f"Ã‰volution N/N-1 â€” Top 20 conventions", h=400,
         )
-        st.plotly_chart(fig_var, width="stretch")
+        st.plotly_chart(fig_var, use_container_width=True)
 
-    # ── Tableau risque simplifié + Top/Flop ────────────────────────────────
-    section("Signaux décisionnels — Risques & Opportunités")
+    # â”€â”€ Tableau risque simplifiÃ© + Top/Flop â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    section("Signaux dÃ©cisionnels â€” Risques & OpportunitÃ©s")
     col_e, col_f, col_g = st.columns([3, 1, 1])
 
     with col_e:
         fig_sc = chart_risk_table(
             risk_mat.head(20), annee_sel,
-            "État du portefeuille — Vue condensée", h=450,
+            "Ã‰tat du portefeuille â€” Vue condensÃ©e", h=450,
         )
         st.plotly_chart(fig_sc, use_container_width=True)
 
@@ -1327,34 +1327,34 @@ with tabs[0]:
         flop3  = ca_cli[ca_cli > 0].nsmallest(3) if len(ca_cli[ca_cli > 0]) >= 3 else ca_cli.nsmallest(3)
 
         with col_f:
-            st.markdown("**🏆 Top 3**")
+            st.markdown("**ðŸ† Top 3**")
             for i, (nom, ca) in enumerate(top3.items(), 1):
                 rank_card(i, nom, f"{ca:,.0f} TND", "top")
 
         with col_g:
-            st.markdown("**⚠️ Flop 3**")
+            st.markdown("**âš ï¸ Flop 3**")
             for i, (nom, ca) in enumerate(flop3.items(), 1):
                 rank_card(i, nom, f"{ca:,.0f} TND", "flop")
 
 
-# ════════════��═��═══════════════════════════════════════════════
-# TAB 1 — CA & TENDANCES
-# ══════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•ï¿½ï¿½â•ï¿½ï¿½â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# TAB 1 â€” CA & TENDANCES
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 with tabs[1]:
 
-    # ══════════════════════════════════════════════════════
-    # SECTION VEILLE — DECISIONNELLE (date sélectionnable)
-    # ══════════════════════════════════════════════════════
-    st.markdown("### 📊 Performance veille")
+    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    # SECTION VEILLE â€” DECISIONNELLE (date sÃ©lectionnable)
+    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    st.markdown("### ðŸ“Š Performance veille")
     
-    # Date sélectionnable (par défaut hier)
+    # Date sÃ©lectionnable (par dÃ©faut hier)
     default_date = (datetime.now() - timedelta(days=1)).date()
     hier_date = st.date_input("Choisir une date", value=default_date, key="veille_date")
     annee_hier = hier_date.year
     mois_hier = hier_date.month
     
     df_vc_hier = df_vc[(df_vc["Date"].dt.date == hier_date)].copy()
-    df_vc_n1 = df_vc[(df_vc["Année"] == annee_hier - 1) & (df_vc["Mois"] == mois_hier) & (df_vc["Jour"] == hier_date.day)].copy()
+    df_vc_n1 = df_vc[(df_vc["AnnÃ©e"] == annee_hier - 1) & (df_vc["Mois"] == mois_hier) & (df_vc["Jour"] == hier_date.day)].copy()
     
     # KPI veille
     ca_veille = df_vc_hier["Montant TTC"].sum() if len(df_vc_hier) > 0 else 0
@@ -1370,13 +1370,13 @@ with tabs[1]:
     kp3.metric("Nb Tickets", nb_tickets_veille)
     kp4.metric("Panier Moyen", f"{panier_veille:,.0f} TND")
     
-    st.caption(f"📅 Date sélectionnée: {hier_date.strftime('%d/%m/%Y')}")
+    st.caption(f"ðŸ“… Date sÃ©lectionnÃ©e: {hier_date.strftime('%d/%m/%Y')}")
     
     # Analyse par segment
     col_seg1, col_seg2 = st.columns(2)
     
     with col_seg1:
-        st.markdown("**Top 5 Conventions — Veille**")
+        st.markdown("**Top 5 Conventions â€” Veille**")
         if not df_vc_hier.empty and "Montant TTC" in df_vc_hier.columns and "Nom" in df_vc_hier.columns:
             top5_conv = df_vc_hier.groupby("Nom")["Montant TTC"].sum().nlargest(5)
             df_top5 = top5_conv.reset_index()
@@ -1390,7 +1390,7 @@ with tabs[1]:
             st.plotly_chart(fig_top5, use_container_width=True)
     
     with col_seg2:
-        st.markdown("**Top 5 Magasins — Veille**")
+        st.markdown("**Top 5 Magasins â€” Veille**")
         if not df_vc_hier.empty and "Montant TTC" in df_vc_hier.columns:
             # Essayer colonne Code Navision pour le mapping
             for code_col_src in ["Code Navision", "Unite Code"]:
@@ -1455,20 +1455,20 @@ with tabs[1]:
             st.plotly_chart(fig_pie, use_container_width=True)
     
     # Alertes automatiques
-    st.markdown("### 🔔 Alertes & Insights — Veille")
+    st.markdown("### ðŸ”” Alertes & Insights â€” Veille")
     
     alertes = []
     couleur_alertes = []
     
     if evo_veille < -20:
-        alertes.append(f"⚠️ Baisse significative: {evo_veille:.1f}% vs N-1")
+        alertes.append(f"âš ï¸ Baisse significative: {evo_veille:.1f}% vs N-1")
         couleur_alertes.append("inverse")
     elif evo_veille >= 0:
-        alertes.append(f"✅ Belle performance: +{evo_veille:.1f}% vs N-1")
+        alertes.append(f"âœ… Belle performance: +{evo_veille:.1f}% vs N-1")
         couleur_alertes.append("normal")
     
     if panier_veille < panier_moy * 0.8:
-        alertes.append(f"📉 Panier bas: {panier_veille:,.0f} TND (moy: {panier_moy:,.0f})")
+        alertes.append(f"ðŸ“‰ Panier bas: {panier_veille:,.0f} TND (moy: {panier_moy:,.0f})")
         couleur_alertes.append("inverse")
     
     if not df_vc_hier.empty:
@@ -1477,7 +1477,7 @@ with tabs[1]:
             w_mag = worst.iloc[0]["Magasin"] if "Magasin" in worst.columns else worst.iloc[0].get("Nom", "")
             w_ca = worst.iloc[0]["Montant TTC"]
             if w_ca < 100:
-                alertes.append(f"🚨 Magasin critique: {w_mag} (CA: {w_ca:,.0f})")
+                alertes.append(f"ðŸš¨ Magasin critique: {w_mag} (CA: {w_ca:,.0f})")
                 couleur_alertes.append("inverse")
     
     # Check forEnseigne
@@ -1489,14 +1489,14 @@ with tabs[1]:
         
         if total_ca > 0:
             if mg_pct > 80:
-                alertes.append(f"⚖️ Desequilibre: MG {mg_pct:.0f}% / BATAM {bam_pct:.0f}%")
+                alertes.append(f"âš–ï¸ Desequilibre: MG {mg_pct:.0f}% / BATAM {bam_pct:.0f}%")
                 couleur_alertes.append("inverse")
             elif bam_pct > 80:
-                alertes.append(f"⚖️ Desequilibre: BATAM {bam_pct:.0f}% / MG {mg_pct:.0f}%")
+                alertes.append(f"âš–ï¸ Desequilibre: BATAM {bam_pct:.0f}% / MG {mg_pct:.0f}%")
                 couleur_alertes.append("inverse")
     
     if not alertes:
-        alertes.append("✅ Aucune alerte — veille normale")
+        alertes.append("âœ… Aucune alerte â€” veille normale")
         couleur_alertes.append("normal")
     
     for txt, col in zip(alertes, couleur_alertes):
@@ -1512,21 +1512,21 @@ with tabs[1]:
             df_comp, "Mois Nom", "CA N", "CA N-1",
             f"Tendance mensuelle {annee_sel} vs {annee_sel-1}", annee_sel,
         )
-        st.plotly_chart(fig_line, width="stretch")
+        st.plotly_chart(fig_line, use_container_width=True)
 
     with col_t2:
-        # Variation mensuelle — barres vertes/rouges
+        # Variation mensuelle â€” barres vertes/rouges
         fig_mvar = chart_variation_bar(
             df_comp, "Mois Nom", "Variation %",
-            f"Variation mensuelle % — {annee_sel} vs {annee_sel-1}",
+            f"Variation mensuelle % â€” {annee_sel} vs {annee_sel-1}",
         )
-        st.plotly_chart(fig_mvar, width="stretch")
+        st.plotly_chart(fig_mvar, use_container_width=True)
 
-# ── CA Journalier ──────────────────────────────────────────
+# â”€â”€ CA Journalier â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     section("CA Journalier")
 
-    _dj_n  = df_vc_filt[df_vc_filt["Année"] == annee_sel]
-    _dj_n1 = df_vc_filt[df_vc_filt["Année"] == annee_sel - 1]
+    _dj_n  = df_vc_filt[df_vc_filt["AnnÃ©e"] == annee_sel]
+    _dj_n1 = df_vc_filt[df_vc_filt["AnnÃ©e"] == annee_sel - 1]
 
     ca_jn  = _dj_n.groupby("Jour")["Montant TTC"].sum().rename("CA N").reset_index()
     ca_jn1 = _dj_n1.groupby("Jour")["Montant TTC"].sum().rename("CA N-1").reset_index()
@@ -1534,12 +1534,12 @@ with tabs[1]:
 
     fig_jour = chart_line_compare(
         df_jour, "Jour", "CA N", "CA N-1",
-        f"CA Journalier — {annee_sel} vs {annee_sel-1}", annee_sel, h=380,
+        f"CA Journalier â€” {annee_sel} vs {annee_sel-1}", annee_sel, h=380,
     )
     fig_jour.update_xaxes(dtick=1, tickangle=45)
-    st.plotly_chart(fig_jour, width="stretch")
+    st.plotly_chart(fig_jour, use_container_width=True)
 
-    # ── Rolling 3 mois + Jauge ─────────────────────────────────
+    # â”€â”€ Rolling 3 mois + Jauge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     section("3 derniers mois glissants")
     col_r1, col_r2 = st.columns([2, 1])
 
@@ -1548,35 +1548,35 @@ with tabs[1]:
             df_3m, "Periode", "Montant TTC",
             "CA Rolling 3 mois", C["blue"],
         )
-        st.plotly_chart(fig_3m, width="stretch")
+        st.plotly_chart(fig_3m, use_container_width=True)
 
     with col_r2:
         fig_gauge = chart_gauge(ca_n, ca_n1, f"Atteinte {annee_sel} vs {annee_sel-1}")
-        st.plotly_chart(fig_gauge, width="stretch")
+        st.plotly_chart(fig_gauge, use_container_width=True)
 
-    # Données brutes en expander (aucun tableau visible par défaut)
-    with st.expander("📄 Données brutes — CA Journalier"):
+    # DonnÃ©es brutes en expander (aucun tableau visible par dÃ©faut)
+    with st.expander("ðŸ“„ DonnÃ©es brutes â€” CA Journalier"):
         df_jour["Variation %"] = (
             (df_jour["CA N"] - df_jour["CA N-1"]) / df_jour["CA N-1"].replace(0, 1) * 100
         ).round(1)
-        st.dataframe(df_jour, width="stretch")
+        st.dataframe(df_jour, use_container_width=True)
 
 
-# ══════════════════════════════════════════════════════════════
-# TAB 2 — CONVENTIONS
-# ══════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# TAB 2 â€” CONVENTIONS
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 with tabs[2]:
 
     section("Vue globale du portefeuille")
 
-    # Tableau risque condensé plein écran
+    # Tableau risque condensÃ© plein Ã©cran
     fig_risk_full = chart_risk_table(
         risk_mat, annee_sel,
-        f"État du portefeuille — {len(risk_mat)} conventions", h=500,
+        f"Ã‰tat du portefeuille â€” {len(risk_mat)} conventions", h=500,
     )
     st.plotly_chart(fig_risk_full, use_container_width=True)
 
-    with st.expander("📊 Détail complet des conventions"):
+    with st.expander("ðŸ“Š DÃ©tail complet des conventions"):
         if not risk_mat.empty:
             disp = risk_mat.rename(columns={
                 "CA N":  f"CA {annee_sel}",
@@ -1584,7 +1584,7 @@ with tabs[2]:
             })
             st.dataframe(disp, use_container_width=True)
 
-    # ── Analyse individuelle ─���─���───────────────────────────────
+    # â”€â”€ Analyse individuelle â”€ï¿½ï¿½ï¿½â”€ï¿½ï¿½ï¿½â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     section("Analyse individuelle par convention")
 
     all_convs = sorted(df_vc_filt["Nom"].dropna().unique().tolist()) if "Nom" in df_vc_filt.columns else []
@@ -1593,7 +1593,7 @@ with tabs[2]:
     if "selected_conv" not in st.session_state:
         st.session_state.selected_conv = all_convs[0] if all_convs else None
     
-    conv_detail = st.selectbox("Sélectionner une convention", all_convs, index=all_convs.index(st.session_state.selected_conv) if st.session_state.selected_conv in all_convs else 0)
+    conv_detail = st.selectbox("SÃ©lectionner une convention", all_convs, index=all_convs.index(st.session_state.selected_conv) if st.session_state.selected_conv in all_convs else 0)
     
     # Update state when changed
     if conv_detail != st.session_state.selected_conv:
@@ -1610,7 +1610,7 @@ with tabs[2]:
         ev_cv      = evol_pct(ca_cv_n, ca_cv_n1)
         
         # Count only filtered data
-        nb_fact_cv = len(df_cv[df_cv["Année"] == annee_sel])
+        nb_fact_cv = len(df_cv[df_cv["AnnÃ©e"] == annee_sel])
         panier_cv  = ca_cv_n / nb_fact_cv if nb_fact_cv > 0 else 0
 
         ci1, ci2, ci3, ci4 = st.columns(4)
@@ -1630,14 +1630,14 @@ with tabs[2]:
         with col_cv1:
             fig_cv_g = chart_grouped_bar(
                 df_cv_comp, "Mois Nom", "CA N", "CA N-1",
-                f"CA Mensuel — {conv_detail}", annee_sel,
+                f"CA Mensuel â€” {conv_detail}", annee_sel,
             )
             st.plotly_chart(fig_cv_g, use_container_width=True)
 
         with col_cv2:
-            # Cumulé - use df_cv which already has the month filter
-            _df_filtered_n = df_cv[df_cv["Année"] == annee_sel]
-            _df_filtered_n1 = df_cv[df_cv["Année"] == annee_sel - 1]
+            # CumulÃ© - use df_cv which already has the month filter
+            _df_filtered_n = df_cv[df_cv["AnnÃ©e"] == annee_sel]
+            _df_filtered_n1 = df_cv[df_cv["AnnÃ©e"] == annee_sel - 1]
             
             _cn  = _df_filtered_n.groupby("Mois")["Montant TTC"].sum().reset_index()
             _cn1 = _df_filtered_n1.groupby("Mois")["Montant TTC"].sum().reset_index()
@@ -1649,9 +1649,9 @@ with tabs[2]:
             df_cum["Mois Nom"] = df_cum["Mois"].map(MOIS)
             fig_cum = chart_line_compare(
                 df_cum, "Mois Nom", "CA Cum N", "CA Cum N-1",
-                f"CA Cumulé — {conv_detail}", annee_sel,
+                f"CA CumulÃ© â€” {conv_detail}", annee_sel,
             )
-            st.plotly_chart(fig_cum, width="stretch")
+            st.plotly_chart(fig_cum, use_container_width=True)
 
         col_cv3, col_cv4 = st.columns(2)
         with col_cv3:
@@ -1675,14 +1675,14 @@ with tabs[2]:
             )
             if ca_cash > 0 or ca_credit > 0:
                 fig_pie_cv = chart_pie(
-                    [ca_cash, ca_credit], ["Cash", "Crédit"],
-                    f"Cash vs Crédit — {conv_detail}",
+                    [ca_cash, ca_credit], ["Cash", "CrÃ©dit"],
+                    f"Cash vs CrÃ©dit â€” {conv_detail}",
                 )
-                st.plotly_chart(fig_pie_cv, width="stretch")
+                st.plotly_chart(fig_pie_cv, use_container_width=True)
 
-    # TDC conventions signées
+    # TDC conventions signÃ©es
     if not df_conv.empty:
-        with st.expander("📁 Liste des conventions signées (TDC)"):
+        with st.expander("ðŸ“ Liste des conventions signÃ©es (TDC)"):
             cols_ok = [c for c in ["SOCIETES", "Code BC", "Effectifs", "CA 2025",
                                     "POTENTIEL", "MATURITE", "SCORE"] if c in df_conv.columns]
             if cols_ok:
@@ -1694,26 +1694,26 @@ with tabs[2]:
                 c_kpi3.metric("CA 2025 portefeuille",
                                f"{pd.to_numeric(df_conv['CA 2025'], errors='coerce').sum():,.0f} TND"
                                if "CA 2025" in df_conv.columns else "N/A")
-                st.dataframe(df_conv[cols_ok], width="stretch")
+                st.dataframe(df_conv[cols_ok], use_container_width=True)
 
 
-# ══════════════════════════════════════════════════════════════
-# TAB 3 — MAGASINS
-# ══════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# TAB 3 â€” MAGASINS
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 with tabs[3]:
-    section("Performance réseau magasinstab")
+    section("Performance rÃ©seau magasinstab")
 
     if "Magasin" not in df_vc.columns:
-        st.info("Données magasin non disponibles")
+        st.info("DonnÃ©es magasin non disponibles")
     else:
-        # Use the same filtered data as Vue Exécutive for consistency
-        _base_n = df_vc_filt[df_vc_filt["Année"] == annee_sel].copy()
-        _base_n1 = df_vc_filt[df_vc_filt["Année"] == annee_sel - 1].copy()
+        # Use the same filtered data as Vue ExÃ©cutive for consistency
+        _base_n = df_vc_filt[df_vc_filt["AnnÃ©e"] == annee_sel].copy()
+        _base_n1 = df_vc_filt[df_vc_filt["AnnÃ©e"] == annee_sel - 1].copy()
         
         all_stores = sorted(_base_n["Magasin"].dropna().unique()) if "Magasin" in _base_n.columns else []
         
         # Search bar with autocomplete
-        st.markdown("### 🔍 Rechercher un magasin")
+        st.markdown("### ðŸ” Rechercher un magasin")
         
         # Create searchable selectbox with filtering
         if "store_search_idx" not in st.session_state:
@@ -1734,18 +1734,18 @@ with tabs[3]:
         current_idx = 0
         
         selected_store = st.selectbox(
-            "Sélectionner un magasin", 
+            "SÃ©lectionner un magasin", 
             options,
             index=current_idx,
             key="store_selector",
-            format_func=lambda x: "🌐 Tous les magasins" if x == "Tous" else f"🏪 {x}"
+            format_func=lambda x: "ðŸŒ Tous les magasins" if x == "Tous" else f"ðŸª {x}"
         )
 
         if selected_store == "Tous":
             # ===== VUE RESEAU =====
-            st.markdown("## 📊 Vue d'ensemble du réseau")
+            st.markdown("## ðŸ“Š Vue d'ensemble du rÃ©seau")
             
-            # Simple comparison (same as Vue Exécutive)
+            # Simple comparison (same as Vue ExÃ©cutive)
             ca_mag_n  = _base_n.groupby("Magasin")["Montant TTC"].sum().rename("CA N")
             ca_mag_n1 = _base_n1.groupby("Magasin")["Montant TTC"].sum().rename("CA N-1")
             ca_mag = pd.concat([ca_mag_n, ca_mag_n1], axis=1).fillna(0).reset_index()
@@ -1774,41 +1774,41 @@ with tabs[3]:
             simple_sum = _base_n["Montant TTC"].sum()
             
             k1, k2, k3, k4 = st.columns(4)
-            k1.metric("🏪 Magasins actifs", len(ca_mag[ca_mag["CA N"] > 0]))
-            k2.metric("💰 CA Total", f"{simple_sum:,.0f} TND")
-            k3.metric("📈 En croissance", len(ca_mag[ca_mag["Evolution %"] > 0]), f"/ {len(ca_mag)}")
-            k4.metric("📉 En baisse", len(ca_mag[ca_mag["Evolution %"] < 0]))
+            k1.metric("ðŸª Magasins actifs", len(ca_mag[ca_mag["CA N"] > 0]))
+            k2.metric("ðŸ’° CA Total", f"{simple_sum:,.0f} TND")
+            k3.metric("ðŸ“ˆ En croissance", len(ca_mag[ca_mag["Evolution %"] > 0]), f"/ {len(ca_mag)}")
+            k4.metric("ðŸ“‰ En baisse", len(ca_mag[ca_mag["Evolution %"] < 0]))
 
             # Top & Evolution
             col_m1, col_m2 = st.columns(2)
             with col_m1:
                 top20 = ca_mag.head(20)
                 fig_top = px.bar(top20, x="CA N", y="Magasin", orientation="h", 
-                                title=f"🏆 Top 20 Magasins - CA {annee_sel}", 
+                                title=f"ðŸ† Top 20 Magasins - CA {annee_sel}", 
                                 color="CA N", color_continuous_scale=["#1D4ED8", "#3B82F6", "#60A5FA"],
                                 text_auto=".0f")
                 fig_top.update_layout(height=450, yaxis=dict(autorange="reversed"))
-                st.plotly_chart(fig_top, width="stretch")
+                st.plotly_chart(fig_top, use_container_width=True)
 
             with col_m2:
                 fig_evo = px.bar(top20, x="Evolution %", y="Magasin", orientation="h",
-                               title="📊 Evolution N/N-1",
+                               title="ðŸ“Š Evolution N/N-1",
                                color="Evolution %", color_continuous_scale=["#DC2626", "#FCD34D", "#059669"],
                                text_auto="+.1f")
                 fig_evo.update_layout(height=450, yaxis=dict(autorange="reversed"))
                 fig_evo.add_vline(x=0, line_dash="dash", line_color="grey", annotation_text="Seuil")
-                st.plotly_chart(fig_evo, width="stretch")
+                st.plotly_chart(fig_evo, use_container_width=True)
             
             # Tableau CA Convention vs CA Total Magasin avec Poids
-            st.markdown("### 📋 CA Convention vs CA Total Magasin")
+            st.markdown("### ðŸ“‹ CA Convention vs CA Total Magasin")
             display_cols = ["Magasin", "CA N", "CA Total Magasin", "Poids %", "Evolution %"]
             available = [c for c in display_cols if c in ca_mag.columns]
             st.dataframe(
                 ca_mag[available].head(30).style.format(
                     {"CA N": "{:,.0f}", "CA Total Magasin": "{:,.0f}", "Poids %": "{:.1f}%", "Evolution %": "{:+.1f}%"},
-                    na_rep="—"
+                    na_rep="â€”"
                 ),
-                width="stretch",
+                use_container_width=True,
                 height=400,
             )
             
@@ -1818,21 +1818,21 @@ with tabs[3]:
                 if "Enseigne" in _base_n.columns:
                     by_ense = _base_n.groupby("Enseigne")["Montant TTC"].sum()
                     fig_ense = px.pie(values=by_ense.values, names=by_ense.index, 
-                                     title="Répartition CA par Enseigne", hole=0.4)
+                                     title="RÃ©partition CA par Enseigne", hole=0.4)
                     fig_ense.update_traces(textinfo="percent+label")
-                    st.plotly_chart(fig_ense, width="stretch")
+                    st.plotly_chart(fig_ense, use_container_width=True)
             
             with col_ense2:
-                if "Type vente à crédit" in _base_n.columns:
-                    by_type = _base_n.groupby("Type vente à crédit")["Montant TTC"].sum()
+                if "Type vente Ã  crÃ©dit" in _base_n.columns:
+                    by_type = _base_n.groupby("Type vente Ã  crÃ©dit")["Montant TTC"].sum()
                     by_type = by_type[by_type > 0]
-                    fig_type = px.bar(by_type.reset_index(), x="Type vente à crédit", y="Montant TTC",
+                    fig_type = px.bar(by_type.reset_index(), x="Type vente Ã  crÃ©dit", y="Montant TTC",
                                     title="CA par Type de vente", text_auto=".0f", color="Montant TTC",
                                     color_continuous_scale=["#1D4ED8", "#3B82F6"])
-                    st.plotly_chart(fig_type, width="stretch")
+                    st.plotly_chart(fig_type, use_container_width=True)
 
-            with st.expander("📋 Données complètes"):
-                st.dataframe(ca_mag.rename(columns={"CA N": f"CA {annee_sel}", "CA N-1": f"CA {annee_sel-1}"}), width="stretch")
+            with st.expander("ðŸ“‹ DonnÃ©es complÃ¨tes"):
+                st.dataframe(ca_mag.rename(columns={"CA N": f"CA {annee_sel}", "CA N-1": f"CA {annee_sel-1}"}), use_container_width=True)
 
         else:
             # ===== VUE DETAILLEE PAR MAGASIN =====
@@ -1841,7 +1841,7 @@ with tabs[3]:
             
             enseigne = store_n["Enseigne"].iloc[0] if "Enseigne" in store_n.columns and len(store_n) > 0 else "N/A"
             
-            st.markdown(f"## 🏪 {selected_store} <span style='background-color:#1D4ED8;color:white;padding:2px 8px;border-radius:4px;font-size:12px'>{enseigne}</span>", unsafe_allow_html=True)
+            st.markdown(f"## ðŸª {selected_store} <span style='background-color:#1D4ED8;color:white;padding:2px 8px;border-radius:4px;font-size:12px'>{enseigne}</span>", unsafe_allow_html=True)
             
             # === KPIs GLOBAUX ===
             ca_n = store_n["Montant TTC"].sum() if len(store_n) > 0 else 0
@@ -1851,11 +1851,11 @@ with tabs[3]:
             panier_moy = ca_n / nb_fact if nb_fact > 0 else 0
             
             k1, k2, k3, k4, k5 = st.columns(5)
-            k1.metric(f"💰 CA {annee_sel}", f"{ca_n:,.0f} TND", f"{evol_ca:+.1f}%", delta_color="normal" if evol_ca >= 0 else "inverse")
-            k2.metric(f"📅 CA {annee_sel-1}", f"{ca_n1:,.0f} TND")
-            k3.metric("🧾 Factures", nb_fact)
-            k4.metric("📊 Panier moyen", f"{panier_moy:,.0f} TND")
-            k5.metric("🏷️ Enseigne", enseigne)
+            k1.metric(f"ðŸ’° CA {annee_sel}", f"{ca_n:,.0f} TND", f"{evol_ca:+.1f}%", delta_color="normal" if evol_ca >= 0 else "inverse")
+            k2.metric(f"ðŸ“… CA {annee_sel-1}", f"{ca_n1:,.0f} TND")
+            k3.metric("ðŸ§¾ Factures", nb_fact)
+            k4.metric("ðŸ“Š Panier moyen", f"{panier_moy:,.0f} TND")
+            k5.metric("ðŸ·ï¸ Enseigne", enseigne)
 
             # === CA MENSUEL ===
             if "Mois" in store_n.columns:
@@ -1870,26 +1870,26 @@ with tabs[3]:
                                      title=f"CA Mensuel {annee_sel} vs {annee_sel-1}", barmode="group",
                                      text_auto=".0f", color_discrete_map={"Montant TTC": "#1D4ED8", f"CA {annee_sel-1}": "#94A3B8"})
                     fig_mens.update_layout(height=280)
-                    st.plotly_chart(fig_mens, width="stretch")
+                    st.plotly_chart(fig_mens, use_container_width=True)
                 
                 with col_chart2:
                     ca_cum = store_n.groupby("Mois")["Montant TTC"].sum().cumsum().reset_index()
                     ca_cum["Mois_nom"] = ca_cum["Mois"].map(MOIS)
                     fig_cum = px.line(ca_cum, x="Mois_nom", y="Montant TTC", 
-                                     title=f"CA Cumulé {annee_sel}", markers=True)
+                                     title=f"CA CumulÃ© {annee_sel}", markers=True)
                     fig_cum.update_traces(line_color="#1D4ED8", line_width=3)
                     fig_cum.update_layout(height=280)
-                    st.plotly_chart(fig_cum, width="stretch")
+                    st.plotly_chart(fig_cum, use_container_width=True)
 
             st.markdown("---")
             
             # === CONVENTIONS ===
-            st.markdown("### 🏛️ Analyse des Conventions")
+            st.markdown("### ðŸ›ï¸ Analyse des Conventions")
             
-            if "Type vente à crédit" in store_n.columns:
+            if "Type vente Ã  crÃ©dit" in store_n.columns:
                 # Trouver les types qui contiennent "CONV" ou "CONVENTION"
-                conv_mask_n = store_n["Type vente à crédit"].fillna("").str.upper().str.contains("CONV")
-                conv_mask_n1 = store_n1["Type vente à crédit"].fillna("").str.upper().str.contains("CONV")
+                conv_mask_n = store_n["Type vente Ã  crÃ©dit"].fillna("").str.upper().str.contains("CONV")
+                conv_mask_n1 = store_n1["Type vente Ã  crÃ©dit"].fillna("").str.upper().str.contains("CONV")
                 
                 conv_n = store_n[conv_mask_n]
                 conv_n1 = store_n1[conv_mask_n1]
@@ -1901,10 +1901,10 @@ with tabs[3]:
                 panier_conv = ca_conv / nb_conv if nb_conv > 0 else 0
                 
                 c1, c2, c3, c4 = st.columns(4)
-                c1.metric("🏛️ Nb Conventions", nb_conv)
-                c2.metric("💰 CA Conventions", f"{ca_conv:,.0f} TND", f"{evol_conv:+.1f}%" if ca_conv > 0 else None, delta_color="normal" if evol_conv >= 0 else "inverse")
-                c3.metric("📅 CA N-1", f"{ca_conv_n1:,.0f} TND")
-                c4.metric("📊 Panier moyen", f"{panier_conv:,.0f} TND" if nb_conv > 0 else "0 TND")
+                c1.metric("ðŸ›ï¸ Nb Conventions", nb_conv)
+                c2.metric("ðŸ’° CA Conventions", f"{ca_conv:,.0f} TND", f"{evol_conv:+.1f}%" if ca_conv > 0 else None, delta_color="normal" if evol_conv >= 0 else "inverse")
+                c3.metric("ðŸ“… CA N-1", f"{ca_conv_n1:,.0f} TND")
+                c4.metric("ðŸ“Š Panier moyen", f"{panier_conv:,.0f} TND" if nb_conv > 0 else "0 TND")
                 
                 # Top 10 Conventions
                 if "Nom" in conv_n.columns:
@@ -1912,15 +1912,15 @@ with tabs[3]:
                     if len(top_conv) > 0:
                         df_top = pd.DataFrame({"Convention": top_conv.index, "CA": top_conv.values})
                         fig_top_conv = px.bar(df_top, x="CA", y="Convention", orientation="h",
-                                            title=f"🏆 Top 10 Conventions - {selected_store}", text_auto=".0f",
+                                            title=f"ðŸ† Top 10 Conventions - {selected_store}", text_auto=".0f",
                                             color="CA", color_continuous_scale=["#1D4ED8", "#3B82F6", "#60A5FA"])
                         fig_top_conv.update_layout(height=320, yaxis=dict(autorange="reversed"))
-                        st.plotly_chart(fig_top_conv, width="stretch")
+                        st.plotly_chart(fig_top_conv, use_container_width=True)
 
             st.markdown("---")
             
             # === CREDIT CONSO === (using separate file)
-            st.markdown("### 💳 Credit Conso")
+            st.markdown("### ðŸ’³ Credit Conso")
             
             # Use df_credit for Credit Conso data
             if "Unite Code" in df_credit.columns:
@@ -1936,16 +1936,16 @@ with tabs[3]:
                         code_strs_with_float = [c + ".0" if not c.endswith(".0") else c for c in code_strs]
                         
                         # Match both formats
-                        cc_store_n = df_credit[((df_credit["Unite Code"].astype(str).str.strip().isin(code_strs)) | (df_credit["Unite Code"].astype(str).str.strip().isin(code_strs_with_float))) & (df_credit["Année"] == annee_sel)]
-                        cc_store_n1 = df_credit[((df_credit["Unite Code"].astype(str).str.strip().isin(code_strs)) | (df_credit["Unite Code"].astype(str).str.strip().isin(code_strs_with_float))) & (df_credit["Année"] == annee_sel - 1)]
+                        cc_store_n = df_credit[((df_credit["Unite Code"].astype(str).str.strip().isin(code_strs)) | (df_credit["Unite Code"].astype(str).str.strip().isin(code_strs_with_float))) & (df_credit["AnnÃ©e"] == annee_sel)]
+                        cc_store_n1 = df_credit[((df_credit["Unite Code"].astype(str).str.strip().isin(code_strs)) | (df_credit["Unite Code"].astype(str).str.strip().isin(code_strs_with_float))) & (df_credit["AnnÃ©e"] == annee_sel - 1)]
                     else:
-                        cc_store_n = df_credit[df_credit["Année"] == annee_sel] if selected_store == "Tous" else pd.DataFrame()
-                        cc_store_n1 = df_credit[df_credit["Année"] == annee_sel - 1]
+                        cc_store_n = df_credit[df_credit["AnnÃ©e"] == annee_sel] if selected_store == "Tous" else pd.DataFrame()
+                        cc_store_n1 = df_credit[df_credit["AnnÃ©e"] == annee_sel - 1]
                 else:
-                    cc_store_n = df_credit[df_credit["Année"] == annee_sel]
-                    cc_store_n1 = df_credit[df_credit["Année"] == annee_sel - 1]
+                    cc_store_n = df_credit[df_credit["AnnÃ©e"] == annee_sel]
+                    cc_store_n1 = df_credit[df_credit["AnnÃ©e"] == annee_sel - 1]
             else:
-                st.info("Données Credit Conso non disponibles")
+                st.info("DonnÃ©es Credit Conso non disponibles")
             
             # Apply month filter and date-to-date comparison
             if len(cc_store_n) > 0 and mois_sel:
@@ -1970,15 +1970,15 @@ with tabs[3]:
             panier_cc = ca_cc / nb_cc if nb_cc > 0 else 0
             
             cc1, cc2, cc3, cc4 = st.columns(4)
-            cc1.metric("💳 Nb Dossiers", nb_cc)
-            cc2.metric("💰 CA Credit Conso", f"{ca_cc:,.0f} TND", f"{evol_cc:+.1f}%" if ca_cc > 0 else None, delta_color="normal" if evol_cc >= 0 else "inverse")
-            cc3.metric("📅 CA N-1 (date à date)", f"{ca_cc_n1:,.0f} TND")
-            cc4.metric("📊 Panier moyen", f"{panier_cc:,.0f} TND" if nb_cc > 0 else "0 TND")
+            cc1.metric("ðŸ’³ Nb Dossiers", nb_cc)
+            cc2.metric("ðŸ’° CA Credit Conso", f"{ca_cc:,.0f} TND", f"{evol_cc:+.1f}%" if ca_cc > 0 else None, delta_color="normal" if evol_cc >= 0 else "inverse")
+            cc3.metric("ðŸ“… CA N-1 (date Ã  date)", f"{ca_cc_n1:,.0f} TND")
+            cc4.metric("ðŸ“Š Panier moyen", f"{panier_cc:,.0f} TND" if nb_cc > 0 else "0 TND")
 
             st.markdown("---")
             
             # === CREDIT PARTICULIER === (using separate file)
-            st.markdown("### 👤 Credit Particulier")
+            st.markdown("### ðŸ‘¤ Credit Particulier")
             
             # Use df_credit_part for Credit Particulier data (with filters applied)
             if "Magasin" in df_credit_part.columns:
@@ -1999,14 +1999,14 @@ with tabs[3]:
                     store_code = None
                 
                 if store_code and "Unite Code" in df_credit_part.columns:
-                    cp_store_n = df_credit_part[(df_credit_part["Unite Code"].astype(str).str.strip() == str(store_code)) & (df_credit_part["Année"] == annee_sel)]
-                    cp_store_n1 = df_credit_part[(df_credit_part["Unite Code"].astype(str).str.strip() == str(store_code)) & (df_credit_part["Année"] == annee_sel - 1)]
+                    cp_store_n = df_credit_part[(df_credit_part["Unite Code"].astype(str).str.strip() == str(store_code)) & (df_credit_part["AnnÃ©e"] == annee_sel)]
+                    cp_store_n1 = df_credit_part[(df_credit_part["Unite Code"].astype(str).str.strip() == str(store_code)) & (df_credit_part["AnnÃ©e"] == annee_sel - 1)]
                 elif selected_store == "Tous":
-                    cp_store_n = df_credit_part[df_credit_part["Année"] == annee_sel]
-                    cp_store_n1 = df_credit_part[df_credit_part["Année"] == annee_sel - 1]
+                    cp_store_n = df_credit_part[df_credit_part["AnnÃ©e"] == annee_sel]
+                    cp_store_n1 = df_credit_part[df_credit_part["AnnÃ©e"] == annee_sel - 1]
                 else:
-                    cp_store_n = df_credit_part[(df_credit_part["Magasin"] == selected_store) & (df_credit_part["Année"] == annee_sel)]
-                    cp_store_n1 = df_credit_part[(df_credit_part["Magasin"] == selected_store) & (df_credit_part["Année"] == annee_sel - 1)]
+                    cp_store_n = df_credit_part[(df_credit_part["Magasin"] == selected_store) & (df_credit_part["AnnÃ©e"] == annee_sel)]
+                    cp_store_n1 = df_credit_part[(df_credit_part["Magasin"] == selected_store) & (df_credit_part["AnnÃ©e"] == annee_sel - 1)]
                 
                 # Apply month filter and date-to-date comparison
                 if mois_sel:
@@ -2030,17 +2030,17 @@ with tabs[3]:
                 panier_cp = ca_cp / nb_cp if nb_cp > 0 else 0
                 
                 cp1, cp2, cp3, cp4 = st.columns(4)
-                cp1.metric("👤 Nb Dossiers", nb_cp)
-                cp2.metric("💰 CA Credit Part.", f"{ca_cp:,.0f} TND", f"{evol_cp:+.1f}%" if ca_cp > 0 else None, delta_color="normal" if evol_cp >= 0 else "inverse")
-                cp3.metric("📅 CA N-1 (date à date)", f"{ca_cp_n1:,.0f} TND")
-                cp4.metric("📊 Panier moyen", f"{panier_cp:,.0f} TND" if nb_cp > 0 else "0 TND")
+                cp1.metric("ðŸ‘¤ Nb Dossiers", nb_cp)
+                cp2.metric("ðŸ’° CA Credit Part.", f"{ca_cp:,.0f} TND", f"{evol_cp:+.1f}%" if ca_cp > 0 else None, delta_color="normal" if evol_cp >= 0 else "inverse")
+                cp3.metric("ðŸ“… CA N-1 (date Ã  date)", f"{ca_cp_n1:,.0f} TND")
+                cp4.metric("ðŸ“Š Panier moyen", f"{panier_cp:,.0f} TND" if nb_cp > 0 else "0 TND")
             else:
-                st.info("Données Credit Particulier non disponibles")
+                st.info("DonnÃ©es Credit Particulier non disponibles")
 
             st.markdown("---")
             
             # === CONVENTION EDC === (using separate file)
-            st.markdown("### 🏫 Convention EDC")
+            st.markdown("### ðŸ« Convention EDC")
             
             # Use df_edc for EDC data
             edc_store_n = pd.DataFrame()
@@ -2053,11 +2053,11 @@ with tabs[3]:
                     code_strs = [str(c).strip() for c in store_codes]
                     code_strs_with_float = [c + ".0" if not c.endswith(".0") else c for c in code_strs]
                     
-                    edc_store_n = df_edc[((df_edc["Unite Code"].astype(str).str.strip().isin(code_strs)) | (df_edc["Unite Code"].astype(str).str.strip().isin(code_strs_with_float))) & (df_edc["Année"] == annee_sel)]
-                    edc_store_n1 = df_edc[((df_edc["Unite Code"].astype(str).str.strip().isin(code_strs)) | (df_edc["Unite Code"].astype(str).str.strip().isin(code_strs_with_float))) & (df_edc["Année"] == annee_sel - 1)]
+                    edc_store_n = df_edc[((df_edc["Unite Code"].astype(str).str.strip().isin(code_strs)) | (df_edc["Unite Code"].astype(str).str.strip().isin(code_strs_with_float))) & (df_edc["AnnÃ©e"] == annee_sel)]
+                    edc_store_n1 = df_edc[((df_edc["Unite Code"].astype(str).str.strip().isin(code_strs)) | (df_edc["Unite Code"].astype(str).str.strip().isin(code_strs_with_float))) & (df_edc["AnnÃ©e"] == annee_sel - 1)]
                 elif selected_store == "Tous":
-                    edc_store_n = df_edc[df_edc["Année"] == annee_sel]
-                    edc_store_n1 = df_edc[df_edc["Année"] == annee_sel - 1]
+                    edc_store_n = df_edc[df_edc["AnnÃ©e"] == annee_sel]
+                    edc_store_n1 = df_edc[df_edc["AnnÃ©e"] == annee_sel - 1]
             
             # Apply month filter and date-to-date comparison
             if mois_sel and len(edc_store_n) > 0:
@@ -2082,28 +2082,28 @@ with tabs[3]:
             panier_edc = ca_edc / nb_edc if nb_edc > 0 else 0
             
             edc1, edc2, edc3, edc4 = st.columns(4)
-            edc1.metric("🏫 Nb Dossiers", nb_edc)
-            edc2.metric("💰 CA Convention EDC", f"{ca_edc:,.0f} TND", f"{evol_edc:+.1f}%" if ca_edc > 0 else None, delta_color="normal" if evol_edc >= 0 else "inverse")
-            edc3.metric("📅 CA N-1 (date à date)", f"{ca_edc_n1:,.0f} TND")
-            edc4.metric("📊 Panier moyen", f"{panier_edc:,.0f} TND" if nb_edc > 0 else "0 TND")
+            edc1.metric("ðŸ« Nb Dossiers", nb_edc)
+            edc2.metric("ðŸ’° CA Convention EDC", f"{ca_edc:,.0f} TND", f"{evol_edc:+.1f}%" if ca_edc > 0 else None, delta_color="normal" if evol_edc >= 0 else "inverse")
+            edc3.metric("ðŸ“… CA N-1 (date Ã  date)", f"{ca_edc_n1:,.0f} TND")
+            edc4.metric("ðŸ“Š Panier moyen", f"{panier_edc:,.0f} TND" if nb_edc > 0 else "0 TND")
 
             # === DETAIL OPERATIONS ===
-            with st.expander("📄 Détail des opérations"):
-                cols_show = [c for c in store_n.columns if c in ["Date", "Mois", "Nom", "Montant TTC", "Type vente à crédit", "Enseigne"]]
-                st.dataframe(store_n[cols_show].sort_values("Date", ascending=False), width="stretch")
+            with st.expander("ðŸ“„ DÃ©tail des opÃ©rations"):
+                cols_show = [c for c in store_n.columns if c in ["Date", "Mois", "Nom", "Montant TTC", "Type vente Ã  crÃ©dit", "Enseigne"]]
+                st.dataframe(store_n[cols_show].sort_values("Date", ascending=False), use_container_width=True)
 
 
-# ══════════════════════════════════════════════════════════════
-# TAB 4 — EDC
-# ══════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# TAB 4 â€” EDC
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 with tabs[4]:
-    st.subheader("🏫 Convention EDC — Ministère de l'Éducation")
+    st.subheader("ðŸ« Convention EDC â€” MinistÃ¨re de l'Ã‰ducation")
 
-    if not df_edc.empty and "Année" in df_edc.columns:
-        edc_yr = st.selectbox("Année", [2026, 2025, 2024], key="edc_yr")
+    if not df_edc.empty and "AnnÃ©e" in df_edc.columns:
+        edc_yr = st.selectbox("AnnÃ©e", [2026, 2025, 2024], key="edc_yr")
 
-        df_edc_n  = df_edc[df_edc["Année"] == edc_yr]
-        df_edc_n1 = df_edc[df_edc["Année"] == edc_yr - 1]
+        df_edc_n  = df_edc[df_edc["AnnÃ©e"] == edc_yr]
+        df_edc_n1 = df_edc[df_edc["AnnÃ©e"] == edc_yr - 1]
         
         # Date-to-date comparison for EDC tab
         if len(df_edc_n) > 0 and "Jour" in df_edc_n.columns and len(df_edc_n1) > 0:
@@ -2128,7 +2128,7 @@ with tabs[4]:
         e3.metric("Nb factures", nb_f_edc)
         e4.metric("Panier moyen", f"{panier_e:,.0f} TND")
 
-        section("Répartition par durée d'échéance")
+        section("RÃ©partition par durÃ©e d'Ã©chÃ©ance")
         if "Nbr_Mois_Echance" in df_edc.columns:
             ech = (
                 df_edc_n.groupby("Nbr_Mois_Echance")
@@ -2143,69 +2143,69 @@ with tabs[4]:
             with col_ec1:
                 fig_ech = chart_bar(
                     ech, "Nbr_Mois_Echance", "CA",
-                    f"Répartition par durée d'échéance — {edc_yr}", C["blue"],
+                    f"RÃ©partition par durÃ©e d'Ã©chÃ©ance â€” {edc_yr}", C["blue"],
                 )
-                fig_ech.update_xaxes(title="Durée (mois)", type="category")
+                fig_ech.update_xaxes(title="DurÃ©e (mois)", type="category")
                 fig_ech.update_yaxes(title="CA TTC (TND)")
                 # Overlay % labels
                 fig_ech.update_traces(text=ech["Label"].tolist(), textposition="outside")
-                st.plotly_chart(fig_ech, width="stretch")
+                st.plotly_chart(fig_ech, use_container_width=True)
 
             with col_ec2:
                 fig_pie_e = chart_pie(
                     ech["CA"].tolist(),
                     [f"{m} mois" for m in ech["Nbr_Mois_Echance"]],
-                    "Part par échéance",
+                    "Part par Ã©chÃ©ance",
                 )
-                st.plotly_chart(fig_pie_e, width="stretch")
+                st.plotly_chart(fig_pie_e, use_container_width=True)
 
         section("Tendance mensuelle EDC")
         df_edc_comp = compare_years(df_edc, edc_yr, edc_yr - 1)
         if not df_edc_comp.empty:
             fig_edc_t = chart_grouped_bar(
                 df_edc_comp, "Mois Nom", "CA N", "CA N-1",
-                f"EDC mensuel — {edc_yr} vs {edc_yr-1}", edc_yr,
+                f"EDC mensuel â€” {edc_yr} vs {edc_yr-1}", edc_yr,
             )
-            st.plotly_chart(fig_edc_t, width="stretch")
+            st.plotly_chart(fig_edc_t, use_container_width=True)
     else:
-        st.warning("⚠️ Aucune donnée EDC disponible.")
+        st.warning("âš ï¸ Aucune donnÃ©e EDC disponible.")
 
 
-# ══════════════════════════════════════════════════════════════
-# TAB 5 — ALERTES & RISQUES
-# ══════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# TAB 5 â€” ALERTES & RISQUES
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 with tabs[5]:
 
     section("Tableau de bord des risques")
 
-    # ── Résumé badges ─────────────────────────────────────────
+    # â”€â”€ RÃ©sumÃ© badges â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     b1, b2, b3, b4 = st.columns(4)
-    b1.metric("🔴 Déclin fort (>-20%)",  nb_declin_fort)
-    b2.metric("⬛ Conventions inactives", nb_inactif_cv)
-    b3.metric(f"⚠️ En inactivité >{seuil_inactif}j", nb_inact)
-    b4.metric("🟢 En croissance",         nb_croissance)
+    b1.metric("ðŸ”´ DÃ©clin fort (>-20%)",  nb_declin_fort)
+    b2.metric("â¬› Conventions inactives", nb_inactif_cv)
+    b3.metric(f"âš ï¸ En inactivitÃ© >{seuil_inactif}j", nb_inact)
+    b4.metric("ðŸŸ¢ En croissance",         nb_croissance)
 
-    # ── Inactivité ──────────────────────────────────────────────
-    section(f"Conventions à réactiver — inactivité > {seuil_inactif} jours")
+    # â”€â”€ InactivitÃ© â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    section(f"Conventions Ã  rÃ©activer â€” inactivitÃ© > {seuil_inactif} jours")
 
     if not df_inactive.empty:
         fig_ia = chart_inactive_bar(
             df_inactive,
-            f"Conventions inactives — {len(df_inactive)} comptes sans facture depuis >{seuil_inactif}j",
+            f"Conventions inactives â€” {len(df_inactive)} comptes sans facture depuis >{seuil_inactif}j",
         )
-        st.plotly_chart(fig_ia, width="stretch")
+        st.plotly_chart(fig_ia, use_container_width=True)
 
-        with st.expander(f"📋 Liste complète ({len(df_inactive)} conventions)"):
-            st.dataframe(df_inactive, width="stretch")
+        with st.expander(f"ðŸ“‹ Liste complÃ¨te ({len(df_inactive)} conventions)"):
+            st.dataframe(df_inactive, use_container_width=True)
     else:
-        st.success(f"✅ Aucune convention inactive détectée (seuil : {seuil_inactif} jours).")
+        st.success(f"âœ… Aucune convention inactive dÃ©tectÃ©e (seuil : {seuil_inactif} jours).")
 
-    # ── Conventions en déclin ──────────────────────────────────
-    section("Conventions en déclin — Analyse des pertes")
+    # â”€â”€ Conventions en dÃ©clin â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    section("Conventions en dÃ©clin â€” Analyse des pertes")
 
     if not risk_mat.empty:
         declining = risk_mat[
-            risk_mat["Statut"].isin(["🔴 Déclin fort", "🟡 Déclin"])
+            risk_mat["Statut"].isin(["ðŸ”´ DÃ©clin fort", "ðŸŸ¡ DÃ©clin"])
         ].copy()
         declining["Perte TND"] = (declining["CA N-1"] - declining["CA N"]).clip(lower=0)
         declining = declining.sort_values("Perte TND", ascending=False)
@@ -2217,40 +2217,40 @@ with tabs[5]:
                     declining.head(15), "Perte TND", "Nom",
                     "Perte CA vs N-1 (TND)", C["red"], h=460, orientation="h",
                 )
-                st.plotly_chart(fig_perte, width="stretch")
+                st.plotly_chart(fig_perte, use_container_width=True)
             else:
-                st.success("✅ Aucune convention en déclin.")
+                st.success("âœ… Aucune convention en dÃ©clin.")
 
         with col_d2:
             if not declining.empty:
                 fig_dec_pct = chart_variation_bar(
-                    declining.head(15), "Nom", "Évolution %",
-                    "Variation % — Conventions en déclin", h=460,
+                    declining.head(15), "Nom", "Ã‰volution %",
+                    "Variation % â€” Conventions en dÃ©clin", h=460,
                 )
-                st.plotly_chart(fig_dec_pct, width="stretch")
+                st.plotly_chart(fig_dec_pct, use_container_width=True)
 
-    # ── Opportunités ───────────────────────────────────────────
-    section("Opportunités — Conventions à fort potentiel")
+    # â”€â”€ OpportunitÃ©s â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    section("OpportunitÃ©s â€” Conventions Ã  fort potentiel")
 
     if not risk_mat.empty:
         opps = (
-            risk_mat[risk_mat["Statut"].isin(["🟢 Croissance", "🟢 Nouveau"])]
+            risk_mat[risk_mat["Statut"].isin(["ðŸŸ¢ Croissance", "ðŸŸ¢ Nouveau"])]
             .sort_values("CA N", ascending=False)
             .head(10)
         )
         if not opps.empty:
             fig_opp = chart_bar(
                 opps, "CA N", "Nom",
-                f"Top opportunités — CA {annee_sel}", C["green"], h=380, orientation="h",
+                f"Top opportunitÃ©s â€” CA {annee_sel}", C["green"], h=380, orientation="h",
             )
-            st.plotly_chart(fig_opp, width="stretch")
+            st.plotly_chart(fig_opp, use_container_width=True)
         else:
-            st.info("Aucune convention en croissance détectée pour cette période.")
+            st.info("Aucune convention en croissance dÃ©tectÃ©e pour cette pÃ©riode.")
 
 
-# ══════════════════════════════════════════════════════════════
-# TAB 6 — PILOTAGE PAR MAGASIN
-# ══════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# TAB 6 â€” PILOTAGE PAR MAGASIN
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 with tabs[6]:
     section("Pilotage par magasin")
 
@@ -2262,8 +2262,8 @@ with tabs[6]:
     # Mapping types
     TYPE_MAP = {
         "vc":    "Convention",
-        "vc_credit": "Crédit Conso UBCI",
-        "vc_part": "Crédit Particulier",
+        "vc_credit": "CrÃ©dit Conso UBCI",
+        "vc_part": "CrÃ©dit Particulier",
         "vc_edc": "EDC",
     }
 
@@ -2325,10 +2325,10 @@ with tabs[6]:
         df_consol = pd.DataFrame()
 
     if df_consol.empty:
-        st.warning("⚠️ Aucune donnée disponible.")
+        st.warning("âš ï¸ Aucune donnÃ©e disponible.")
     else:
         # Add date columns
-        df_consol["Année"] = df_consol["_date"].dt.year
+        df_consol["AnnÃ©e"] = df_consol["_date"].dt.year
         df_consol["Mois"] = df_consol["_date"].dt.month
         df_consol["JMois"] = df_consol["_date"].dt.to_period("M").astype(str)
 
@@ -2342,7 +2342,7 @@ with tabs[6]:
             min_d = df_consol["_date"].min()
             max_d = df_consol["_date"].max()
             if pd.notna(min_d) and pd.notna(max_d):
-                date_range = st.date_input("Période", value=(min_d.date(), max_d.date()))
+                date_range = st.date_input("PÃ©riode", value=(min_d.date(), max_d.date()))
                 date_deb, date_fin = date_range[0], date_range[1] if len(date_range) == 2 else (None, None)
             else:
                 date_deb, date_fin = None, None
@@ -2363,14 +2363,14 @@ with tabs[6]:
         df_f = df_f.dropna(subset=["_ca"])
 
         if df_f.empty:
-            st.info("Aucune transaction pour les filtres sélectionnés.")
+            st.info("Aucune transaction pour les filtres sÃ©lectionnÃ©s.")
         else:
             # === KPIs per type (same period) ===
             an  = int(annee_sel)
             an1 = an - 1
 
-            section("Répartition CA par type de financement")
-            ca_by_type = df_f[df_f["Année"] == an].groupby("_type")["_ca"].sum().reset_index()
+            section("RÃ©partition CA par type de financement")
+            ca_by_type = df_f[df_f["AnnÃ©e"] == an].groupby("_type")["_ca"].sum().reset_index()
             ca_by_type.columns = ["Type", "CA"]
             ca_by_type["%"] = (ca_by_type["CA"] / ca_by_type["CA"].sum() * 100).round(1)
             
@@ -2379,11 +2379,11 @@ with tabs[6]:
                 fig_pie = px.pie(ca_by_type, values="CA", names="Type", hole=0.4,
                                color_discrete_sequence=[C["blue"], C["green"], C["purple"], C["amber"]])
                 fig_pie.update_layout(margin=dict(l=20, r=20, t=30, b=20))
-                st.plotly_chart(fig_pie, width="stretch")
+                st.plotly_chart(fig_pie, use_container_width=True)
             with pc2:
-                st.dataframe(ca_by_type.rename(columns={"CA": "CA (TND)"}), width="stretch", use_container_width=True)
+                st.dataframe(ca_by_type.rename(columns={"CA": "CA (TND)"}), use_container_width=True, use_container_width=True)
 
-            section("CA par type — même période")
+            section("CA par type â€” mÃªme pÃ©riode")
 
             available_types = [t for t in TYPE_MAP.values() if t in df_f["_type"].unique()]
             col_types = st.columns(len(available_types)) if available_types else [st.columns(1)]
@@ -2392,14 +2392,14 @@ with tabs[6]:
                 with col_types[idx]:
                     st.markdown(f"### {type_label}")
                     if df_t.empty:
-                        st.info(f"Aucune donnée")
+                        st.info(f"Aucune donnÃ©e")
                         continue
 
                     # KPIs for this type
-                    ca_t   = df_t[df_t["Année"] == an]["_ca"].sum()
-                    ca_t1  = df_t[df_t["Année"] == an1]["_ca"].sum()
+                    ca_t   = df_t[df_t["AnnÃ©e"] == an]["_ca"].sum()
+                    ca_t1  = df_t[df_t["AnnÃ©e"] == an1]["_ca"].sum()
                     evo_t  = evol_pct(ca_t, ca_t1)
-                    nb_t   = len(df_t[df_t["Année"] == an])
+                    nb_t   = len(df_t[df_t["AnnÃ©e"] == an])
                     pan_t  = ca_t / nb_t if nb_t > 0 else 0
 
                     st.metric(f"CA {an}", f"{ca_t:,.0f} TND", f"{evo_t:+.1f}%")
@@ -2414,28 +2414,28 @@ with tabs[6]:
                         fig_p = px.pie(pie_data.head(10), values="CA", names="Magasin", hole=0.4,
                                      color_discrete_sequence=px.colors.qualitative.Set3)
                         fig_p.update_layout(margin=dict(l=10, r=10, t=20, b=10), height=300)
-                        st.plotly_chart(fig_p, width="stretch")
+                        st.plotly_chart(fig_p, use_container_width=True)
 
-            # Tableau détaillé
-            section("Tableau détaillé")
-            detail = df_f[df_f["Année"] == an].groupby(["_nom_mag", "_type"])["_ca"].sum().reset_index()
+            # Tableau dÃ©taillÃ©
+            section("Tableau dÃ©taillÃ©")
+            detail = df_f[df_f["AnnÃ©e"] == an].groupby(["_nom_mag", "_type"])["_ca"].sum().reset_index()
             detail.columns = ["Magasin", "Type", "CA"]
             detail["%"] = (detail["CA"] / detail["CA"].sum() * 100).round(2)
             detail = detail.sort_values("CA", ascending=False)
-            st.dataframe(detail, width="stretch", use_container_width=True)
+            st.dataframe(detail, use_container_width=True, use_container_width=True)
 
             csv = detail.to_csv(index=False).encode("utf-8")
-            st.download_button("📥 Export CSV", data=csv, file_name="pilotage_magasin.csv", mime="text/csv")
+            st.download_button("ðŸ“¥ Export CSV", data=csv, file_name="pilotage_magasin.csv", mime="text/csv")
 
 
-# ══════════════════════════════════════════════════════════════
-# TAB 7 — CONVENTIONS SMG (suivi, DSO, alertes, GPO)
-# ══════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# TAB 7 â€” CONVENTIONS SMG (suivi, DSO, alertes, GPO)
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 with tabs[7]:
 
-    st.markdown("### 📋 Pilotage Conventions SMG — GPO View")
+    st.markdown("### ðŸ“‹ Pilotage Conventions SMG â€” GPO View")
 
-    # ── Session state for conventions data ──
+    # â”€â”€ Session state for conventions data â”€â”€
     if "smg_convs" not in st.session_state:
         st.session_state.smg_convs = [
             {"ref":"CONV-2026-001","client":"SONEDE","scenario":3,"regime":"Classique","plafond":3000,"duree":18,"taux":0.75,"encours":1200,"ds":22,"statut":"Active","date_fin":"2027-07-15","contact":"H. Chkondali","notes":"Paiements OK"},
@@ -2461,13 +2461,13 @@ with tabs[7]:
     def util_pct(encours, plafond):
         return round(encours / plafond * 100, 1) if plafond > 0 else 0
 
-    # ── Refresh data ──
+    # â”€â”€ Refresh data â”€â”€
     df_smg = pd.DataFrame(st.session_state.smg_convs)
     df_smg["jrs_restants"] = df_smg["date_fin"].apply(jours_restants)
     df_smg["alerte"] = df_smg["jrs_restants"].apply(lambda j: niveau_alerte(j)[0])
     df_smg["util_pct"] = df_smg.apply(lambda r: util_pct(r["encours"], r["plafond"]), axis=1)
 
-    # ── Top KPIs ──
+    # â”€â”€ Top KPIs â”€â”€
     actives = df_smg[df_smg["statut"] == "Active"]
     alert_rouge = len(df_smg[df_smg["jrs_restants"].between(0, 30)])
     alert_jaune = len(df_smg[df_smg["jrs_restants"].between(31, 60)])
@@ -2483,7 +2483,7 @@ with tabs[7]:
     kpi5.metric("Alertes rouges", alert_rouge, delta_color="inverse")
     kpi6.metric("Alertes jaunes", alert_jaune, delta_color="off")
 
-    # ── Tableau de suivi ──
+    # â”€â”€ Tableau de suivi â”€â”€
     st.markdown("### Suivi des conventions")
     display_cols = {
         "ref": "Convention", "client": "Client", "scenario": "Sc.", "regime": "Regime",
@@ -2496,7 +2496,7 @@ with tabs[7]:
     df_display["Util.%"] = df_display["Util.%"].apply(lambda x: f"{x}%")
     st.dataframe(df_display, use_container_width=True, height=280)
 
-    # ── Alertes échéances ──
+    # â”€â”€ Alertes Ã©chÃ©ances â”€â”€
     st.markdown("### \U0001f514 Alertes echeances (prochains 90 jours)")
     alertes = df_smg[(df_smg["jrs_restants"] >= 0) & (df_smg["jrs_restants"] <= 90)].sort_values("jrs_restants")
     if len(alertes) > 0:
@@ -2507,7 +2507,7 @@ with tabs[7]:
     else:
         st.success("Aucune echeance dans les 90 jours.")
 
-    # ── Gestion rapide ──
+    # â”€â”€ Gestion rapide â”€â”€
     st.markdown("### \u2699\ufe0f Ajouter / Modifier une convention")
     with st.expander("Formulaire convention"):
         with st.form("smg_form"):
@@ -2541,16 +2541,16 @@ with tabs[7]:
                     st.session_state.smg_convs.append(entry)
                 st.rerun()
 
-    # ── Export CSV ──
+    # â”€â”€ Export CSV â”€â”€
     csv_data = df_display.to_csv(index=False).encode("utf-8")
     st.download_button("Exporter CSV", data=csv_data, file_name="conventions_smg.csv", mime="text/csv")
 
-# ── Footer ────────────────────────────────────────────────────
+# â”€â”€ Footer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 st.markdown("---")
 st.caption(
-    f"Dashboard B2B SMG — MG & BATAM  ·  "
-    f"Source : VC.CONV. Business Central  ·  "
-    f"Genere automatiquement  ·  "
+    f"Dashboard B2B SMG â€” MG & BATAM  Â·  "
+    f"Source : VC.CONV. Business Central  Â·  "
+    f"Genere automatiquement  Â·  "
     f"Filtres actifs: Annee {annee_sel} "
     + (f"| Mois: {', '.join([MOIS.get(m, str(m)) for m in mois_sel])} " if mois_sel else "")
     + (f"| Conv. {conv_sel}" if conv_sel != "Tous" else "")
