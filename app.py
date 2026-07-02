@@ -2586,7 +2586,25 @@ with tabs[8]:
         cols_show = ["Nom entreprise", "Statut pipeline", "Priorite relance", "Secteur", "Contact", "CA potentiel", "Date derniere activite"]
         cols_ok = [c for c in cols_show if c in df_crm.columns]
         df_disp = df_crm[cols_ok].sort_values("CA potentiel", ascending=False).head(15)
-        st.dataframe(df_disp, use_container_width=True, height=400)
+        ev = st.dataframe(df_disp, use_container_width=True, height=400,
+                          on_select="rerun", selection_mode="single-row")
+        sel = ev.selection.rows if hasattr(ev, 'selection') else []
+        if sel:
+            idx = sel[0]
+            client = df_crm.loc[df_disp.index[idx]]
+            nm = str(client.get("Nom entreprise", ""))
+            with st.container():
+                st.markdown(f"<div style='background:#f0f2f6;padding:1.2rem 1.5rem;border-radius:12px;margin-top:0.5rem'>"
+                            f"<h3 style='margin:0 0 1rem 0'>{nm}</h3>", unsafe_allow_html=True)
+                cx = st.columns(3)
+                cx[0].markdown(f"**Contact**<br>{client.get('Contact', '')}", unsafe_allow_html=True)
+                cx[1].markdown(f"**Telephone**<br>{client.get('Telephone', '')}", unsafe_allow_html=True)
+                cmt = str(client.get("Commentaire", ""))
+                if cmt and cmt != "nan" and cmt.strip():
+                    cx[2].markdown(f"**Commentaire**<br>{cmt}", unsafe_allow_html=True)
+                else:
+                    cx[2].markdown("**Commentaire**<br>—", unsafe_allow_html=True)
+                st.markdown("</div>", unsafe_allow_html=True)
     else:
         st.info("CRM desactive. Verifiez TDC2.xlsx et crm.py")
 # ── Footer ────────────────────────────────────────────────────
