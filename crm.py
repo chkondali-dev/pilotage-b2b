@@ -1,5 +1,4 @@
 import pandas as pd
-import xlwings as xw
 from pathlib import Path
 import unicodedata
 import warnings
@@ -138,6 +137,7 @@ def load_crm_data(source=None):
     return df
 
 def export_to_excel(df):
+    import xlwings as xw
     app = xw.App(visible=False)
     try:
         wb = app.books.open(str(DST))
@@ -166,6 +166,7 @@ def _pt(ws, cache, name, rows, values, pos):
         pf = pt.PivotFields(vf); pt.AddDataField(pf, vn, vfn)
 
 def create_pivot_tables():
+    import xlwings as xw
     app = xw.App(visible=False)
     try:
         wb = app.books.open(str(DST))
