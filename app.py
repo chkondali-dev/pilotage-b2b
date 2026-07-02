@@ -1227,6 +1227,7 @@ tabs = st.tabs([
     "ðŸ”” Alertes & Risques",
     "ðŸ¬ Pilotage par magasin",
     "ðŸ“‹ Conventions SMG",
+    "🤝 CRM",
 ])
 
 # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -2381,7 +2382,7 @@ with tabs[6]:
                 fig_pie.update_layout(margin=dict(l=20, r=20, t=30, b=20))
                 st.plotly_chart(fig_pie, use_container_width=True)
             with pc2:
-                st.dataframe(ca_by_type.rename(columns={"CA": "CA (TND)"}), use_container_width=True, use_container_width=True)
+                st.dataframe(ca_by_type.rename(columns={"CA": "CA (TND)"}), use_container_width=True)
 
             section("CA par type â€” mÃªme pÃ©riode")
 
@@ -2422,7 +2423,7 @@ with tabs[6]:
             detail.columns = ["Magasin", "Type", "CA"]
             detail["%"] = (detail["CA"] / detail["CA"].sum() * 100).round(2)
             detail = detail.sort_values("CA", ascending=False)
-            st.dataframe(detail, use_container_width=True, use_container_width=True)
+            st.dataframe(detail, use_container_width=True)
 
             csv = detail.to_csv(index=False).encode("utf-8")
             st.download_button("ðŸ“¥ Export CSV", data=csv, file_name="pilotage_magasin.csv", mime="text/csv")
@@ -2545,6 +2546,58 @@ with tabs[7]:
     csv_data = df_display.to_csv(index=False).encode("utf-8")
     st.download_button("Exporter CSV", data=csv_data, file_name="conventions_smg.csv", mime="text/csv")
 
+
+# --- CRM ---
+with tabs[8]:
+    try:
+        import sys as _cs, os as _co, importlib as _ci
+        _cp = _co.path.join(_co.path.dirname(__file__), "crm.py")
+        if not _co.path.exists(_cp):
+            df_crm = None; st.info("crm.py absent")
+        else:
+            _spec = _ci.util.spec_from_file_location("crm_mod", _cp)
+            _crm = _ci.util.module_from_spec(_spec)
+            _spec.loader.exec_module(_crm)
+            _r2 = requests.get(GITHUB_RAW + "TDC2.xlsx", timeout=30)
+            if _r2.status_code == 200:
+                df_crm = _crm.load_crm_data(source=BytesIO(_r2.content))
+            else:
+                df_crm = None; st.warning("TDC2.xlsx introuvable sur GitHub")
+    except Exception as _ec:
+        st.warning(f"CRM: {_ec}")
+        df_crm = None
+
+    if df_crm is not None and len(df_crm) > 0:
+        # KPIs
+        k1, k2, k3, k4 = st.columns(4)
+        k1.metric("Total prospects", len(df_crm))
+        en_cours = len(df_crm[df_crm["Statut pipeline"]=="En cours"])
+        k2.metric("En cours", en_cours)
+        cloture = len(df_crm[df_crm["Statut pipeline"]=="Cloture"])
+        k3.metric("Cloturees", cloture)
+        ca_pot = df_crm["CA potentiel"].sum()
+        k4.metric("CA potentiel", str(round(ca_pot)) + " TND")
+
+        col1, col2 = st.columns(2)
+        with col1:
+            pipe = df_crm["Statut pipeline"].value_counts().reset_index()
+            pipe.columns = ["Statut", "Nb"]
+            fig_pipe = px.bar(pipe, x="Statut", y="Nb", color="Statut", title="Pipeline Commercial", text_auto=True, height=350)
+            fig_pipe.update_layout(showlegend=False)
+            st.plotly_chart(fig_pipe, use_container_width=True)
+        with col2:
+            prio = df_crm["Priorite relance"].value_counts().reset_index()
+            prio.columns = ["Priorite", "Nb"]
+            fig_prio = px.pie(prio, values="Nb", names="Priorite", title="Priorites Relance", height=350, hole=0.4)
+            st.plotly_chart(fig_prio, use_container_width=True)
+
+        st.markdown("<div class='sec-hdr'>TOP Prospects</div>", unsafe_allow_html=True)
+        cols_show = ["Nom entreprise", "Statut pipeline", "Priorite relance", "Secteur", "Contact", "CA potentiel", "Date derniere activite"]
+        cols_ok = [c for c in cols_show if c in df_crm.columns]
+        df_disp = df_crm[cols_ok].sort_values("CA potentiel", ascending=False).head(15)
+        st.dataframe(df_disp, use_container_width=True, height=400)
+    else:
+        st.info("CRM desactive. Verifiez TDC2.xlsx et crm.py")
 # â”€â”€ Footer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 st.markdown("---")
 st.caption(
