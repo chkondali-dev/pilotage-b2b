@@ -1591,7 +1591,7 @@ with tabs[2]:
         diag = risk_mat.copy()
         # Add Magasin column from source data
         if "Magasin" in df_vc_filt.columns:
-            mag_map = df_vc_filt.groupby("Nom")["Magasin"].agg(lambda x: ", ".join(sorted(x.unique()))).to_dict()
+            mag_map = df_vc_filt.groupby("Nom")["Magasin"].agg(lambda x: ", ".join(sorted(x.dropna().unique()))).to_dict()
             diag["Magasin"] = diag["Nom"].map(mag_map)
         diag = diag.sort_values("Évolution %", ascending=False).reset_index(drop=True)
         diag.index = diag.index + 1
