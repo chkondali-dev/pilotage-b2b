@@ -1601,7 +1601,7 @@ with tabs[2]:
     # ── Analyse individuelle ───────────────────────────────
     section("Analyse individuelle par convention")
 
-    all_convs = sorted(df_vc_filt["Nom"].dropna().unique().tolist()) if "Nom" in df_vc_filt.columns else []
+    all_convs = sorted(df_vc["Nom"].dropna().unique().tolist()) if "Nom" in df_vc.columns else []
     
     conv_detail = st.selectbox("Sélectionner une convention", all_convs, index=0) if all_convs else None
     
