@@ -2340,7 +2340,7 @@ with tabs[5]:
                         fig_p = px.pie(pie_data.head(10), values="CA", names="Magasin", hole=0.4,
                                      color_discrete_sequence=px.colors.qualitative.Set3)
                         fig_p.update_layout(margin=dict(l=10, r=10, t=20, b=10), height=300)
-                        st.plotly_chart(fig_p, use_container_width=True)
+                        st.plotly_chart(fig_p, use_container_width=True, key=f"mag_pie_{type_label}")
 
             # Tableau détaillé
             section("Tableau détaillé")
