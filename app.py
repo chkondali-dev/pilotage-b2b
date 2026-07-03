@@ -1584,7 +1584,21 @@ with tabs[2]:
             })
             st.dataframe(disp, use_container_width=True)
 
-    # ── Analyse individuelle ─���─���───────────────────────────────
+    # ── Diagnostic IA ───────────────────────────────
+    section("Analyse par Convention - Diagnostic IA")
+    
+    if not risk_mat.empty:
+        diag = risk_mat.copy()
+        # Add Magasin column from source data
+        if "Magasin" in df_vc_filt.columns:
+            mag_map = df_vc_filt.groupby("Nom")["Magasin"].agg(lambda x: ", ".join(sorted(x.unique()))).to_dict()
+            diag["Magasin"] = diag["Nom"].map(mag_map)
+        diag = diag.sort_values("Évolution %", ascending=False).reset_index(drop=True)
+        diag.index = diag.index + 1
+        diag.index.name = "#"
+        st.dataframe(diag, use_container_width=True, height=400)
+
+    # ── Analyse individuelle ───────────────────────────────
     section("Analyse individuelle par convention")
 
     all_convs = sorted(df_vc_filt["Nom"].dropna().unique().tolist()) if "Nom" in df_vc_filt.columns else []
