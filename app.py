@@ -1640,15 +1640,24 @@ with tabs[3]:
             ca_mag_n  = _base_n.groupby("Magasin")["Montant TTC"].sum().rename("CA N")
             ca_mag_n1 = _base_n1.groupby("Magasin")["Montant TTC"].sum().rename("CA N-1")
             ca_mag = pd.concat([ca_mag_n, ca_mag_n1], axis=1).fillna(0).reset_index()
-            ca_mag["Evolution %"] = ((ca_mag["CA N"] - ca_mag["CA N-1"]) / ca_mag["CA N-1"].replace(0, 1) * 100).round(1)
+
+            # Correction : évite replace(0,1) qui donne des % aberrants quand N-1=0
+            ca_mag["Evolution %"] = np.where(
+                ca_mag["CA N-1"] > 0,
+                ((ca_mag["CA N"] - ca_mag["CA N-1"]) / ca_mag["CA N-1"] * 100).round(1),
+                0.0
+            )
 
             if not df_cube_mag.empty and "Magasin" in df_cube_mag.columns:
                 cube_agg = df_cube_mag.groupby("Magasin")["CA Magasin"].sum().reset_index()
                 cube_agg.columns = ["Magasin", "CA Total Magasin"]
                 ca_mag = ca_mag.merge(cube_agg, on="Magasin", how="left").fillna(0)
-                ca_mag["Poids %"] = (ca_mag["CA N"] / ca_mag["CA Total Magasin"] * 100).round(1).replace([float("inf"), float("-inf")], 0).fillna(0)
             else:
-                ca_mag[["CA Total Magasin", "Poids %"]] = 0, 0
+                ca_mag["CA Total Magasin"] = 0
+
+            # Correction : poids = part de chaque magasin dans le CA N total du portefeuille
+            total_n = ca_mag["CA N"].sum()
+            ca_mag["Poids %"] = (ca_mag["CA N"] / total_n * 100).round(1) if total_n > 0 else 0.0
 
             ca_mag = ca_mag.sort_values("CA N", ascending=False)
             simple_sum = _base_n["Montant TTC"].sum()
@@ -1696,11 +1705,11 @@ with tabs[3]:
                     st.plotly_chart(fig_type, use_container_width=True)
 
             with st.expander("📋 Tableau complet des magasins"):
-                display_cols = ["Magasin", "CA N", "CA Total Magasin", "Poids %", "Evolution %"]
+                display_cols = ["Magasin", "CA N", "Poids %", "Evolution %"]
                 available = [c for c in display_cols if c in ca_mag.columns]
                 st.dataframe(
                     ca_mag[available].style.format(
-                        {"CA N": "{:,.0f}", "CA Total Magasin": "{:,.0f}", "Poids %": "{:.1f}%", "Evolution %": "{:+.1f}%"},
+                        {"CA N": "{:,.0f}", "Poids %": "{:.1f}%", "Evolution %": "{:+.1f}%"},
                         na_rep="—"
                     ), use_container_width=True, height=400
                 )
