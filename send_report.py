@@ -17,7 +17,7 @@ EMAIL_FROM = "Hamadi.Chkondali@SMG.com.tn"
 EMAIL_TO = ["Hamadi.Chkondali@SMG.com.tn"]
 SMTP_SERVER = "mail.SMG.com.tn"
 SMTP_PORT = 587
-EMAIL_PASSWORD = "Azerty@4321!!!"
+EMAIL_PASSWORD = os.getenv("SMG_EMAIL_PASSWORD", "Azerty@4321!!!")
 
 GITHUB_RAW = "https://raw.githubusercontent.com/chkondali-dev/pilotage-b2b/main/2025/"
 
