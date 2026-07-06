@@ -12,7 +12,6 @@ import requests
 import subprocess
 import sys
 import os
-import glob
 from io import BytesIO
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -65,6 +64,10 @@ MOIS = {
     9: "Sep", 10:"Oct",  11:"Nov", 12:"Déc",
 }
 
+# ─── Noms individuels détectés dans la colonne `Nom` (erreurs de saisie) ──
+# Ces entrées doivent être exclues des vues "Convention".
+NOMS_INDIVIDUELS = {"AHMED ABIDI", "AMARA MISSAOUI", "BILEL BEN AMMAR", "MED KAIS SMAILI"}
+
 # ══════════════════════════════════════════════════════════════
 # SECTION 2 — DATA LOADING  (cache agressif)
 # ══════════════════════════════════════════════════════════════
@@ -99,6 +102,13 @@ def _clean(df: pd.DataFrame) -> pd.DataFrame:
     for col in df.select_dtypes("object").columns:
         df[col] = df[col].astype(str).str.strip()
     return df
+
+
+def _filter_conventions(df: pd.DataFrame) -> pd.DataFrame:
+    """Exclut les entrées avec des noms individuels dans la colonne Convention."""
+    if df.empty or "Nom" not in df.columns:
+        return df
+    return df[~df["Nom"].str.upper().str.strip().isin(NOMS_INDIVIDUELS)].copy()
 
 
 # ══════════════════════════════════════════════════════════════
@@ -162,103 +172,6 @@ def _map_magasins(df: pd.DataFrame, code_df: pd.DataFrame) -> pd.DataFrame:
     df["Enseigne"] = df[code_col_src].map(mapping_ense).fillna("MG")
     
     return df
-    
-    df = df.copy()
-    df["Enseigne"] = "MG"
-    df["Magasin"] = "Inconnu"
-    
-    if code_df.empty:
-        return df
-    
-    code_df = code_df.copy()
-    code_df.columns = [c.strip() for c in code_df.columns]
-    
-    # Code Navision dans le df source
-    code_col_src = next((c for c in df.columns if "navision" in c.lower()), None)
-    if not code_col_src:
-        return df
-    
-    # Code Navision dans code_df (col 0)
-    code_col = code_df.columns[0]
-    # Unite (col 2) - le nom du magasin
-    name_col = code_df.columns[2] if len(code_df.columns) > 2 else code_df.columns[1]
-    
-    def get_ense(unit):
-        s = str(unit).upper()
-        return "BATAM" if ("BATAM" in s or "BTM" in s) else "MG"
-    
-    code_df["Enseigne"] = code_df[name_col].apply(get_ense)
-    
-    # Normaliser les codes
-    code_df[code_col] = code_df[code_col].astype(str).str.strip()
-    df[code_col_src] = df[code_col_src].astype(str).str.strip()
-    
-    mapping_nom = code_df.set_index(code_col)[name_col].to_dict()
-    mapping_ense = code_df.set_index(code_col)["Enseigne"].to_dict()
-    
-    df["Magasin"] = df[code_col_src].map(mapping_nom).fillna(df[code_col_src])
-    df["Enseigne"] = df[code_col_src].map(mapping_ense).fillna("MG")
-    
-    return df
-    
-    # Standardiser les colonnes du code_df
-    code_df = code_df.copy()
-    code_df.columns = [c.strip() for c in code_df.columns]
-    
-    # Trouver colonne Code Navision dans le df source
-    code_col_src = next((c for c in df.columns if "navision" in c.lower()), None)
-    if not code_col_src or code_col_src not in df.columns:
-        return df
-    
-    # Trouver colonne Code Navision dans code_df
-    code_col = next((c for c in code_df.columns if "navision" in c.lower()), None)
-    
-    # Trouver colonne Unite/Nom dans code_df (derniere colonne)
-    name_cols = [c for c in code_df.columns if c != code_col]
-    name_col = name_cols[0] if name_cols else None
-    
-    if not code_col or not name_col or code_col not in code_df.columns:
-        return df
-    
-    # Enseigne function
-    def get_enseigne(unit):
-        s = str(unit).upper()
-        return "BATAM" if ("BATAM" in s or "BTM" in s) else "MG"
-    
-    code_df["Enseigne"] = code_df[name_col].apply(get_enseigne)
-    code_df[code_col] = code_df[code_col].astype(str).str.strip()
-    
-    mapping_nom = code_df.set_index(code_col)[name_col].to_dict()
-    mapping_ense = code_df.set_index(code_col)["Enseigne"].to_dict()
-    
-    df = df.copy()
-    df[code_col_src] = df[code_col_src].astype(str).str.strip()
-    
-    df["Magasin"] = df[code_col_src].map(mapping_nom).fillna(df[code_col_src])
-    df["Enseigne"] = df[code_col_src].map(mapping_ense).fillna("MG")
-    
-    return df
-    
-    # Mapping code → nom + enseigne
-    mapping_nom = code_df.set_index(code_col)[name_col].to_dict()
-    mapping_ense = code_df.set_index(code_col)["Enseigne"].to_dict()
-    
-    df = df.copy()
-    
-    # Conversion du code source
-    try:
-        df[code_col_src] = pd.to_numeric(df[code_col_src], errors='coerce')
-    except:
-        pass
-    
-    df["Magasin"] = (
-        df[code_col_src].map(mapping_nom).fillna(df[code_col_src].astype(str))
-    )
-    df["Enseigne"] = (
-        df[code_col_src].map(mapping_ense).fillna("MG")
-    )
-    
-    return df
 
 
 # NOTE: _raw commence par _ → Streamlit skip le hashing de ce paramètre
@@ -269,8 +182,8 @@ def prepare_data(_raw: dict) -> tuple:
     Retourne (df_vc, df_credit, df_edc, df_conv, code_df, df_credit_part).
     """
     code_df   = _raw.get("code_magasin", pd.DataFrame())
-    df_vc     = _map_magasins(_add_date_cols(_raw.get("vc",       pd.DataFrame())), code_df)
-    df_credit = _map_magasins(_add_date_cols(_raw.get("vc_credit", pd.DataFrame())), code_df)
+    df_vc     = _filter_conventions(_map_magasins(_add_date_cols(_raw.get("vc",       pd.DataFrame())), code_df))
+    df_credit = _filter_conventions(_map_magasins(_add_date_cols(_raw.get("vc_credit", pd.DataFrame())), code_df))
     df_edc    = _add_date_cols(_raw.get("vc_edc", pd.DataFrame()))
     df_conv   = _raw.get("conventions_signees", pd.DataFrame())
     df_credit_part = _map_magasins(_add_date_cols(_raw.get("credit_particulier", pd.DataFrame())), code_df)
@@ -353,10 +266,6 @@ def load_cube_magasin(df_raw: pd.DataFrame, code_df: pd.DataFrame = pd.DataFrame
     data_long = data_long.dropna(subset=["Date", "CA Magasin"])
     data_long["CA Magasin"] = pd.to_numeric(data_long["CA Magasin"], errors="coerce").fillna(0)
     return data_long[["Date", "Magasin", "CA Magasin", "Année", "Mois"]]
-    data_long["Mois"] = data_long["Date"].dt.month
-    data_long = data_long.dropna(subset=["Date", "CA Magasin"])
-    data_long["CA Magasin"] = pd.to_numeric(data_long["CA Magasin"], errors="coerce").fillna(0)
-    return data_long
 
 
 def ca_par_mois(df: pd.DataFrame, annee: int) -> pd.DataFrame:
@@ -1567,38 +1476,7 @@ with tabs[1]:
 # ══════════════════════════════════════════════════════════════
 with tabs[2]:
 
-    section("Vue globale du portefeuille")
-
-    # Tableau risque condensé plein écran
-    fig_risk_full = chart_risk_table(
-        risk_mat, annee_sel,
-        f"État du portefeuille — {len(risk_mat)} conventions", h=500,
-    )
-    st.plotly_chart(fig_risk_full, use_container_width=True)
-
-    with st.expander("📊 Détail complet des conventions"):
-        if not risk_mat.empty:
-            disp = risk_mat.rename(columns={
-                "CA N":  f"CA {annee_sel}",
-                "CA N-1": f"CA {annee_sel-1}",
-            })
-            st.dataframe(disp, use_container_width=True)
-
-    # ── Diagnostic IA ───────────────────────────────
-    section("Analyse par Convention - Diagnostic IA")
-    
-    if not risk_mat.empty:
-        diag = risk_mat.copy()
-        # Add Magasin column from source data
-        if "Magasin" in df_vc_filt.columns:
-            mag_map = df_vc_filt.groupby("Nom")["Magasin"].agg(lambda x: ", ".join(sorted(x.dropna().unique()))).to_dict()
-            diag["Magasin"] = diag["Nom"].map(mag_map)
-        diag = diag.sort_values("Évolution %", ascending=False).reset_index(drop=True)
-        diag.index = diag.index + 1
-        diag.index.name = "#"
-        st.dataframe(diag, use_container_width=True, height=400)
-
-    # ── Analyse individuelle ───────────────────────────────
+    # ── Analyse individuelle (en tête) ──────────────────────
     section("Analyse individuelle par convention")
 
     all_convs = sorted(df_vc["Nom"].dropna().unique().tolist()) if "Nom" in df_vc.columns else []
@@ -1606,30 +1484,23 @@ with tabs[2]:
     conv_detail = st.selectbox("Sélectionner une convention", all_convs, index=0) if all_convs else None
     
     if conv_detail:
-        # Filter data for this specific convention
         df_cv = df_vc_filt[df_vc_filt["Nom"] == conv_detail].copy()
         
-        # Calculate CA for current and previous year
         ca_cv_n    = ca_sum(df_cv, annee_sel, mois_sel)
         ca_cv_n1   = ca_sum(df_cv, annee_sel - 1, mois_sel)
         ev_cv      = evol_pct(ca_cv_n, ca_cv_n1)
-        
-        # Count only filtered data
         nb_fact_cv = len(df_cv[df_cv["Année"] == annee_sel])
         panier_cv  = ca_cv_n / nb_fact_cv if nb_fact_cv > 0 else 0
 
         ci1, ci2, ci3, ci4 = st.columns(4)
-        ci1.metric(
-            f"CA {annee_sel}", f"{ca_cv_n:,.0f} TND",
-            f"{ev_cv:+.1f}% vs {annee_sel-1}",
-            delta_color="normal" if ev_cv >= 0 else "inverse",
-        )
+        ci1.metric(f"CA {annee_sel}", f"{ca_cv_n:,.0f} TND",
+                   f"{ev_cv:+.1f}% vs {annee_sel-1}",
+                   delta_color="normal" if ev_cv >= 0 else "inverse")
         ci2.metric(f"CA {annee_sel-1}", f"{ca_cv_n1:,.0f} TND")
         ci3.metric(f"Factures {annee_sel}", nb_fact_cv)
         ci4.metric("Panier moyen", f"{panier_cv:,.0f} TND")
 
         col_cv1, col_cv2 = st.columns(2)
-        # Use filtered data for comparison (already filtered by convention in df_cv)
         df_cv_comp = compare_years(df_cv, annee_sel, annee_sel - 1)
 
         with col_cv1:
@@ -1640,13 +1511,12 @@ with tabs[2]:
             st.plotly_chart(fig_cv_g, use_container_width=True, key=f"cv_bar_{conv_detail}")
 
         with col_cv2:
-            # Cumulé - use df_cv which already has the month filter
-            _df_filtered_n = df_cv[df_cv["Année"] == annee_sel]
+            _df_filtered_n  = df_cv[df_cv["Année"] == annee_sel]
             _df_filtered_n1 = df_cv[df_cv["Année"] == annee_sel - 1]
             
             _cn  = _df_filtered_n.groupby("Mois")["Montant TTC"].sum().reset_index()
             _cn1 = _df_filtered_n1.groupby("Mois")["Montant TTC"].sum().reset_index()
-            _cn["CA Cum N"]   = _cn["Montant TTC"].cumsum()
+            _cn["CA Cum N"]    = _cn["Montant TTC"].cumsum()
             _cn1["CA Cum N-1"] = _cn1["Montant TTC"].cumsum()
             df_cum = _cn[["Mois", "CA Cum N"]].merge(
                 _cn1[["Mois", "CA Cum N-1"]], on="Mois", how="outer"
@@ -1661,438 +1531,298 @@ with tabs[2]:
         col_cv3, col_cv4 = st.columns(2)
         with col_cv3:
             if "Magasin" in df_cv.columns:
-                mag = (
-                    _df_filtered_n
-                    .groupby("Magasin")["Montant TTC"].sum()
-                    .nlargest(10).reset_index()
-                )
-                fig_mag_cv = chart_bar(
-                    mag, "Montant TTC", "Magasin",
-                    "Top Magasins", C["purple"], h=360, orientation="h",
-                )
-                st.plotly_chart(fig_mag_cv, use_container_width=True, key=f"cv_mag_{conv_detail}")
+                mag = _df_filtered_n.groupby("Magasin")["Montant TTC"].sum().nlargest(10).reset_index()
+                if not mag.empty:
+                    fig_mag_cv = chart_bar(
+                        mag, "Montant TTC", "Magasin",
+                        "Top Magasins", C["purple"], h=360, orientation="h",
+                    )
+                    st.plotly_chart(fig_mag_cv, use_container_width=True, key=f"cv_mag_{conv_detail}")
+                else:
+                    st.info("Aucun magasin avec des transactions en N pour cette convention.")
 
         with col_cv4:
             ca_cash   = _df_filtered_n["Montant TTC"].sum() if len(_df_filtered_n) > 0 else 0
-            ca_credit = (
-                df_credit[df_credit["Nom"] == conv_detail]["Montant TTC"].sum()
-                if "Nom" in df_credit.columns else 0
-            )
+            ca_credit = (df_credit[df_credit["Nom"] == conv_detail]["Montant TTC"].sum()
+                         if "Nom" in df_credit.columns else 0)
             if ca_cash > 0 or ca_credit > 0:
-                fig_pie_cv = chart_pie(
-                    [ca_cash, ca_credit], ["Cash", "Crédit"],
-                    f"Cash vs Crédit — {conv_detail}",
-                )
+                fig_pie_cv = chart_pie([ca_cash, ca_credit], ["Cash", "Crédit"],
+                                       f"Cash vs Crédit — {conv_detail}")
                 st.plotly_chart(fig_pie_cv, use_container_width=True, key=f"cv_pie_{conv_detail}")
 
-    # TDC conventions signées
-    if not df_conv.empty:
-        with st.expander("📁 Liste des conventions signées (TDC)"):
-            cols_ok = [c for c in ["SOCIETES", "Code BC", "Effectifs", "CA 2025",
-                                    "POTENTIEL", "MATURITE", "SCORE"] if c in df_conv.columns]
-            if cols_ok:
-                c_kpi1, c_kpi2, c_kpi3 = st.columns(3)
-                c_kpi1.metric("Nb conventions", len(df_conv))
-                c_kpi2.metric("Effectif total",
-                               f"{pd.to_numeric(df_conv['Effectifs'], errors='coerce').sum():,.0f}"
-                               if "Effectifs" in df_conv.columns else "N/A")
-                c_kpi3.metric("CA 2025 portefeuille",
-                               f"{pd.to_numeric(df_conv['CA 2025'], errors='coerce').sum():,.0f} TND"
-                               if "CA 2025" in df_conv.columns else "N/A")
-                st.dataframe(df_conv[cols_ok], use_container_width=True)
+        # ── Magasins contributeurs ──────────────────────────────────
+        st.markdown("### 🏪 Magasins contributeurs")
+        if "Magasin" in df_cv.columns and len(_df_filtered_n) > 0:
+            detail_magasins = _df_filtered_n.groupby("Magasin").agg(
+                Montant_TTC=("Montant TTC", "sum"),
+                Nb_Factures=("Montant TTC", "count"),
+                Derniere_Vente=("Date", "max"),
+            ).reset_index()
+            detail_magasins.columns = ["Magasin", "Montant TTC", "Nb Factures", "Dernière Vente"]
+            
+            if len(_df_filtered_n1) > 0:
+                ca_n1_mag = _df_filtered_n1.groupby("Magasin")["Montant TTC"].sum().reset_index()
+                ca_n1_mag.columns = ["Magasin", "CA N-1"]
+                detail_magasins = detail_magasins.merge(ca_n1_mag, on="Magasin", how="left").fillna(0)
+                detail_magasins["Évolution %"] = (
+                    (detail_magasins["Montant TTC"] - detail_magasins["CA N-1"]) / detail_magasins["CA N-1"].replace(0, 1) * 100
+                ).round(1)
+                detail_magasins["CA N-1"] = detail_magasins["CA N-1"].apply(lambda x: f"{x:,.0f}" if x > 0 else "-")
+            else:
+                detail_magasins["CA N-1"] = "-"
+                detail_magasins["Évolution %"] = 0.0
+            
+            detail_magasins["Montant TTC"]   = detail_magasins["Montant TTC"].apply(lambda x: f"{x:,.0f}")
+            detail_magasins["Dernière Vente"] = detail_magasins["Dernière Vente"].dt.strftime("%d/%m/%Y")
+            detail_magasins["Évolution %"]   = detail_magasins["Évolution %"].apply(lambda x: f"{x:+.1f}%")
+            
+            st.dataframe(
+                detail_magasins.sort_values("Montant TTC", ascending=False),
+                use_container_width=True,
+                height=min(400, 35 * (len(detail_magasins) + 1)),
+            )
+        else:
+            st.info("Aucune donnée magasin disponible pour cette convention.")
+
+    # ── Diagnostic IA ───────────────────────────────────
+    section("Analyse par Convention - Diagnostic IA")
+    
+    if not risk_mat.empty:
+        diag = risk_mat.copy()
+        if "Magasin" in df_vc_filt.columns:
+            mag_map = df_vc_filt.groupby("Nom")["Magasin"].agg(
+                lambda x: ", ".join(sorted(x.dropna().unique()))
+            ).to_dict()
+            diag["Magasin"] = diag["Nom"].map(mag_map)
+        diag = diag.sort_values("Évolution %", ascending=False).reset_index(drop=True)
+        diag.index = diag.index + 1
+        diag.index.name = "#"
+        st.dataframe(diag, use_container_width=True, height=400)
 
 
 # ══════════════════════════════════════════════════════════════
 # TAB 3 — MAGASINS
 # ══════════════════════════════════════════════════════════════
 with tabs[3]:
-    section("Performance réseau magasinstab")
+    section("Performance réseau")
 
     if "Magasin" not in df_vc.columns:
         st.info("Données magasin non disponibles")
     else:
-        # Use the same filtered data as Vue Exécutive for consistency
-        _base_n = df_vc_filt[df_vc_filt["Année"] == annee_sel].copy()
+        _base_n  = df_vc_filt[df_vc_filt["Année"] == annee_sel].copy()
         _base_n1 = df_vc_filt[df_vc_filt["Année"] == annee_sel - 1].copy()
-        
+
         all_stores = sorted(_base_n["Magasin"].dropna().unique()) if "Magasin" in _base_n.columns else []
-        
-        # Search bar with autocomplete
-        st.markdown("### 🔍 Rechercher un magasin")
-        
-        # Create searchable selectbox with filtering
-        if "store_search_idx" not in st.session_state:
-            st.session_state.store_search_idx = 0
-            
-        search_term = st.text_input("Tapez pour chercher...", key="store_search_input", value="")
-        
-        # Filter stores based on search
-        if search_term:
-            filtered_stores = [s for s in all_stores if search_term.lower() in s.lower()]
-        else:
-            filtered_stores = all_stores[:50]  # Show first 50 by default
-        
-        # Add "Tous" option
+
+        # ── Recherche ──────────────────────────────────────────────
+        col_search, col_reset = st.columns([5, 1])
+        with col_search:
+            search_term = st.text_input("🔍 Filtre magasin", placeholder="Tapez pour chercher...", label_visibility="collapsed")
+        with col_reset:
+            st.markdown("###")
+            if st.button("🔄 Réinitialiser", use_container_width=True):
+                st.session_state.pop("store_selector", None)
+                st.rerun()
+
+        filtered_stores = [s for s in all_stores if search_term.lower() in s.lower()] if search_term else all_stores[:50]
         options = ["Tous"] + filtered_stores
-        
-        # Find index of current selection or default to 0
-        current_idx = 0
-        
+
         selected_store = st.selectbox(
-            "Sélectionner un magasin", 
-            options,
-            index=current_idx,
-            key="store_selector",
-            format_func=lambda x: "🌐 Tous les magasins" if x == "Tous" else f"🏪 {x}"
+            "Magasin", options, index=0, key="store_selector",
+            format_func=lambda x: "🌐 Tous les magasins" if x == "Tous" else f"🏪 {x}",
+            label_visibility="collapsed",
         )
 
+        # ────────────────────────────────────────────────────────────
+        # VUE RÉSEAU
+        # ────────────────────────────────────────────────────────────
         if selected_store == "Tous":
-            # ===== VUE RESEAU =====
-            st.markdown("## 📊 Vue d'ensemble du réseau")
-            
-            # Simple comparison (same as Vue Exécutive)
             ca_mag_n  = _base_n.groupby("Magasin")["Montant TTC"].sum().rename("CA N")
             ca_mag_n1 = _base_n1.groupby("Magasin")["Montant TTC"].sum().rename("CA N-1")
             ca_mag = pd.concat([ca_mag_n, ca_mag_n1], axis=1).fillna(0).reset_index()
-            
-            ca_mag["Evolution %"] = (
-                (ca_mag["CA N"] - ca_mag["CA N-1"]) / ca_mag["CA N-1"].replace(0, 1) * 100
-            ).round(1)
-            
-            # Merge with CUBE data to get CA total mag and weight
-            
+            ca_mag["Evolution %"] = ((ca_mag["CA N"] - ca_mag["CA N-1"]) / ca_mag["CA N-1"].replace(0, 1) * 100).round(1)
+
             if not df_cube_mag.empty and "Magasin" in df_cube_mag.columns:
                 cube_agg = df_cube_mag.groupby("Magasin")["CA Magasin"].sum().reset_index()
                 cube_agg.columns = ["Magasin", "CA Total Magasin"]
-                
                 ca_mag = ca_mag.merge(cube_agg, on="Magasin", how="left").fillna(0)
-                
-                # Poids = CA Convention / CA Total Magasin (penetration rate)
                 ca_mag["Poids %"] = (ca_mag["CA N"] / ca_mag["CA Total Magasin"] * 100).round(1).replace([float("inf"), float("-inf")], 0).fillna(0)
             else:
-                ca_mag["CA Total Magasin"] = 0
-                ca_mag["Poids %"] = 0
-            
-            ca_mag = ca_mag.sort_values("CA N", ascending=False)
+                ca_mag[["CA Total Magasin", "Poids %"]] = 0, 0
 
-            # KPI RESEAU - Use simple sum instead of date-to-date
+            ca_mag = ca_mag.sort_values("CA N", ascending=False)
             simple_sum = _base_n["Montant TTC"].sum()
-            
+
+            # KPIs
             k1, k2, k3, k4 = st.columns(4)
             k1.metric("🏪 Magasins actifs", len(ca_mag[ca_mag["CA N"] > 0]))
-            k2.metric("💰 CA Total", f"{simple_sum:,.0f} TND")
+            k2.metric("💰 CA Total Conventions", f"{simple_sum:,.0f} TND")
             k3.metric("📈 En croissance", len(ca_mag[ca_mag["Evolution %"] > 0]), f"/ {len(ca_mag)}")
             k4.metric("📉 En baisse", len(ca_mag[ca_mag["Evolution %"] < 0]))
 
-            # Top & Evolution
+            # Top 20 + Évolution
             col_m1, col_m2 = st.columns(2)
             with col_m1:
                 top20 = ca_mag.head(20)
-                fig_top = px.bar(top20, x="CA N", y="Magasin", orientation="h", 
-                                title=f"🏆 Top 20 Magasins - CA {annee_sel}", 
-                                color="CA N", color_continuous_scale=["#1D4ED8", "#3B82F6", "#60A5FA"],
-                                text_auto=".0f")
-                fig_top.update_layout(height=450, yaxis=dict(autorange="reversed"))
+                fig_top = px.bar(top20, x="CA N", y="Magasin", orientation="h",
+                                title=f"Top 20 — CA {annee_sel}", color="CA N",
+                                color_continuous_scale=["#1D4ED8", "#3B82F6", "#60A5FA"], text_auto=".0f")
+                fig_top.update_layout(height=400, yaxis=dict(autorange="reversed"))
                 st.plotly_chart(fig_top, use_container_width=True)
-
             with col_m2:
                 fig_evo = px.bar(top20, x="Evolution %", y="Magasin", orientation="h",
-                               title="📊 Evolution N/N-1",
-                               color="Evolution %", color_continuous_scale=["#DC2626", "#FCD34D", "#059669"],
-                               text_auto="+.1f")
-                fig_evo.update_layout(height=450, yaxis=dict(autorange="reversed"))
-                fig_evo.add_vline(x=0, line_dash="dash", line_color="grey", annotation_text="Seuil")
+                               title="Évolution N/N-1", color="Evolution %",
+                               color_continuous_scale=["#DC2626", "#FCD34D", "#059669"], text_auto="+.1f")
+                fig_evo.update_layout(height=400, yaxis=dict(autorange="reversed"))
+                fig_evo.add_vline(x=0, line_dash="dash", line_color="grey")
                 st.plotly_chart(fig_evo, use_container_width=True)
-            
-            # Tableau CA Convention vs CA Total Magasin avec Poids
-            st.markdown("### 📋 CA Convention vs CA Total Magasin")
-            display_cols = ["Magasin", "CA N", "CA Total Magasin", "Poids %", "Evolution %"]
-            available = [c for c in display_cols if c in ca_mag.columns]
-            st.dataframe(
-                ca_mag[available].head(30).style.format(
-                    {"CA N": "{:,.0f}", "CA Total Magasin": "{:,.0f}", "Poids %": "{:.1f}%", "Evolution %": "{:+.1f}%"},
-                    na_rep="—"
-                ),
-                use_container_width=True,
-                height=400,
-            )
-            
-            # Repartition par enseigne
-            col_ense1, col_ense2 = st.columns(2)
-            with col_ense1:
+
+            # Pénétration + Enseigne + Type vente en grille compacte
+            col_p1, col_p2 = st.columns(2)
+            with col_p1:
                 if "Enseigne" in _base_n.columns:
                     by_ense = _base_n.groupby("Enseigne")["Montant TTC"].sum()
-                    fig_ense = px.pie(values=by_ense.values, names=by_ense.index, 
-                                     title="Répartition CA par Enseigne", hole=0.4)
+                    fig_ense = px.pie(values=by_ense.values, names=by_ense.index,
+                                     title="CA par Enseigne", hole=0.4)
                     fig_ense.update_traces(textinfo="percent+label")
                     st.plotly_chart(fig_ense, use_container_width=True)
-            
-            with col_ense2:
+            with col_p2:
                 if "Type vente à crédit" in _base_n.columns:
                     by_type = _base_n.groupby("Type vente à crédit")["Montant TTC"].sum()
                     by_type = by_type[by_type > 0]
                     fig_type = px.bar(by_type.reset_index(), x="Type vente à crédit", y="Montant TTC",
-                                    title="CA par Type de vente", text_auto=".0f", color="Montant TTC",
-                                    color_continuous_scale=["#1D4ED8", "#3B82F6"])
+                                    title="CA par Type de vente", text_auto=".0f",
+                                    color="Montant TTC", color_continuous_scale=["#1D4ED8", "#3B82F6"])
                     st.plotly_chart(fig_type, use_container_width=True)
 
-            with st.expander("📋 Données complètes"):
-                st.dataframe(ca_mag.rename(columns={"CA N": f"CA {annee_sel}", "CA N-1": f"CA {annee_sel-1}"}), use_container_width=True)
+            with st.expander("📋 Tableau complet des magasins"):
+                display_cols = ["Magasin", "CA N", "CA Total Magasin", "Poids %", "Evolution %"]
+                available = [c for c in display_cols if c in ca_mag.columns]
+                st.dataframe(
+                    ca_mag[available].style.format(
+                        {"CA N": "{:,.0f}", "CA Total Magasin": "{:,.0f}", "Poids %": "{:.1f}%", "Evolution %": "{:+.1f}%"},
+                        na_rep="—"
+                    ), use_container_width=True, height=400
+                )
 
+        # ────────────────────────────────────────────────────────────
+        # VUE DÉTAIL MAGASIN
+        # ────────────────────────────────────────────────────────────
         else:
-            # ===== VUE DETAILLEE PAR MAGASIN =====
-            store_n = _base_n[_base_n["Magasin"] == selected_store]
+            store_n  = _base_n[_base_n["Magasin"] == selected_store]
             store_n1 = _base_n1[_base_n1["Magasin"] == selected_store]
-            
             enseigne = store_n["Enseigne"].iloc[0] if "Enseigne" in store_n.columns and len(store_n) > 0 else "N/A"
-            
-            st.markdown(f"## 🏪 {selected_store} <span style='background-color:#1D4ED8;color:white;padding:2px 8px;border-radius:4px;font-size:12px'>{enseigne}</span>", unsafe_allow_html=True)
-            
-            # === KPIs GLOBAUX ===
-            ca_n = store_n["Montant TTC"].sum() if len(store_n) > 0 else 0
-            ca_n1 = store_n1["Montant TTC"].sum() if len(store_n1) > 0 else 0
-            evol_ca = evol_pct(ca_n, ca_n1)
-            nb_fact = len(store_n)
-            panier_moy = ca_n / nb_fact if nb_fact > 0 else 0
-            
+
+            st.markdown(f"## 🏪 {selected_store} &nbsp;"
+                        f"<span style='background:#1D4ED8;color:white;padding:2px 10px;border-radius:4px;font-size:11px'>{enseigne}</span>",
+                        unsafe_allow_html=True)
+
+            ca_n_s = store_n["Montant TTC"].sum() if len(store_n) > 0 else 0
+            ca_n1_s = store_n1["Montant TTC"].sum() if len(store_n1) > 0 else 0
+            evol_s = evol_pct(ca_n_s, ca_n1_s)
+            nb_fact_s = len(store_n)
+            panier_s = ca_n_s / nb_fact_s if nb_fact_s > 0 else 0
+
             k1, k2, k3, k4, k5 = st.columns(5)
-            k1.metric(f"💰 CA {annee_sel}", f"{ca_n:,.0f} TND", f"{evol_ca:+.1f}%", delta_color="normal" if evol_ca >= 0 else "inverse")
-            k2.metric(f"📅 CA {annee_sel-1}", f"{ca_n1:,.0f} TND")
-            k3.metric("🧾 Factures", nb_fact)
-            k4.metric("📊 Panier moyen", f"{panier_moy:,.0f} TND")
+            k1.metric(f"💰 CA {annee_sel}", f"{ca_n_s:,.0f} TND", f"{evol_s:+.1f}%", delta_color="normal" if evol_s >= 0 else "inverse")
+            k2.metric(f"📅 CA {annee_sel-1}", f"{ca_n1_s:,.0f} TND")
+            k3.metric("🧾 Factures", nb_fact_s)
+            k4.metric("📊 Panier moyen", f"{panier_s:,.0f} TND")
             k5.metric("🏷️ Enseigne", enseigne)
 
-            # === CA MENSUEL ===
+            # ── CA Mensuel + Cumulé ─────────────────────────────────
             if "Mois" in store_n.columns:
-                col_chart1, col_chart2 = st.columns(2)
-                with col_chart1:
+                col_c1, col_c2 = st.columns(2)
+                with col_c1:
                     ca_mens = store_n.groupby("Mois")["Montant TTC"].sum().reset_index()
                     ca_mens["Mois_nom"] = ca_mens["Mois"].map(MOIS)
-                    ca_mens_n1 = store_n1.groupby("Mois")["Montant TTC"].sum().reindex(ca_mens["Mois"]).fillna(0).values
-                    ca_mens[f"CA {annee_sel-1}"] = ca_mens_n1
-                    
+                    ca_mens_n1_v = store_n1.groupby("Mois")["Montant TTC"].sum().reindex(ca_mens["Mois"]).fillna(0).values
+                    ca_mens[f"CA {annee_sel-1}"] = ca_mens_n1_v
                     fig_mens = px.bar(ca_mens, x="Mois_nom", y=["Montant TTC", f"CA {annee_sel-1}"],
-                                     title=f"CA Mensuel {annee_sel} vs {annee_sel-1}", barmode="group",
-                                     text_auto=".0f", color_discrete_map={"Montant TTC": "#1D4ED8", f"CA {annee_sel-1}": "#94A3B8"})
-                    fig_mens.update_layout(height=280)
+                                     title=f"CA Mensuel", barmode="group", text_auto=".0f",
+                                     color_discrete_map={"Montant TTC": "#1D4ED8", f"CA {annee_sel-1}": "#94A3B8"})
+                    fig_mens.update_layout(height=260, showlegend=False)
                     st.plotly_chart(fig_mens, use_container_width=True)
-                
-                with col_chart2:
+                with col_c2:
                     ca_cum = store_n.groupby("Mois")["Montant TTC"].sum().cumsum().reset_index()
                     ca_cum["Mois_nom"] = ca_cum["Mois"].map(MOIS)
-                    fig_cum = px.line(ca_cum, x="Mois_nom", y="Montant TTC", 
-                                     title=f"CA Cumulé {annee_sel}", markers=True)
+                    fig_cum = px.line(ca_cum, x="Mois_nom", y="Montant TTC", title="CA Cumulé", markers=True)
                     fig_cum.update_traces(line_color="#1D4ED8", line_width=3)
-                    fig_cum.update_layout(height=280)
+                    fig_cum.update_layout(height=260)
                     st.plotly_chart(fig_cum, use_container_width=True)
 
-            st.markdown("---")
-            
-            # === CONVENTIONS ===
-            st.markdown("### 🏛️ Analyse des Conventions")
-            
+            # ── Conventions (tableau visible directement) ────────────
+            st.markdown("### 🏛️ Conventions")
             if "Type vente à crédit" in store_n.columns:
-                # Trouver les types qui contiennent "CONV" ou "CONVENTION"
-                conv_mask_n = store_n["Type vente à crédit"].fillna("").str.upper().str.contains("CONV")
-                conv_mask_n1 = store_n1["Type vente à crédit"].fillna("").str.upper().str.contains("CONV")
-                
-                conv_n = store_n[conv_mask_n]
-                conv_n1 = store_n1[conv_mask_n1]
-                
-                nb_conv = len(conv_n)
-                ca_conv = conv_n["Montant TTC"].sum() if nb_conv > 0 else 0
-                ca_conv_n1 = conv_n1["Montant TTC"].sum() if len(conv_n1) > 0 else 0
-                evol_conv = evol_pct(ca_conv, ca_conv_n1)
-                panier_conv = ca_conv / nb_conv if nb_conv > 0 else 0
-                
-                c1, c2, c3, c4 = st.columns(4)
-                c1.metric("🏛️ Nb Conventions", nb_conv)
-                c2.metric("💰 CA Conventions", f"{ca_conv:,.0f} TND", f"{evol_conv:+.1f}%" if ca_conv > 0 else None, delta_color="normal" if evol_conv >= 0 else "inverse")
-                c3.metric("📅 CA N-1", f"{ca_conv_n1:,.0f} TND")
-                c4.metric("📊 Panier moyen", f"{panier_conv:,.0f} TND" if nb_conv > 0 else "0 TND")
-                
-                # Top 10 Conventions
-                if "Nom" in conv_n.columns:
-                    top_conv = conv_n.groupby("Nom")["Montant TTC"].sum().sort_values(ascending=False).head(10)
-                    if len(top_conv) > 0:
-                        df_top = pd.DataFrame({"Convention": top_conv.index, "CA": top_conv.values})
-                        fig_top_conv = px.bar(df_top, x="CA", y="Convention", orientation="h",
-                                            title=f"🏆 Top 10 Conventions - {selected_store}", text_auto=".0f",
-                                            color="CA", color_continuous_scale=["#1D4ED8", "#3B82F6", "#60A5FA"])
-                        fig_top_conv.update_layout(height=320, yaxis=dict(autorange="reversed"))
-                        st.plotly_chart(fig_top_conv, use_container_width=True)
+                mk = store_n["Type vente à crédit"].fillna("").str.upper().str.contains("CONV")
+                conv_n = store_n[mk]
+                if "Nom" in conv_n.columns and len(conv_n) > 0:
+                    detail = conv_n.groupby("Nom").agg(
+                        Montant_TTC=("Montant TTC", "sum"),
+                        Nb_Factures=("Montant TTC", "count"),
+                        Derniere_Vente=("Date", "max"),
+                    ).reset_index()
+                    detail.columns = ["Convention", "Montant TTC", "Nb Factures", "Dernière Vente"]
+                    detail["Montant TTC"] = detail["Montant TTC"].apply(lambda x: f"{x:,.0f}")
+                    detail["Dernière Vente"] = detail["Dernière Vente"].dt.strftime("%d/%m/%Y")
+                    st.dataframe(detail.sort_values("Montant TTC", ascending=False),
+                                use_container_width=True, height=min(300, 35 * (len(detail) + 1)))
+                else:
+                    st.info("Aucune convention sur la période.")
 
-            st.markdown("---")
-            
-            # === CREDIT CONSO === (using separate file)
-            st.markdown("### 💳 Credit Conso")
-            
-            # Use df_credit for Credit Conso data
-            if "Unite Code" in df_credit.columns:
-                # First check if we can find the code in df_vc
-                code_col_vc = next((c for c in df_vc.columns if c.lower() == "unite code"), None)
-                if code_col_vc and "Magasin" in df_vc.columns:
-                    # Get codes for this store name from df_vc
-                    store_codes = df_vc[df_vc["Magasin"] == selected_store][code_col_vc].dropna().unique() if selected_store != "Tous" else []
-                    
-                    if len(store_codes) > 0:
-                        # Filter by any of the codes - handle float format with .0
-                        code_strs = [str(c).strip() for c in store_codes]
-                        code_strs_with_float = [c + ".0" if not c.endswith(".0") else c for c in code_strs]
-                        
-                        # Match both formats
-                        cc_store_n = df_credit[((df_credit["Unite Code"].astype(str).str.strip().isin(code_strs)) | (df_credit["Unite Code"].astype(str).str.strip().isin(code_strs_with_float))) & (df_credit["Année"] == annee_sel)]
-                        cc_store_n1 = df_credit[((df_credit["Unite Code"].astype(str).str.strip().isin(code_strs)) | (df_credit["Unite Code"].astype(str).str.strip().isin(code_strs_with_float))) & (df_credit["Année"] == annee_sel - 1)]
+            # ── Crédit Conso / Particulier / EDC (sous-tabs) ───────
+            st.markdown("### 💳 Autres segments")
+            tabs_credit = st.tabs(["Crédit Conso", "Crédit Particulier", "Convention EDC"])
+
+            def _build_credit_tab(tab, df_src, label, icon):
+                with tab:
+                    # Mapping code magasin
+                    df_filtered_n = pd.DataFrame()
+                    df_filtered_n1 = pd.DataFrame()
+                    if "Unite Code" in df_src.columns:
+                        code_col = next((c for c in df_vc.columns if c.lower() == "unite code"), None)
+                        if code_col and "Magasin" in df_vc.columns:
+                            codes = df_vc[df_vc["Magasin"] == selected_store][code_col].dropna().unique()
+                            if len(codes) > 0:
+                                sc = [str(c).strip() for c in codes]
+                                scf = [c + ".0" if not c.endswith(".0") else c for c in sc]
+                                match = df_src["Unite Code"].astype(str).str.strip().isin(sc + scf)
+                                df_filtered_n = df_src[match & (df_src["Année"] == annee_sel)]
+                                df_filtered_n1 = df_src[match & (df_src["Année"] == annee_sel - 1)]
+                    if df_filtered_n.empty:
+                        st.info(f"Aucune donnée {label} pour ce magasin.")
+                        return
+
+                    if mois_sel:
+                        df_filtered_n = df_filtered_n[df_filtered_n["Mois"].isin(mois_sel)]
+                        df_filtered_n1 = df_filtered_n1[df_filtered_n1["Mois"].isin(mois_sel)]
+
+                    # Date-to-date si possible
+                    if len(df_filtered_n) > 0 and "Jour" in df_filtered_n.columns and len(df_filtered_n1) > 0:
+                        comp = compare_years_date_to_date(pd.concat([df_filtered_n, df_filtered_n1]),
+                                                          annee_sel, annee_sel - 1, mois_sel)
+                        ca_n_val = comp["CA N"].sum() if not comp.empty else 0
+                        ca_n1_val = comp["CA N-1"].sum() if not comp.empty else 0
                     else:
-                        cc_store_n = df_credit[df_credit["Année"] == annee_sel] if selected_store == "Tous" else pd.DataFrame()
-                        cc_store_n1 = df_credit[df_credit["Année"] == annee_sel - 1]
-                else:
-                    cc_store_n = df_credit[df_credit["Année"] == annee_sel]
-                    cc_store_n1 = df_credit[df_credit["Année"] == annee_sel - 1]
-            else:
-                st.info("Données Credit Conso non disponibles")
-            
-            # Apply month filter and date-to-date comparison
-            if len(cc_store_n) > 0 and mois_sel:
-                cc_store_n = cc_store_n[cc_store_n["Mois"].isin(mois_sel)]
-            if len(cc_store_n1) > 0 and mois_sel:
-                cc_store_n1 = cc_store_n1[cc_store_n1["Mois"].isin(mois_sel)]
-            
-            # Date-to-date comparison for Credit Conso
-            if len(cc_store_n) > 0 and "Jour" in cc_store_n.columns and len(cc_store_n1) > 0:
-                cc_comp = compare_years_date_to_date(
-                    pd.concat([cc_store_n, cc_store_n1]), 
-                    annee_sel, annee_sel - 1, mois_sel
-                )
-                ca_cc = cc_comp["CA N"].sum() if not cc_comp.empty else 0
-                ca_cc_n1 = cc_comp["CA N-1"].sum() if not cc_comp.empty else 0
-            else:
-                ca_cc = cc_store_n["Montant TTC"].sum() if len(cc_store_n) > 0 else 0
-                ca_cc_n1 = cc_store_n1["Montant TTC"].sum() if len(cc_store_n1) > 0 else 0
-            
-            evol_cc = evol_pct(ca_cc, ca_cc_n1)
-            nb_cc = len(cc_store_n)
-            panier_cc = ca_cc / nb_cc if nb_cc > 0 else 0
-            
-            cc1, cc2, cc3, cc4 = st.columns(4)
-            cc1.metric("💳 Nb Dossiers", nb_cc)
-            cc2.metric("💰 CA Credit Conso", f"{ca_cc:,.0f} TND", f"{evol_cc:+.1f}%" if ca_cc > 0 else None, delta_color="normal" if evol_cc >= 0 else "inverse")
-            cc3.metric("📅 CA N-1 (date à date)", f"{ca_cc_n1:,.0f} TND")
-            cc4.metric("📊 Panier moyen", f"{panier_cc:,.0f} TND" if nb_cc > 0 else "0 TND")
+                        ca_n_val = df_filtered_n["Montant TTC"].sum() if len(df_filtered_n) > 0 else 0
+                        ca_n1_val = df_filtered_n1["Montant TTC"].sum() if len(df_filtered_n1) > 0 else 0
 
-            st.markdown("---")
-            
-            # === CREDIT PARTICULIER === (using separate file)
-            st.markdown("### 👤 Credit Particulier")
-            
-            # Use df_credit_part for Credit Particulier data (with filters applied)
-            if "Magasin" in df_credit_part.columns:
-                # Same approach as Credit Conso - use Unite Code
-                code_col_credit = next((c for c in df_credit_part.columns if c.lower() == "unite code"), None)
-                
-                if code_col_credit and "Magasin" in df_vc.columns:
-                    code_col_vc = next((c for c in df_vc.columns if c.lower() == "unite code"), None)
-                    if code_col_vc:
-                        name_to_code = dict(zip(
-                            df_vc.drop_duplicates("Magasin")["Magasin"],
-                            df_vc.drop_duplicates("Magasin")[code_col_vc].astype(str).str.strip()
-                        ))
-                        store_code = name_to_code.get(selected_store)
-                    else:
-                        store_code = None
-                else:
-                    store_code = None
-                
-                if store_code and "Unite Code" in df_credit_part.columns:
-                    cp_store_n = df_credit_part[(df_credit_part["Unite Code"].astype(str).str.strip() == str(store_code)) & (df_credit_part["Année"] == annee_sel)]
-                    cp_store_n1 = df_credit_part[(df_credit_part["Unite Code"].astype(str).str.strip() == str(store_code)) & (df_credit_part["Année"] == annee_sel - 1)]
-                elif selected_store == "Tous":
-                    cp_store_n = df_credit_part[df_credit_part["Année"] == annee_sel]
-                    cp_store_n1 = df_credit_part[df_credit_part["Année"] == annee_sel - 1]
-                else:
-                    cp_store_n = df_credit_part[(df_credit_part["Magasin"] == selected_store) & (df_credit_part["Année"] == annee_sel)]
-                    cp_store_n1 = df_credit_part[(df_credit_part["Magasin"] == selected_store) & (df_credit_part["Année"] == annee_sel - 1)]
-                
-                # Apply month filter and date-to-date comparison
-                if mois_sel:
-                    cp_store_n = cp_store_n[cp_store_n["Mois"].isin(mois_sel)]
-                    cp_store_n1 = cp_store_n1[cp_store_n1["Mois"].isin(mois_sel)]
-                
-                # Date-to-date comparison for Credit Particulier
-                if len(cp_store_n) > 0 and "Jour" in cp_store_n.columns and len(cp_store_n1) > 0:
-                    cp_comp = compare_years_date_to_date(
-                        pd.concat([cp_store_n, cp_store_n1]), 
-                        annee_sel, annee_sel - 1, mois_sel
-                    )
-                    ca_cp = cp_comp["CA N"].sum() if not cp_comp.empty else 0
-                    ca_cp_n1 = cp_comp["CA N-1"].sum() if not cp_comp.empty else 0
-                else:
-                    ca_cp = cp_store_n["Montant TTC"].sum() if len(cp_store_n) > 0 else 0
-                    ca_cp_n1 = cp_store_n1["Montant TTC"].sum() if len(cp_store_n1) > 0 else 0
-                
-                evol_cp = evol_pct(ca_cp, ca_cp_n1)
-                nb_cp = len(cp_store_n)
-                panier_cp = ca_cp / nb_cp if nb_cp > 0 else 0
-                
-                cp1, cp2, cp3, cp4 = st.columns(4)
-                cp1.metric("👤 Nb Dossiers", nb_cp)
-                cp2.metric("💰 CA Credit Part.", f"{ca_cp:,.0f} TND", f"{evol_cp:+.1f}%" if ca_cp > 0 else None, delta_color="normal" if evol_cp >= 0 else "inverse")
-                cp3.metric("📅 CA N-1 (date à date)", f"{ca_cp_n1:,.0f} TND")
-                cp4.metric("📊 Panier moyen", f"{panier_cp:,.0f} TND" if nb_cp > 0 else "0 TND")
-            else:
-                st.info("Données Credit Particulier non disponibles")
+                    ev = evol_pct(ca_n_val, ca_n1_val)
+                    nb = len(df_filtered_n)
+                    pm = ca_n_val / nb if nb > 0 else 0
 
-            st.markdown("---")
-            
-            # === CONVENTION EDC === (using separate file)
-            st.markdown("### 🏫 Convention EDC")
-            
-            # Use df_edc for EDC data
-            edc_store_n = pd.DataFrame()
-            edc_store_n1 = pd.DataFrame()
-            
-            if "Unite Code" in df_edc.columns:
-                code_col_vc = next((c for c in df_vc.columns if c.lower() == "unite code"), None)
-                if code_col_vc and "Magasin" in df_vc.columns and selected_store != "Tous":
-                    store_codes = df_vc[df_vc["Magasin"] == selected_store][code_col_vc].dropna().unique()
-                    code_strs = [str(c).strip() for c in store_codes]
-                    code_strs_with_float = [c + ".0" if not c.endswith(".0") else c for c in code_strs]
-                    
-                    edc_store_n = df_edc[((df_edc["Unite Code"].astype(str).str.strip().isin(code_strs)) | (df_edc["Unite Code"].astype(str).str.strip().isin(code_strs_with_float))) & (df_edc["Année"] == annee_sel)]
-                    edc_store_n1 = df_edc[((df_edc["Unite Code"].astype(str).str.strip().isin(code_strs)) | (df_edc["Unite Code"].astype(str).str.strip().isin(code_strs_with_float))) & (df_edc["Année"] == annee_sel - 1)]
-                elif selected_store == "Tous":
-                    edc_store_n = df_edc[df_edc["Année"] == annee_sel]
-                    edc_store_n1 = df_edc[df_edc["Année"] == annee_sel - 1]
-            
-            # Apply month filter and date-to-date comparison
-            if mois_sel and len(edc_store_n) > 0:
-                edc_store_n = edc_store_n[edc_store_n["Mois"].isin(mois_sel)]
-            if mois_sel and len(edc_store_n1) > 0:
-                edc_store_n1 = edc_store_n1[edc_store_n1["Mois"].isin(mois_sel)]
-            
-            # Date-to-date comparison for EDC
-            if len(edc_store_n) > 0 and "Jour" in edc_store_n.columns and len(edc_store_n1) > 0:
-                edc_comp = compare_years_date_to_date(
-                    pd.concat([edc_store_n, edc_store_n1]), 
-                    annee_sel, annee_sel - 1, mois_sel
-                )
-                ca_edc = edc_comp["CA N"].sum() if not edc_comp.empty else 0
-                ca_edc_n1 = edc_comp["CA N-1"].sum() if not edc_comp.empty else 0
-            else:
-                ca_edc = edc_store_n["Montant TTC"].sum() if len(edc_store_n) > 0 else 0
-                ca_edc_n1 = edc_store_n1["Montant TTC"].sum() if len(edc_store_n1) > 0 else 0
-            
-            evol_edc = evol_pct(ca_edc, ca_edc_n1)
-            nb_edc = len(edc_store_n)
-            panier_edc = ca_edc / nb_edc if nb_edc > 0 else 0
-            
-            edc1, edc2, edc3, edc4 = st.columns(4)
-            edc1.metric("🏫 Nb Dossiers", nb_edc)
-            edc2.metric("💰 CA Convention EDC", f"{ca_edc:,.0f} TND", f"{evol_edc:+.1f}%" if ca_edc > 0 else None, delta_color="normal" if evol_edc >= 0 else "inverse")
-            edc3.metric("📅 CA N-1 (date à date)", f"{ca_edc_n1:,.0f} TND")
-            edc4.metric("📊 Panier moyen", f"{panier_edc:,.0f} TND" if nb_edc > 0 else "0 TND")
+                    c1, c2, c3, c4 = st.columns(4)
+                    c1.metric(f"{icon} Dossiers", nb)
+                    c2.metric(f"💰 CA {annee_sel}", f"{ca_n_val:,.0f} TND", f"{ev:+.1f}%" if ca_n_val > 0 else None,
+                              delta_color="normal" if ev >= 0 else "inverse")
+                    c3.metric(f"📅 CA {annee_sel-1}", f"{ca_n1_val:,.0f} TND")
+                    c4.metric("📊 Panier moyen", f"{pm:,.0f} TND" if nb > 0 else "0 TND")
 
-            # === DETAIL OPERATIONS ===
+            _build_credit_tab(tabs_credit[0], df_credit, "Crédit Conso", "💳")
+            _build_credit_tab(tabs_credit[1], df_credit_part, "Crédit Particulier", "👤")
+            _build_credit_tab(tabs_credit[2], df_edc, "Convention EDC", "🏫")
+
+            # ── Détail des opérations ───────────────────────────────
             with st.expander("📄 Détail des opérations"):
                 cols_show = [c for c in store_n.columns if c in ["Date", "Mois", "Nom", "Montant TTC", "Type vente à crédit", "Enseigne"]]
                 st.dataframe(store_n[cols_show].sort_values("Date", ascending=False), use_container_width=True)
@@ -2548,4 +2278,5 @@ st.caption(
     f"Filtres actifs: Annee {annee_sel} "
     + (f"| Mois: {', '.join([MOIS.get(m, str(m)) for m in mois_sel])} " if mois_sel else "")
     + (f"| Conv. {conv_sel}" if conv_sel != "Tous" else "")
+    + (f"| Seuil inactivite: {seuil_inactif}j" if seuil_inactif != 60 else "")
 )
