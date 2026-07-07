@@ -1493,10 +1493,14 @@ with tabs[2]:
 
     # ── Données agrégées portefeuille (date-à-date) ──────
     ca_total_n, ca_total_n1, ev_total = ca_sum_date_to_date(df_vc_filt, annee_sel, annee_sel - 1, mois_sel)
-    nb_convs = len(risk_mat[risk_mat["CA N"] > 0]) if not risk_mat.empty else 0
+    # Appliquer le filtre convention de la sidebar si actif
+    _rm = risk_mat.copy() if not risk_mat.empty else pd.DataFrame()
+    if conv_sel != "Tous" and not _rm.empty:
+        _rm = _rm[_rm["Nom"] == conv_sel]
+    nb_convs = len(_rm[_rm["CA N"] > 0]) if not _rm.empty else 0
 
-    if not risk_mat.empty:
-        risky = risk_mat[risk_mat["Statut"].str.contains("Déclin|Inactif", na=False)]
+    if not _rm.empty:
+        risky = _rm[_rm["Statut"].str.contains("Déclin|Inactif", na=False)]
         nb_risky = len(risky)
     else:
         nb_risky = 0
@@ -1511,8 +1515,8 @@ with tabs[2]:
     pk4.metric("🔄 Inactives", nb_inact, delta_color="inverse" if nb_inact > 0 else "off")
 
     # ── 2. Top conventions ──────────────────────────────
-    if not risk_mat.empty:
-        top10 = risk_mat.nlargest(10, "CA N")[["Nom", "CA N", "Évolution %", "Statut"]].copy()
+    if not _rm.empty:
+        top10 = _rm.nlargest(10, "CA N")[["Nom", "CA N", "Évolution %", "Statut"]].copy()
         top10 = top10.sort_values("CA N", ascending=True)
         fig_top = px.bar(
             top10, x="CA N", y="Nom", orientation="h",
@@ -1533,7 +1537,7 @@ with tabs[2]:
     # ── 3. Tableau des conventions (interactif) ──────────
     section("Liste des conventions")
 
-    conv_table = risk_mat.copy() if not risk_mat.empty else pd.DataFrame()
+    conv_table = _rm.copy() if not _rm.empty else pd.DataFrame()
     if not conv_table.empty:
         if "Magasin" in df_vc_filt.columns:
             mc = df_vc_filt.groupby("Nom")["Magasin"].nunique().reset_index()
@@ -1562,9 +1566,9 @@ with tabs[2]:
 
     # ── 4. Détail convention (sélection individuelle) ────
     section("Analyse individuelle")
-
-    all_convs = sorted(conv_table["Nom"].tolist()) if not conv_table.empty else []
-    conv_detail = st.selectbox("Sélectionner une convention", all_convs, index=0) if all_convs else None
+    # Liste indépendante du champ recherche (pour que le selectbox ne se réinitialise pas)
+    _master_list = sorted(_rm["Nom"].tolist()) if not _rm.empty else []
+    conv_detail = st.selectbox("Sélectionner une convention", _master_list, index=0, key="conv_selector") if _master_list else None
 
     if conv_detail:
         df_cv = df_vc_filt[df_vc_filt["Nom"] == conv_detail].copy()
@@ -1573,7 +1577,7 @@ with tabs[2]:
         panier_cv  = ca_cv_n / nb_fact_cv if nb_fact_cv > 0 else 0
 
         # Badge statut
-        cv_statut = risk_mat[risk_mat["Nom"] == conv_detail]["Statut"].iloc[0] if not risk_mat.empty and conv_detail in risk_mat["Nom"].values else ""
+        cv_statut = _rm[_rm["Nom"] == conv_detail]["Statut"].iloc[0] if not _rm.empty and conv_detail in _rm["Nom"].values else ""
         st.markdown(f"### {conv_detail} &nbsp;{badge(cv_statut, 'red' if 'Déclin' in cv_statut or 'Inactif' in cv_statut else 'green' if 'Croissance' in cv_statut else 'amber')}", unsafe_allow_html=True)
 
         ci1, ci2, ci3, ci4 = st.columns(4)
