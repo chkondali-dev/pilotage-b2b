@@ -1510,24 +1510,25 @@ with tabs[2]:
     pk3.metric("⚠️ À risque", nb_risky, delta_color="inverse" if nb_risky > 0 else "off")
     pk4.metric("🔄 Inactives", nb_inact, delta_color="inverse" if nb_inact > 0 else "off")
 
-    # ── 2. Scatter — portefeuille ─────────────────────────
+    # ── 2. Top conventions ──────────────────────────────
     if not risk_mat.empty:
-        fig_bubble = px.scatter(
-            risk_mat, x="CA N", y="Évolution %",
-            size="CA N", color="Statut", hover_name="Nom",
-            title="CA vs Évolution — chaque bulle est une convention",
+        top10 = risk_mat.nlargest(10, "CA N")[["Nom", "CA N", "Évolution %", "Statut"]].copy()
+        top10 = top10.sort_values("CA N", ascending=True)
+        fig_top = px.bar(
+            top10, x="CA N", y="Nom", orientation="h",
+            title="Top 10 conventions par CA",
+            color="Statut", text_auto=".0f",
             color_discrete_map={
                 "✅ Croissance": C["green"], "📉 Déclin": C["amber"],
                 "⚠️ Déclin fort": C["red"], "🆕 Nouveau": C["blue"],
                 "❌ Inactif": "#9CA3AF", "❓ Aucun historique": "#D1D5DB",
             },
-            size_max=40, height=400,
+            height=400,
         )
-        fig_bubble.update_traces(marker=dict(line=dict(width=0.5, color="rgba(255,255,255,0.6)")),
-                                 opacity=0.85)
-        fig_bubble.add_hline(y=0, line_dash="dash", line_color="grey", opacity=0.4)
-        fig_bubble.update_layout(legend=dict(orientation="h", y=1.08, x=0, font=dict(size=11)))
-        st.plotly_chart(fig_bubble, use_container_width=True)
+        fig_top.update_layout(xaxis_title="CA N (TND)", yaxis_title="",
+                              legend=dict(orientation="h", y=1.08, x=0, font=dict(size=11)))
+        fig_top.update_traces(marker=dict(line=dict(width=0.5, color="white")))
+        st.plotly_chart(fig_top, use_container_width=True)
 
     # ── 3. Tableau des conventions (interactif) ──────────
     section("Liste des conventions")
