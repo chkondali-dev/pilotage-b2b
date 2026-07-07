@@ -1570,17 +1570,18 @@ with tabs[2]:
 
     # ── 4. Détail convention (sélection individuelle) ────
     section("Analyse individuelle")
-    _master_list = sorted(_rm["Nom"].tolist()) if not _rm.empty else []
 
-    if _master_list:
-        # Si la sidebar a sélectionné UNE convention, on pré-sélectionne
-        _def_idx = 0
-        if conv_sel != "Tous" and conv_sel in _master_list:
-            _def_idx = _master_list.index(conv_sel)
-        conv_detail = st.selectbox("Sélectionner une convention", _master_list,
-                                    index=_def_idx, key="conv_selector")
+    # Si la sidebar a choisi UNE convention → détail direct. Sinon → selectbox.
+    conv_detail = None
+    if conv_sel != "Tous" and not _rm.empty and conv_sel in _rm["Nom"].values:
+        conv_detail = conv_sel
+    elif not _rm.empty:
+        _all = sorted(_rm["Nom"].tolist())
+        conv_detail = st.selectbox("Sélectionner une convention", _all,
+                                    index=0, key="conv_selector")
 
-        st.caption(f"Convention sélectionnée : **{conv_detail}**")
+    if conv_detail:
+        st.caption(f"Convention : **{conv_detail}**")
         df_cv = df_vc_filt[df_vc_filt["Nom"] == conv_detail].copy()
         ca_cv_n, ca_cv_n1, ev_cv = ca_sum_date_to_date(df_cv, annee_sel, annee_sel - 1, mois_sel)
         nb_fact_cv = len(df_cv[df_cv["Année"] == annee_sel])
@@ -1606,7 +1607,7 @@ with tabs[2]:
                 df_cv_comp, "Mois Nom", "CA N", "CA N-1",
                 f"CA Mensuel — {conv_detail}", annee_sel,
             )
-            st.plotly_chart(fig_cv_g, use_container_width=True, key=f"cv_bar_{conv_detail}")
+            st.plotly_chart(fig_cv_g, use_container_width=True)
 
         with col_cv2:
             _df_fn  = df_cv[df_cv["Année"] == annee_sel]
@@ -1628,7 +1629,7 @@ with tabs[2]:
                 df_cum, "Mois Nom", "CA Cum N", "CA Cum N-1",
                 f"CA Cumulé — {conv_detail}", annee_sel,
             )
-            st.plotly_chart(fig_cum, use_container_width=True, key=f"cv_cum_{conv_detail}")
+            st.plotly_chart(fig_cum, use_container_width=True)
 
         col_cv3, col_cv4 = st.columns(2)
         with col_cv3:
@@ -1639,7 +1640,7 @@ with tabs[2]:
                         mag, "Montant TTC", "Magasin",
                         "Top Magasins", C["purple"], h=360, orientation="h",
                     )
-                    st.plotly_chart(fig_mag_cv, use_container_width=True, key=f"cv_mag_{conv_detail}")
+                    st.plotly_chart(fig_mag_cv, use_container_width=True)
                 else:
                     st.info("Aucun magasin avec des transactions en N pour cette convention.")
 
@@ -1650,7 +1651,7 @@ with tabs[2]:
             if ca_cash > 0 or ca_credit > 0:
                 fig_pie_cv = chart_pie([ca_cash, ca_credit], ["Cash", "Crédit"],
                                        f"Cash vs Crédit — {conv_detail}")
-                st.plotly_chart(fig_pie_cv, use_container_width=True, key=f"cv_pie_{conv_detail}")
+                st.plotly_chart(fig_pie_cv, use_container_width=True)
 
         # ── Magasins contributeurs ──────────────────────────
         st.markdown("### 🏪 Magasins contributeurs")
