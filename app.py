@@ -184,7 +184,8 @@ def prepare_data(_raw: dict) -> tuple:
     code_df   = _raw.get("code_magasin", pd.DataFrame())
     df_vc     = _filter_conventions(_map_magasins(_add_date_cols(_raw.get("vc",       pd.DataFrame())), code_df))
     df_credit = _filter_conventions(_map_magasins(_add_date_cols(_raw.get("vc_credit", pd.DataFrame())), code_df))
-    df_edc    = _add_date_cols(_raw.get("vc_edc", pd.DataFrame()))
+    df_edc    = _map_magasins(_add_date_cols(_raw.get("vc_edc", pd.DataFrame())), code_df)
+    df_edc.columns = df_edc.columns.str.normalize("NFKD").str.encode("ascii", errors="ignore").str.decode("ascii")
     df_conv   = _raw.get("conventions_signees", pd.DataFrame())
     df_credit_part = _map_magasins(_add_date_cols(_raw.get("credit_particulier", pd.DataFrame())), code_df)
     df_cube_mag = load_cube_magasin(_raw.get("cube_magasin", pd.DataFrame()), code_df)
@@ -1871,6 +1872,73 @@ with tabs[4]:
         e2.metric(f"CA {edc_yr-1}", f"{ca_e_n1:,.0f} TND")
         e3.metric("Nb factures", nb_f_edc)
         e4.metric("Panier moyen", f"{panier_e:,.0f} TND")
+
+        # ─── Top Établissements ─────────────────────────────────
+        section(f"Top Établissements — {edc_yr}")
+
+        etab = (
+            df_edc_n.groupby("Magasin")
+            .agg(CA_N=("Montant TTC", "sum"), Nb=("Montant TTC", "count"))
+            .reset_index()
+            .sort_values("CA_N", ascending=False)
+        )
+        etab["Panier moyen"] = (etab["CA_N"] / etab["Nb"]).round(0)
+        total_edc_n = etab["CA_N"].sum()
+        etab["Poids %"] = (etab["CA_N"] / total_edc_n * 100).round(1) if total_edc_n > 0 else 0.0
+
+        etab_n1 = (
+            df_edc_n1.groupby("Magasin")
+            .agg(CA_N1=("Montant TTC", "sum"))
+            .reset_index()
+        )
+        etab = etab.merge(etab_n1, on="Magasin", how="left").fillna(0)
+        etab["Evolution %"] = np.where(
+            etab["CA_N1"] > 0,
+            ((etab["CA_N"] - etab["CA_N1"]) / etab["CA_N1"] * 100).round(1),
+            0.0
+        )
+
+        c_et1, c_et2, c_et3, c_et4 = st.columns(4)
+        c_et1.metric("🏪 Établissements actifs", len(etab[etab["CA_N"] > 0]))
+        c_et2.metric("💰 CA Total EDC", f"{total_edc_n:,.0f} TND")
+        c_et3.metric("📈 En croissance", len(etab[etab["Evolution %"] > 0]))
+        c_et4.metric("📉 En baisse", len(etab[etab["Evolution %"] < 0]))
+
+        col_b1, col_b2 = st.columns([3, 2])
+        with col_b1:
+            top10 = etab.head(10).sort_values("CA_N")
+            fig_top = px.bar(
+                top10, x="CA_N", y="Magasin", orientation="h",
+                title=f"Top 10 Établissements — {edc_yr}",
+                color="CA_N", color_continuous_scale=["#1D4ED8", "#3B82F6", "#60A5FA"],
+                text_auto=".0f"
+            )
+            fig_top.update_layout(height=400, yaxis=dict(autorange="reversed"))
+            fig_top.update_traces(textposition="outside")
+            st.plotly_chart(fig_top, use_container_width=True)
+        with col_b2:
+            fig_pie = px.pie(
+                etab.head(8), values="CA_N", names="Magasin",
+                title="Répartition du CA EDC", hole=0.42,
+                color_discrete_sequence=px.colors.qualitative.Set3
+            )
+            fig_pie.update_traces(textinfo="percent+label")
+            st.plotly_chart(fig_pie, use_container_width=True)
+
+        with st.expander("📋 Tableau complet des établissements"):
+            display_cols = ["Magasin", "CA_N", "Nb", "Panier moyen", "Poids %", "Evolution %"]
+            rename_map = {
+                "Magasin": "Établissement", "CA_N": "CA N", "Nb": "Nb factures",
+                "Poids %": "Poids %", "Evolution %": "Évolution %"
+            }
+            display_df = etab[display_cols].rename(columns=rename_map)
+            st.dataframe(
+                display_df.style.format({
+                    "CA N": "{:,.0f}", "Panier moyen": "{:,.0f}",
+                    "Poids %": "{:.1f}%", "Évolution %": "{:+.1f}%"
+                }, na_rep="—"),
+                use_container_width=True, height=400
+            )
 
         section("Répartition par durée d'échéance")
         if "Nbr_Mois_Echance" in df_edc.columns:
