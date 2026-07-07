@@ -185,7 +185,9 @@ def prepare_data(_raw: dict) -> tuple:
     df_vc     = _filter_conventions(_map_magasins(_add_date_cols(_raw.get("vc",       pd.DataFrame())), code_df))
     df_credit = _filter_conventions(_map_magasins(_add_date_cols(_raw.get("vc_credit", pd.DataFrame())), code_df))
     df_edc    = _map_magasins(_add_date_cols(_raw.get("vc_edc", pd.DataFrame())), code_df)
-    df_edc.columns = df_edc.columns.str.normalize("NFKD").str.encode("ascii", errors="ignore").str.decode("ascii")
+    # Renommer UNIQUEMENT la colonne avec accent aigu qui pose problème
+    if "Nbr_Mois_Échance" in df_edc.columns:
+        df_edc = df_edc.rename(columns={"Nbr_Mois_Échance": "Nbr_Mois_Echance"})
     df_conv   = _raw.get("conventions_signees", pd.DataFrame())
     df_credit_part = _map_magasins(_add_date_cols(_raw.get("credit_particulier", pd.DataFrame())), code_df)
     df_cube_mag = load_cube_magasin(_raw.get("cube_magasin", pd.DataFrame()), code_df)
