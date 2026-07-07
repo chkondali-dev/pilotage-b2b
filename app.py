@@ -1847,15 +1847,13 @@ with tabs[3]:
                 else:
                     st.info("Aucune convention sur la période.")
 
-            # ── Crédit Conso / Particulier / EDC (sous-tabs) ───────
+            # ── Crédit Conso / Particulier / EDC (expanders) ─────────
             st.markdown("### 💳 Autres segments")
-            tabs_credit = st.tabs(["Crédit Conso", "Crédit Particulier", "Convention EDC"])
 
-            def _build_credit_tab(tab, df_src, label, icon):
-                with tab:
-                    # Mapping code magasin
-                    df_filtered_n = pd.DataFrame()
-                    df_filtered_n1 = pd.DataFrame()
+            def _segment_expander(label, icon, df_src):
+                with st.expander(f"{icon} {label}", expanded=False):
+                    df_n = pd.DataFrame()
+                    df_n1 = pd.DataFrame()
                     if "Unite Code" in df_src.columns:
                         code_col = next((c for c in df_vc.columns if c.lower() == "unite code"), None)
                         if code_col and "Magasin" in df_vc.columns:
@@ -1864,28 +1862,27 @@ with tabs[3]:
                                 sc = [str(c).strip() for c in codes]
                                 scf = [c + ".0" if not c.endswith(".0") else c for c in sc]
                                 match = df_src["Unite Code"].astype(str).str.strip().isin(sc + scf)
-                                df_filtered_n = df_src[match & (df_src["Année"] == annee_sel)]
-                                df_filtered_n1 = df_src[match & (df_src["Année"] == annee_sel - 1)]
-                    if df_filtered_n.empty:
+                                df_n = df_src[match & (df_src["Année"] == annee_sel)]
+                                df_n1 = df_src[match & (df_src["Année"] == annee_sel - 1)]
+                    if df_n.empty:
                         st.info(f"Aucune donnée {label} pour ce magasin.")
                         return
 
                     if mois_sel:
-                        df_filtered_n = df_filtered_n[df_filtered_n["Mois"].isin(mois_sel)]
-                        df_filtered_n1 = df_filtered_n1[df_filtered_n1["Mois"].isin(mois_sel)]
+                        df_n = df_n[df_n["Mois"].isin(mois_sel)]
+                        df_n1 = df_n1[df_n1["Mois"].isin(mois_sel)]
 
-                    # Date-to-date si possible
-                    if len(df_filtered_n) > 0 and "Jour" in df_filtered_n.columns and len(df_filtered_n1) > 0:
-                        comp = compare_years_date_to_date(pd.concat([df_filtered_n, df_filtered_n1]),
+                    if len(df_n) > 0 and "Jour" in df_n.columns and len(df_n1) > 0:
+                        comp = compare_years_date_to_date(pd.concat([df_n, df_n1]),
                                                           annee_sel, annee_sel - 1, mois_sel)
                         ca_n_val = comp["CA N"].sum() if not comp.empty else 0
                         ca_n1_val = comp["CA N-1"].sum() if not comp.empty else 0
                     else:
-                        ca_n_val = df_filtered_n["Montant TTC"].sum() if len(df_filtered_n) > 0 else 0
-                        ca_n1_val = df_filtered_n1["Montant TTC"].sum() if len(df_filtered_n1) > 0 else 0
+                        ca_n_val = df_n["Montant TTC"].sum() if len(df_n) > 0 else 0
+                        ca_n1_val = df_n1["Montant TTC"].sum() if len(df_n1) > 0 else 0
 
                     ev = evol_pct(ca_n_val, ca_n1_val)
-                    nb = len(df_filtered_n)
+                    nb = len(df_n)
                     pm = ca_n_val / nb if nb > 0 else 0
 
                     c1, c2, c3, c4 = st.columns(4)
@@ -1895,9 +1892,9 @@ with tabs[3]:
                     c3.metric(f"📅 CA {annee_sel-1}", f"{ca_n1_val:,.0f} TND")
                     c4.metric("📊 Panier moyen", f"{pm:,.0f} TND" if nb > 0 else "0 TND")
 
-            _build_credit_tab(tabs_credit[0], df_credit, "Crédit Conso", "💳")
-            _build_credit_tab(tabs_credit[1], df_credit_part, "Crédit Particulier", "👤")
-            _build_credit_tab(tabs_credit[2], df_edc, "Convention EDC", "🏫")
+            _segment_expander("Crédit Conso", "💳", df_credit)
+            _segment_expander("Crédit Particulier", "👤", df_credit_part)
+            _segment_expander("Convention EDC", "🏫", df_edc)
 
             # ── Détail des opérations ───────────────────────────────
             with st.expander("📄 Détail des opérations"):
