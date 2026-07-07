@@ -1526,7 +1526,7 @@ with tabs[2]:
             height=400,
         )
         fig_top.update_layout(xaxis_title="CA N (TND)", yaxis_title="",
-                              legend=dict(orientation="h", y=1.08, x=0, font=dict(size=11)))
+                              legend=dict(orientation="h", y=-0.15, x=0, font=dict(size=11)))
         fig_top.update_traces(marker=dict(line=dict(width=0.5, color="white")))
         st.plotly_chart(fig_top, use_container_width=True)
 
