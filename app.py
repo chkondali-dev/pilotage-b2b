@@ -1487,9 +1487,7 @@ with tabs[2]:
     if conv_detail:
         df_cv = df_vc_filt[df_vc_filt["Nom"] == conv_detail].copy()
         
-        ca_cv_n    = ca_sum(df_cv, annee_sel, mois_sel)
-        ca_cv_n1   = ca_sum(df_cv, annee_sel - 1, mois_sel)
-        ev_cv      = evol_pct(ca_cv_n, ca_cv_n1)
+        ca_cv_n, ca_cv_n1, ev_cv = ca_sum_date_to_date(df_cv, annee_sel, annee_sel - 1, mois_sel)
         nb_fact_cv = len(df_cv[df_cv["Année"] == annee_sel])
         panier_cv  = ca_cv_n / nb_fact_cv if nb_fact_cv > 0 else 0
 
