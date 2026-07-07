@@ -1492,8 +1492,12 @@ with tabs[1]:
 with tabs[2]:
 
     # ── Données agrégées portefeuille (date-à-date) ──────
-    ca_total_n, ca_total_n1, ev_total = ca_sum_date_to_date(df_vc_filt, annee_sel, annee_sel - 1, mois_sel)
-    # Appliquer le filtre convention de la sidebar si actif
+    # Si une convention spécifique est choisie dans la sidebar, on filtre
+    _src_filt = df_vc_filt.copy()
+    if conv_sel != "Tous":
+        _src_filt = _src_filt[_src_filt["Nom"] == conv_sel]
+    ca_total_n, ca_total_n1, ev_total = ca_sum_date_to_date(_src_filt, annee_sel, annee_sel - 1, mois_sel)
+    # Appliquer le filtre convention de la sidebar sur la matrice risque aussi
     _rm = risk_mat.copy() if not risk_mat.empty else pd.DataFrame()
     if conv_sel != "Tous" and not _rm.empty:
         _rm = _rm[_rm["Nom"] == conv_sel]
@@ -1566,11 +1570,17 @@ with tabs[2]:
 
     # ── 4. Détail convention (sélection individuelle) ────
     section("Analyse individuelle")
-    # Liste indépendante du champ recherche (pour que le selectbox ne se réinitialise pas)
     _master_list = sorted(_rm["Nom"].tolist()) if not _rm.empty else []
-    conv_detail = st.selectbox("Sélectionner une convention", _master_list, index=0, key="conv_selector") if _master_list else None
 
-    if conv_detail:
+    if _master_list:
+        # Si la sidebar a sélectionné UNE convention, on pré-sélectionne
+        _def_idx = 0
+        if conv_sel != "Tous" and conv_sel in _master_list:
+            _def_idx = _master_list.index(conv_sel)
+        conv_detail = st.selectbox("Sélectionner une convention", _master_list,
+                                    index=_def_idx, key="conv_selector")
+
+        st.caption(f"Convention sélectionnée : **{conv_detail}**")
         df_cv = df_vc_filt[df_vc_filt["Nom"] == conv_detail].copy()
         ca_cv_n, ca_cv_n1, ev_cv = ca_sum_date_to_date(df_cv, annee_sel, annee_sel - 1, mois_sel)
         nb_fact_cv = len(df_cv[df_cv["Année"] == annee_sel])
