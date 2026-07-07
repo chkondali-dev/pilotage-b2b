@@ -1851,12 +1851,17 @@ with tabs[4]:
 
         df_edc_n  = df_edc[df_edc["Année"] == edc_yr]
         df_edc_n1 = df_edc[df_edc["Année"] == edc_yr - 1]
+
+        # Appliquer le filtre mois (sidebar)
+        if mois_sel:
+            df_edc_n  = df_edc_n[df_edc_n["Mois"].isin(mois_sel)]
+            df_edc_n1 = df_edc_n1[df_edc_n1["Mois"].isin(mois_sel)]
         
         # Date-to-date comparison for EDC tab
         if len(df_edc_n) > 0 and "Jour" in df_edc_n.columns and len(df_edc_n1) > 0:
             edc_comp = compare_years_date_to_date(
                 pd.concat([df_edc_n, df_edc_n1]), 
-                edc_yr, edc_yr - 1, None
+                edc_yr, edc_yr - 1, mois_sel
             )
             ca_e_n = edc_comp["CA N"].sum() if not edc_comp.empty else 0.0
             ca_e_n1 = edc_comp["CA N-1"].sum() if not edc_comp.empty else 0.0
