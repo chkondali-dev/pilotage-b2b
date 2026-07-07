@@ -1496,56 +1496,38 @@ with tabs[2]:
     nb_convs = len(risk_mat[risk_mat["CA N"] > 0]) if not risk_mat.empty else 0
 
     if not risk_mat.empty:
-        risky   = risk_mat[risk_mat["Statut"].str.contains("Déclin|Inactif", na=False)]
-        growing = risk_mat[risk_mat["Statut"] == "✅ Croissance"]
-        nb_risky, nb_growing = len(risky), len(growing)
+        risky = risk_mat[risk_mat["Statut"].str.contains("Déclin|Inactif", na=False)]
+        nb_risky = len(risky)
     else:
-        nb_risky = nb_growing = 0
+        nb_risky = 0
 
     # ── 1. KPIs portefeuille ─────────────────────────────
     section("Portefeuille conventions — Vue synthétique")
-    pk1, pk2, pk3, pk4, pk5 = st.columns(5)
+    pk1, pk2, pk3, pk4 = st.columns(4)
     pk1.metric("📋 Conventions actives", nb_convs)
     pk2.metric("💰 CA Total N", f"{ca_total_n:,.0f} TND", f"{ev_total:+.1f}%",
                delta_color="normal" if ev_total >= 0 else "inverse")
-    pk3.metric("✅ En croissance", nb_growing, f"/ {nb_convs}")
-    pk4.metric("⚠️ À risque", nb_risky, delta_color="inverse" if nb_risky > 0 else "off")
-    pk5.metric("🔄 Inactives", nb_inact, delta_color="inverse" if nb_inact > 0 else "off")
+    pk3.metric("⚠️ À risque", nb_risky, delta_color="inverse" if nb_risky > 0 else "off")
+    pk4.metric("🔄 Inactives", nb_inact, delta_color="inverse" if nb_inact > 0 else "off")
 
-    # ── 2. Bulles + Répartition ───────────────────────────
+    # ── 2. Scatter — portefeuille ─────────────────────────
     if not risk_mat.empty:
-        col_bub, col_rep = st.columns([3, 2])
-        with col_bub:
-            fig_bubble = px.scatter(
-                risk_mat, x="CA N", y="Évolution %",
-                size="CA N", color="Statut", hover_name="Nom",
-                title="Portefeuille — CA vs Évolution",
-                color_discrete_map={
-                    "✅ Croissance": C["green"], "📉 Déclin": C["amber"],
-                    "⚠️ Déclin fort": C["red"], "🆕 Nouveau": C["blue"],
-                    "❌ Inactif": "#9CA3AF", "❓ Aucun historique": "#D1D5DB",
-                },
-                size_max=50, height=450,
-            )
-            fig_bubble.update_traces(marker=dict(line=dict(width=1, color="white")))
-            fig_bubble.add_hline(y=0, line_dash="dash", line_color="grey", opacity=0.5)
-            st.plotly_chart(fig_bubble, use_container_width=True)
-
-        with col_rep:
-            sc = risk_mat["Statut"].value_counts().reset_index()
-            sc.columns = ["Statut", "Nombre"]
-            fig_s = px.bar(
-                sc, x="Nombre", y="Statut", orientation="h",
-                title="Répartition par statut", text_auto=True, height=450,
-                color="Statut",
-                color_discrete_map={
-                    "✅ Croissance": C["green"], "📉 Déclin": C["amber"],
-                    "⚠️ Déclin fort": C["red"], "🆕 Nouveau": C["blue"],
-                    "❌ Inactif": "#9CA3AF", "❓ Aucun historique": "#D1D5DB",
-                },
-            )
-            fig_s.update_layout(yaxis=dict(autorange="reversed"), showlegend=False)
-            st.plotly_chart(fig_s, use_container_width=True)
+        fig_bubble = px.scatter(
+            risk_mat, x="CA N", y="Évolution %",
+            size="CA N", color="Statut", hover_name="Nom",
+            title="CA vs Évolution — chaque bulle est une convention",
+            color_discrete_map={
+                "✅ Croissance": C["green"], "📉 Déclin": C["amber"],
+                "⚠️ Déclin fort": C["red"], "🆕 Nouveau": C["blue"],
+                "❌ Inactif": "#9CA3AF", "❓ Aucun historique": "#D1D5DB",
+            },
+            size_max=40, height=400,
+        )
+        fig_bubble.update_traces(marker=dict(line=dict(width=0.5, color="rgba(255,255,255,0.6)")),
+                                 opacity=0.85)
+        fig_bubble.add_hline(y=0, line_dash="dash", line_color="grey", opacity=0.4)
+        fig_bubble.update_layout(legend=dict(orientation="h", y=1.08, x=0, font=dict(size=11)))
+        st.plotly_chart(fig_bubble, use_container_width=True)
 
     # ── 3. Tableau des conventions (interactif) ──────────
     section("Liste des conventions")
