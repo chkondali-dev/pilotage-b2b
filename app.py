@@ -372,16 +372,30 @@ def get_rolling_3m(df: pd.DataFrame) -> pd.DataFrame:
     return d.sort_values(["Année", "Mois"])
 
 
-def convention_risk_matrix(df_vc: pd.DataFrame, annee_n: int) -> pd.DataFrame:
+def convention_risk_matrix(df_vc: pd.DataFrame, annee_n: int, annee_n1: int = None) -> pd.DataFrame:
     """
     Matrice risque / opportunité par convention.
     Classifie chaque convention selon CA et évolution N/N-1.
+    Applique la troncature jour à jour (N-1 limité au max jour de N).
     Version vectorisée pour performance.
     """
+    if annee_n1 is None:
+        annee_n1 = annee_n - 1
     if df_vc.empty or "Nom" not in df_vc.columns:
         return pd.DataFrame()
-    ca_n  = df_vc[df_vc["Année"] == annee_n].groupby("Nom")["Montant TTC"].sum().rename("CA N")
-    ca_n1 = df_vc[df_vc["Année"] == annee_n - 1].groupby("Nom")["Montant TTC"].sum().rename("CA N-1")
+
+    # Date-à-date : tronquer N-1 au même nombre de jours que N
+    df = df_vc.copy()
+    if "Jour" in df.columns:
+        df_n = df[df["Année"] == annee_n]
+        if not df_n.empty:
+            max_days = df_n.groupby("Mois")["Jour"].max()
+            for mois, max_jour in max_days.items():
+                mask = (df["Année"] == annee_n1) & (df["Mois"] == mois) & (df["Jour"] > max_jour)
+                df = df[~mask]
+
+    ca_n  = df[df["Année"] == annee_n].groupby("Nom")["Montant TTC"].sum().rename("CA N")
+    ca_n1 = df[df["Année"] == annee_n1].groupby("Nom")["Montant TTC"].sum().rename("CA N-1")
     mat = pd.concat([ca_n, ca_n1], axis=1).fillna(0).reset_index()
     mat["Évolution %"] = (
         (mat["CA N"] - mat["CA N-1"]) / mat["CA N-1"].replace(0, 1) * 100
@@ -1477,13 +1491,9 @@ with tabs[1]:
 # ══════════════════════════════════════════════════════════════
 with tabs[2]:
 
-    # ── Données agrégées portefeuille ─────────────────────
-    convs_n   = df_vc_filt[df_vc_filt["Année"] == annee_sel]
-    convs_n1  = df_vc_filt[df_vc_filt["Année"] == annee_sel - 1]
-    ca_total_n  = convs_n["Montant TTC"].sum()
-    ca_total_n1 = convs_n1["Montant TTC"].sum()
-    nb_convs    = convs_n["Nom"].nunique()
-    ev_total    = evol_pct(ca_total_n, ca_total_n1)
+    # ── Données agrégées portefeuille (date-à-date) ──────
+    ca_total_n, ca_total_n1, ev_total = ca_sum_date_to_date(df_vc_filt, annee_sel, annee_sel - 1, mois_sel)
+    nb_convs = len(risk_mat[risk_mat["CA N"] > 0]) if not risk_mat.empty else 0
 
     if not risk_mat.empty:
         risky   = risk_mat[risk_mat["Statut"].str.contains("Déclin|Inactif", na=False)]
@@ -1592,7 +1602,7 @@ with tabs[2]:
         ci4.metric("Panier moyen", f"{panier_cv:,.0f} TND")
 
         col_cv1, col_cv2 = st.columns(2)
-        df_cv_comp = compare_years(df_cv, annee_sel, annee_sel - 1)
+        df_cv_comp = compare_years_date_to_date(df_cv, annee_sel, annee_sel - 1, mois_sel)
 
         with col_cv1:
             fig_cv_g = chart_grouped_bar(
@@ -1604,6 +1614,11 @@ with tabs[2]:
         with col_cv2:
             _df_fn  = df_cv[df_cv["Année"] == annee_sel]
             _df_fn1 = df_cv[df_cv["Année"] == annee_sel - 1]
+            # Troncature date-à-date : N-1 limité au max jour de N par mois
+            if "Jour" in _df_fn.columns and not _df_fn.empty:
+                max_days = _df_fn.groupby("Mois")["Jour"].max()
+                for mois, max_jour in max_days.items():
+                    _df_fn1 = _df_fn1[~((_df_fn1["Mois"] == mois) & (_df_fn1["Jour"] > max_jour))]
             _cn  = _df_fn.groupby("Mois")["Montant TTC"].sum().reset_index()
             _cn1 = _df_fn1.groupby("Mois")["Montant TTC"].sum().reset_index()
             _cn["CA Cum N"]    = _cn["Montant TTC"].cumsum()
