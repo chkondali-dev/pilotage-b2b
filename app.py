@@ -1477,19 +1477,111 @@ with tabs[1]:
 # ══════════════════════════════════════════════════════════════
 with tabs[2]:
 
-    # ── Analyse individuelle (en tête) ──────────────────────
-    section("Analyse individuelle par convention")
+    # ── Données agrégées portefeuille ─────────────────────
+    convs_n   = df_vc_filt[df_vc_filt["Année"] == annee_sel]
+    convs_n1  = df_vc_filt[df_vc_filt["Année"] == annee_sel - 1]
+    ca_total_n  = convs_n["Montant TTC"].sum()
+    ca_total_n1 = convs_n1["Montant TTC"].sum()
+    nb_convs    = convs_n["Nom"].nunique()
+    ev_total    = evol_pct(ca_total_n, ca_total_n1)
 
-    all_convs = sorted(df_vc["Nom"].dropna().unique().tolist()) if "Nom" in df_vc.columns else []
-    
+    if not risk_mat.empty:
+        risky   = risk_mat[risk_mat["Statut"].str.contains("Déclin|Inactif", na=False)]
+        growing = risk_mat[risk_mat["Statut"] == "✅ Croissance"]
+        nb_risky, nb_growing = len(risky), len(growing)
+    else:
+        nb_risky = nb_growing = 0
+
+    # ── 1. KPIs portefeuille ─────────────────────────────
+    section("Portefeuille conventions — Vue synthétique")
+    pk1, pk2, pk3, pk4, pk5 = st.columns(5)
+    pk1.metric("📋 Conventions actives", nb_convs)
+    pk2.metric("💰 CA Total N", f"{ca_total_n:,.0f} TND", f"{ev_total:+.1f}%",
+               delta_color="normal" if ev_total >= 0 else "inverse")
+    pk3.metric("✅ En croissance", nb_growing, f"/ {nb_convs}")
+    pk4.metric("⚠️ À risque", nb_risky, delta_color="inverse" if nb_risky > 0 else "off")
+    pk5.metric("🔄 Inactives", nb_inact, delta_color="inverse" if nb_inact > 0 else "off")
+
+    # ── 2. Bulles + Répartition ───────────────────────────
+    if not risk_mat.empty:
+        col_bub, col_rep = st.columns([3, 2])
+        with col_bub:
+            fig_bubble = px.scatter(
+                risk_mat, x="CA N", y="Évolution %",
+                size="CA N", color="Statut", hover_name="Nom",
+                title="Portefeuille — CA vs Évolution",
+                color_discrete_map={
+                    "✅ Croissance": C["green"], "📉 Déclin": C["amber"],
+                    "⚠️ Déclin fort": C["red"], "🆕 Nouveau": C["blue"],
+                    "❌ Inactif": "#9CA3AF", "❓ Aucun historique": "#D1D5DB",
+                },
+                size_max=50, height=450,
+            )
+            fig_bubble.update_traces(marker=dict(line=dict(width=1, color="white")))
+            fig_bubble.add_hline(y=0, line_dash="dash", line_color="grey", opacity=0.5)
+            st.plotly_chart(fig_bubble, use_container_width=True)
+
+        with col_rep:
+            sc = risk_mat["Statut"].value_counts().reset_index()
+            sc.columns = ["Statut", "Nombre"]
+            fig_s = px.bar(
+                sc, x="Nombre", y="Statut", orientation="h",
+                title="Répartition par statut", text_auto=True, height=450,
+                color="Statut",
+                color_discrete_map={
+                    "✅ Croissance": C["green"], "📉 Déclin": C["amber"],
+                    "⚠️ Déclin fort": C["red"], "🆕 Nouveau": C["blue"],
+                    "❌ Inactif": "#9CA3AF", "❓ Aucun historique": "#D1D5DB",
+                },
+            )
+            fig_s.update_layout(yaxis=dict(autorange="reversed"), showlegend=False)
+            st.plotly_chart(fig_s, use_container_width=True)
+
+    # ── 3. Tableau des conventions (interactif) ──────────
+    section("Liste des conventions")
+
+    conv_table = risk_mat.copy() if not risk_mat.empty else pd.DataFrame()
+    if not conv_table.empty:
+        if "Magasin" in df_vc_filt.columns:
+            mc = df_vc_filt.groupby("Nom")["Magasin"].nunique().reset_index()
+            mc.columns = ["Nom", "Nb magasins"]
+            conv_table = conv_table.merge(mc, on="Nom", how="left").fillna(0)
+            conv_table["Nb magasins"] = conv_table["Nb magasins"].astype(int)
+        if "Date" in df_vc_filt.columns:
+            lf = df_vc_filt.groupby("Nom")["Date"].max().reset_index()
+            lf.columns = ["Nom", "Dernière facture"]
+            conv_table = conv_table.merge(lf, on="Nom", how="left")
+
+        search_c = st.text_input("🔍 Filtrer par nom", placeholder="Tapez un nom de convention...", label_visibility="collapsed")
+        if search_c:
+            conv_table = conv_table[conv_table["Nom"].str.contains(search_c, case=False, na=False)]
+
+        cols_show = [c for c in ["Nom", "CA N", "CA N-1", "Évolution %", "Statut", "Nb magasins", "Dernière facture"]
+                     if c in conv_table.columns]
+        st.dataframe(
+            conv_table[cols_show].style.format(
+                {"CA N": "{:,.0f}", "CA N-1": "{:,.0f}", "Évolution %": "{:+.1f}%"},
+                subset=["CA N", "CA N-1", "Évolution %"],
+                na_rep="—"
+            ),
+            use_container_width=True, height=350,
+        )
+
+    # ── 4. Détail convention (sélection individuelle) ────
+    section("Analyse individuelle")
+
+    all_convs = sorted(conv_table["Nom"].tolist()) if not conv_table.empty else []
     conv_detail = st.selectbox("Sélectionner une convention", all_convs, index=0) if all_convs else None
-    
+
     if conv_detail:
         df_cv = df_vc_filt[df_vc_filt["Nom"] == conv_detail].copy()
-        
         ca_cv_n, ca_cv_n1, ev_cv = ca_sum_date_to_date(df_cv, annee_sel, annee_sel - 1, mois_sel)
         nb_fact_cv = len(df_cv[df_cv["Année"] == annee_sel])
         panier_cv  = ca_cv_n / nb_fact_cv if nb_fact_cv > 0 else 0
+
+        # Badge statut
+        cv_statut = risk_mat[risk_mat["Nom"] == conv_detail]["Statut"].iloc[0] if not risk_mat.empty and conv_detail in risk_mat["Nom"].values else ""
+        st.markdown(f"### {conv_detail} &nbsp;{badge(cv_statut, 'red' if 'Déclin' in cv_statut or 'Inactif' in cv_statut else 'green' if 'Croissance' in cv_statut else 'amber')}", unsafe_allow_html=True)
 
         ci1, ci2, ci3, ci4 = st.columns(4)
         ci1.metric(f"CA {annee_sel}", f"{ca_cv_n:,.0f} TND",
@@ -1510,11 +1602,10 @@ with tabs[2]:
             st.plotly_chart(fig_cv_g, use_container_width=True, key=f"cv_bar_{conv_detail}")
 
         with col_cv2:
-            _df_filtered_n  = df_cv[df_cv["Année"] == annee_sel]
-            _df_filtered_n1 = df_cv[df_cv["Année"] == annee_sel - 1]
-            
-            _cn  = _df_filtered_n.groupby("Mois")["Montant TTC"].sum().reset_index()
-            _cn1 = _df_filtered_n1.groupby("Mois")["Montant TTC"].sum().reset_index()
+            _df_fn  = df_cv[df_cv["Année"] == annee_sel]
+            _df_fn1 = df_cv[df_cv["Année"] == annee_sel - 1]
+            _cn  = _df_fn.groupby("Mois")["Montant TTC"].sum().reset_index()
+            _cn1 = _df_fn1.groupby("Mois")["Montant TTC"].sum().reset_index()
             _cn["CA Cum N"]    = _cn["Montant TTC"].cumsum()
             _cn1["CA Cum N-1"] = _cn1["Montant TTC"].cumsum()
             df_cum = _cn[["Mois", "CA Cum N"]].merge(
@@ -1530,7 +1621,7 @@ with tabs[2]:
         col_cv3, col_cv4 = st.columns(2)
         with col_cv3:
             if "Magasin" in df_cv.columns:
-                mag = _df_filtered_n.groupby("Magasin")["Montant TTC"].sum().nlargest(10).reset_index()
+                mag = _df_fn.groupby("Magasin")["Montant TTC"].sum().nlargest(10).reset_index()
                 if not mag.empty:
                     fig_mag_cv = chart_bar(
                         mag, "Montant TTC", "Magasin",
@@ -1541,7 +1632,7 @@ with tabs[2]:
                     st.info("Aucun magasin avec des transactions en N pour cette convention.")
 
         with col_cv4:
-            ca_cash   = _df_filtered_n["Montant TTC"].sum() if len(_df_filtered_n) > 0 else 0
+            ca_cash   = _df_fn["Montant TTC"].sum() if len(_df_fn) > 0 else 0
             ca_credit = (df_credit[df_credit["Nom"] == conv_detail]["Montant TTC"].sum()
                          if "Nom" in df_credit.columns else 0)
             if ca_cash > 0 or ca_credit > 0:
@@ -1549,54 +1640,34 @@ with tabs[2]:
                                        f"Cash vs Crédit — {conv_detail}")
                 st.plotly_chart(fig_pie_cv, use_container_width=True, key=f"cv_pie_{conv_detail}")
 
-        # ── Magasins contributeurs ──────────────────────────────────
+        # ── Magasins contributeurs ──────────────────────────
         st.markdown("### 🏪 Magasins contributeurs")
-        if "Magasin" in df_cv.columns and len(_df_filtered_n) > 0:
-            detail_magasins = _df_filtered_n.groupby("Magasin").agg(
+        if "Magasin" in df_cv.columns and len(_df_fn) > 0:
+            detail_m = _df_fn.groupby("Magasin").agg(
                 Montant_TTC=("Montant TTC", "sum"),
                 Nb_Factures=("Montant TTC", "count"),
                 Derniere_Vente=("Date", "max"),
             ).reset_index()
-            detail_magasins.columns = ["Magasin", "Montant TTC", "Nb Factures", "Dernière Vente"]
-            
-            if len(_df_filtered_n1) > 0:
-                ca_n1_mag = _df_filtered_n1.groupby("Magasin")["Montant TTC"].sum().reset_index()
-                ca_n1_mag.columns = ["Magasin", "CA N-1"]
-                detail_magasins = detail_magasins.merge(ca_n1_mag, on="Magasin", how="left").fillna(0)
-                detail_magasins["Évolution %"] = (
-                    (detail_magasins["Montant TTC"] - detail_magasins["CA N-1"]) / detail_magasins["CA N-1"].replace(0, 1) * 100
-                ).round(1)
-                detail_magasins["CA N-1"] = detail_magasins["CA N-1"].apply(lambda x: f"{x:,.0f}" if x > 0 else "-")
+            detail_m.columns = ["Magasin", "Montant TTC", "Nb Factures", "Dernière Vente"]
+
+            if len(_df_fn1) > 0:
+                ca_n1_m = _df_fn1.groupby("Magasin")["Montant TTC"].sum().reset_index()
+                ca_n1_m.columns = ["Magasin", "CA N-1"]
+                detail_m = detail_m.merge(ca_n1_m, on="Magasin", how="left").fillna(0)
+                detail_m["Évolution %"] = ((detail_m["Montant TTC"] - detail_m["CA N-1"]) / detail_m["CA N-1"].replace(0, 1) * 100).round(1)
+                detail_m["CA N-1"] = detail_m["CA N-1"].apply(lambda x: f"{x:,.0f}" if x > 0 else "-")
             else:
-                detail_magasins["CA N-1"] = "-"
-                detail_magasins["Évolution %"] = 0.0
-            
-            detail_magasins["Montant TTC"]   = detail_magasins["Montant TTC"].apply(lambda x: f"{x:,.0f}")
-            detail_magasins["Dernière Vente"] = detail_magasins["Dernière Vente"].dt.strftime("%d/%m/%Y")
-            detail_magasins["Évolution %"]   = detail_magasins["Évolution %"].apply(lambda x: f"{x:+.1f}%")
-            
-            st.dataframe(
-                detail_magasins.sort_values("Montant TTC", ascending=False),
-                use_container_width=True,
-                height=min(400, 35 * (len(detail_magasins) + 1)),
-            )
+                detail_m["CA N-1"] = "-"
+                detail_m["Évolution %"] = 0.0
+
+            detail_m["Montant TTC"]   = detail_m["Montant TTC"].apply(lambda x: f"{x:,.0f}")
+            detail_m["Dernière Vente"] = detail_m["Dernière Vente"].dt.strftime("%d/%m/%Y")
+            detail_m["Évolution %"]   = detail_m["Évolution %"].apply(lambda x: f"{x:+.1f}%")
+
+            st.dataframe(detail_m.sort_values("Montant TTC", ascending=False),
+                         use_container_width=True, height=min(400, 35 * (len(detail_m) + 1)))
         else:
             st.info("Aucune donnée magasin disponible pour cette convention.")
-
-    # ── Diagnostic IA ───────────────────────────────────
-    section("Analyse par Convention - Diagnostic IA")
-    
-    if not risk_mat.empty:
-        diag = risk_mat.copy()
-        if "Magasin" in df_vc_filt.columns:
-            mag_map = df_vc_filt.groupby("Nom")["Magasin"].agg(
-                lambda x: ", ".join(sorted(x.dropna().unique()))
-            ).to_dict()
-            diag["Magasin"] = diag["Nom"].map(mag_map)
-        diag = diag.sort_values("Évolution %", ascending=False).reset_index(drop=True)
-        diag.index = diag.index + 1
-        diag.index.name = "#"
-        st.dataframe(diag, use_container_width=True, height=400)
 
 
 # ══════════════════════════════════════════════════════════════
