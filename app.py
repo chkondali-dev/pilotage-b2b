@@ -1097,10 +1097,8 @@ risk_mat    = convention_risk_matrix(df_vc_filt, annee_sel)
 df_inactive = inactive_conventions(df_vc_filt, seuil_inactif)
 df_3m       = get_rolling_3m(df_vc_filt)
 
-ca_n = df_vc_filt[df_vc_filt["Année"] == annee_sel]["Montant TTC"].sum()
-ca_n1 = df_vc_filt[df_vc_filt["Année"] == annee_sel - 1]["Montant TTC"].sum()
+ca_n, ca_n1, ev_nn1 = ca_sum_date_to_date(df_vc_filt, annee_sel, annee_sel - 1, mois_sel)
 ca_n2 = df_vc_filt[df_vc_filt["Année"] == annee_sel - 2]["Montant TTC"].sum()
-ev_nn1 = evol_pct(ca_n, ca_n1)
 ev_n1n2 = evol_pct(ca_n1, ca_n2)
 
 nb_actives  = df_vc_filt[df_vc_filt["Année"] == annee_sel]["Nom"].dropna().nunique() \
