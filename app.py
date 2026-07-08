@@ -1503,6 +1503,22 @@ with tabs[2]:
         _rm = _rm[_rm["Nom"] == conv_sel]
     nb_convs = len(_rm[_rm["CA N"] > 0]) if not _rm.empty else 0
 
+    # ── Debug ────────────────────────────────────────────
+    with st.expander("🔍 Debug TAB 2", expanded=False):
+        st.write("**conv_sel (sidebar) :**", conv_sel)
+        st.write("**type_vente_sel :**", type_vente_sel)
+        st.write("**mois_sel :**", mois_sel)
+        st.write("**df_vc_filt shape :**", df_vc_filt.shape)
+        if "Nom" in df_vc_filt.columns:
+            st.write("**Conventions dispo :**", sorted(df_vc_filt["Nom"].dropna().unique()))
+        st.write("**risk_mat shape :**", risk_mat.shape if not risk_mat.empty else "EMPTY")
+        st.write("**_rm shape :**", _rm.shape if not _rm.empty else "EMPTY")
+        if not _rm.empty:
+            st.write("**_rm Noms :**", _rm["Nom"].tolist())
+            st.write("**_rm CA N :**", _rm["CA N"].tolist())
+        st.write("**ca_total_n :**", ca_total_n)
+        st.write("**nb_convs :**", nb_convs)
+
     if not _rm.empty:
         risky = _rm[_rm["Statut"].str.contains("Déclin|Inactif", na=False)]
         nb_risky = len(risky)
