@@ -2291,9 +2291,12 @@ with tabs[6]:
     st.markdown("Conventions encours")
     st.caption("Suivi des projets de convention — de la prospection a la finalisation.")
 
-    csv_path = os.path.join(os.path.dirname(__file__), "conventions_signees.csv")
+    data_dir = os.path.join(os.path.dirname(__file__), "data")
+    if not os.path.exists(data_dir):
+        os.makedirs(data_dir)
+    csv_path = os.path.join(data_dir, "conventions_signees.csv")
     if not os.path.exists(csv_path):
-        st.info("Fichier conventions_signees.csv introuvable.")
+        st.info("Fichier data/conventions_signees.csv introuvable.")
     else:
         df_sig = pd.read_csv(csv_path, sep=";")
         if df_sig.empty or "code" not in df_sig.columns:
@@ -2303,7 +2306,7 @@ with tabs[6]:
             cf1, cf2 = st.columns([1, 2])
             with cf1:
                 sf = st.selectbox("Filtrer par statut",
-                    ["Tous","Prospection","Negociation","En cours","Finalisation","Signe","Finalise","Refuse"])
+                    ["Tous","Prospection","Negociation","En cours","Finalisation","Signe","Finalise","Refuse","Archive"])
             with cf2:
                 q = st.text_input("Rechercher un client", "")
 
@@ -2358,7 +2361,7 @@ with tabs[6]:
             df_edit["Debut"] = df_edit["date_debut_prospection"].fillna("-")
             df_edit["Delai (j)"] = 0
             df_edit["Modifs"] = df_edit["nb_modifications"].fillna(0).astype(int)
-            df_edit["Supprimer"] = False
+            df_edit["Archiver"] = False
             df_edit["Notes"] = df_edit["notes"]
             # Set delai
             for i in df_edit.index:
@@ -2372,7 +2375,7 @@ with tabs[6]:
                 df_edit.at[i, "Delai (j)"] = dur
 
             edited = st.data_editor(
-                df_edit[["Client","Statut","Debut","Delai (j)","Modifs","Notes","Supprimer","_idx"]],
+                df_edit[["Client","Statut","Debut","Delai (j)","Modifs","Notes","Archiver","_idx"]],
                 column_config={
                     "Client": st.column_config.TextColumn("Client", disabled=True),
                     "Statut": st.column_config.TextColumn("Statut", help="Valeurs: Prospection, Negociation, En cours, Finalisation, Signe, Finalise, Refuse"),
@@ -2380,7 +2383,7 @@ with tabs[6]:
                     "Delai (j)": st.column_config.NumberColumn("Delai (j)", disabled=True),
                     "Modifs": st.column_config.NumberColumn("Modifs", disabled=True),
                     "Notes": st.column_config.TextColumn("Notes", width="large"),
-                    "Supprimer": st.column_config.CheckboxColumn("Supprimer"),
+                    "Archiver": st.column_config.CheckboxColumn("Archiver"),
                     "_idx": st.column_config.NumberColumn("_idx", disabled=True, width="small")
                 },
                 use_container_width=True, hide_index=True, key="editor_conv"
@@ -2412,13 +2415,15 @@ with tabs[6]:
                             st.info("Aucune modification.")
 
                 with cb:
-                    to_del = [int(r["_idx"]) for _, r in edited.iterrows() if r.get("Supprimer", False)]
-                    if to_del:
-                        st.warning(f"{len(to_del)} projet(s) a supprimer")
-                        if st.button("Confirmer la suppression"):
-                            df_sig = df_sig.drop(index=[i for i in to_del if i in df_sig.index]).reset_index(drop=True)
+                    to_arch = [int(r["_idx"]) for _, r in edited.iterrows() if r.get("Archiver", False)]
+                    if to_arch:
+                        st.warning(f"{len(to_arch)} projet(s) a archiver")
+                        if st.button("Confirmer l'archivage"):
+                            for idx in to_arch:
+                                if idx in df_sig.index:
+                                    df_sig.at[idx, "statut"] = "Archive"
                             df_sig.to_csv(csv_path, sep=";", index=False, encoding="utf-8")
-                            st.success(f"{len(to_del)} projet(s) supprime(s).")
+                            st.success(f"{len(to_arch)} projet(s) archive(s).")
                             st.rerun()
 
             # Graphique repartition
@@ -2444,7 +2449,7 @@ with tabs[6]:
                         ns = st.selectbox("Statut",
                             ["Prospection","Negociation","En cours","Finalisation","Signe","Finalise","Refuse"])
                     with x2:
-                        nd = st.date_input("Debut prospection")
+                        nd = st.date_input("Debut prospection", value=today)
                         nv = st.text_input("Scenario", "01-Prive avec Amicale")
                     if st.form_submit_button("Ajouter"):
                         import csv
