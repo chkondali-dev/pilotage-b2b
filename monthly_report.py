@@ -1123,6 +1123,26 @@ def copy_to_clipboard(text: str):
 
 # ─── Main ──────────────────────────────────────────────────────
 
+def _truncate_n1_date_to_date(df: pd.DataFrame, annee: int, mois: int) -> pd.DataFrame:
+    """
+    Tronque N-1 au meme nombre de jours que N pour une comparaison equitable.
+    Ex: si Juillet 2026 a des donnees jusqu'au jour 7, on ne garde que les 7 premiers jours de Juillet 2025.
+    """
+    if df.empty or "Jour" not in df.columns or "Annee" not in df.columns:
+        return df
+    max_jour_n = df[(df["Annee"] == annee) & (df["Mois"] == mois)]["Jour"].max()
+    if pd.isna(max_jour_n):
+        return df
+    # Ne pas tronquer si N a plus de jours que N-1 (cas normal en fin de mois)
+    df_n1 = df[df["Annee"] == annee - 1]
+    max_jour_n1 = df_n1[df_n1["Mois"] == mois]["Jour"].max()
+    if pd.isna(max_jour_n1) or max_jour_n >= max_jour_n1:
+        return df
+    # Tronquer N-1 au meme nombre de jours que N
+    mask_n1 = (df["Annee"] == annee - 1) & (df["Mois"] == mois) & (df["Jour"] > max_jour_n)
+    return df[~mask_n1]
+
+
 def analyse(annee: int, mois: int, with_ai: bool = True, with_email: bool = True, api_key: str | None = None):
     """Point d'entree principal."""
     mois_nom = MOIS_NOMS.get(mois, str(mois))
@@ -1144,6 +1164,10 @@ def analyse(annee: int, mois: int, with_ai: bool = True, with_email: bool = True
         print("  ❌ Aucune donnee chargee. Abandon.")
         return
 
+    # ── Troncature date-à-date : si N a 7 jours, N-1 n'est compare que sur 7 jours ──
+    df_vc_d2d = _truncate_n1_date_to_date(df_vc, annee, mois)
+    df_edc_d2d = _truncate_n1_date_to_date(df_edc, annee, mois)
+
     # 2. Calcul KPIs
     print("\n  Calcul des indicateurs...")
     data = {
@@ -1153,26 +1177,26 @@ def analyse(annee: int, mois: int, with_ai: bool = True, with_email: bool = True
         "mois_nom": mois_nom,
     }
 
-    # Conventions
-    data["ca_conv"] = ca_periode(df_vc, annee, mois)
-    data["ca_conv_n1"] = ca_periode(df_vc, annee_n1, mois)
+    # Conventions (date-à-date)
+    data["ca_conv"] = ca_periode(df_vc_d2d, annee, mois)
+    data["ca_conv_n1"] = ca_periode(df_vc_d2d, annee_n1, mois)
     data["var_conv"] = evol_pct(data["ca_conv"], data["ca_conv_n1"])
-    data["nb_conv"] = nb_dossiers(df_vc, annee, mois)
-    data["nb_conv_n1"] = nb_dossiers(df_vc, annee_n1, mois)
+    data["nb_conv"] = nb_dossiers(df_vc_d2d, annee, mois)
+    data["nb_conv_n1"] = nb_dossiers(df_vc_d2d, annee_n1, mois)
     data["var_nb_conv"] = evol_pct(data["nb_conv"], data["nb_conv_n1"])
-    data["panier_conv"] = panier_moyen(df_vc, annee, mois)
-    data["panier_conv_n1"] = panier_moyen(df_vc, annee_n1, mois)
+    data["panier_conv"] = panier_moyen(df_vc_d2d, annee, mois)
+    data["panier_conv_n1"] = panier_moyen(df_vc_d2d, annee_n1, mois)
     data["var_panier"] = evol_pct(data["panier_conv"], data["panier_conv_n1"])
 
-    # EDC
-    data["ca_edc"] = ca_periode(df_edc, annee, mois)
-    data["ca_edc_n1"] = ca_periode(df_edc, annee_n1, mois)
+    # EDC (date-à-date)
+    data["ca_edc"] = ca_periode(df_edc_d2d, annee, mois)
+    data["ca_edc_n1"] = ca_periode(df_edc_d2d, annee_n1, mois)
     data["var_edc"] = evol_pct(data["ca_edc"], data["ca_edc_n1"])
-    data["nb_edc"] = nb_dossiers(df_edc, annee, mois)
-    data["nb_edc_n1"] = nb_dossiers(df_edc, annee_n1, mois)
+    data["nb_edc"] = nb_dossiers(df_edc_d2d, annee, mois)
+    data["nb_edc_n1"] = nb_dossiers(df_edc_d2d, annee_n1, mois)
     data["var_nb_edc"] = evol_pct(data["nb_edc"], data["nb_edc_n1"])
-    data["panier_edc"] = panier_moyen(df_edc, annee, mois)
-    data["panier_edc_n1"] = panier_moyen(df_edc, annee_n1, mois)
+    data["panier_edc"] = panier_moyen(df_edc_d2d, annee, mois)
+    data["panier_edc_n1"] = panier_moyen(df_edc_d2d, annee_n1, mois)
     data["var_panier_edc"] = evol_pct(data["panier_edc"], data["panier_edc_n1"])
 
     # Total
@@ -1180,18 +1204,18 @@ def analyse(annee: int, mois: int, with_ai: bool = True, with_email: bool = True
     data["ca_total_n1"] = data["ca_conv_n1"] + data["ca_edc_n1"]
     data["var_total"] = evol_pct(data["ca_total"], data["ca_total_n1"])
 
-    # Metriques derivees
-    data["conv_actives"] = conventions_actives(df_vc, annee, mois)
-    data["conv_actives_n1"] = conventions_actives(df_vc, annee_n1, mois)
+    # Metriques derivees (date-à-date aussi)
+    data["conv_actives"] = conventions_actives(df_vc_d2d, annee, mois)
+    data["conv_actives_n1"] = conventions_actives(df_vc_d2d, annee_n1, mois)
     data["var_actives"] = f"{data['conv_actives'] - data['conv_actives_n1']:+}"
-    data["mag_contributeurs"] = magasins_contributeurs(df_vc, annee, mois)
-    data["mag_contributeurs_n1"] = magasins_contributeurs(df_vc, annee_n1, mois)
+    data["mag_contributeurs"] = magasins_contributeurs(df_vc_d2d, annee, mois)
+    data["mag_contributeurs_n1"] = magasins_contributeurs(df_vc_d2d, annee_n1, mois)
     data["var_magasins"] = f"{data['mag_contributeurs'] - data['mag_contributeurs_n1']:+}"
 
-    data["top_convs"] = top_conventions(df_vc, annee, mois, 5)
-    data["flop_convs"] = flop_conventions(df_vc, annee, mois, annee_n1, mois, 5)
-    data["conventions"] = analyse_par_convention(df_vc, annee, mois, annee_n1)
-    data["magasins"] = analyse_par_magasin(df_vc, annee, mois, annee_n1)
+    data["top_convs"] = top_conventions(df_vc_d2d, annee, mois, 5)
+    data["flop_convs"] = flop_conventions(df_vc_d2d, annee, mois, annee_n1, mois, 5)
+    data["conventions"] = analyse_par_convention(df_vc_d2d, annee, mois, annee_n1)
+    data["magasins"] = analyse_par_magasin(df_vc_d2d, annee, mois, annee_n1)
 
     # Print KPIs
     print(f"  CA Conventions   : {format_k(data['ca_conv']):>8} TND ({data['var_conv']:>+.1f}%)")
@@ -1204,7 +1228,7 @@ def analyse(annee: int, mois: int, with_ai: bool = True, with_email: bool = True
     analyse_ia = None
     if with_ai:
         print("\n  Analyse IA...")
-        data["_df_vc"] = df_vc  # Passer le DataFrame complet pour les tendances
+        data["_df_vc"] = df_vc_d2d  # DataFrame tronqué date-à-date pour les tendances
         prompt = build_llm_prompt(data)
         print(f"      Prompt: {len(prompt)} chars")
         response = call_llm(prompt, api_key=api_key)

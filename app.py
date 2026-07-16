@@ -295,8 +295,8 @@ def compare_years(df: pd.DataFrame, annee_n: int, annee_n1: int) -> pd.DataFrame
 
 def compare_years_date_to_date(df: pd.DataFrame, annee_n: int, annee_n1: int, mois_sel: list = None) -> pd.DataFrame:
     """
-    Comparaison N vs N-1 DATE À DATE (même nombre de jours).
-    Si Mai 2026 a des données jusqu'au jour 7, on compare les 7 premiers jours de Mai 2025.
+    Comparaison N vs N-1 DATE À DATE (mêmes JOURS EXACTS).
+    Garde dans N-1 uniquement les jours où N a des transactions.
     """
     if df.empty or "Montant TTC" not in df.columns:
         return pd.DataFrame(columns=["Mois", "CA N", "CA N-1", "Variation %", "Mois Nom", "Jours comparés"])
@@ -314,16 +314,17 @@ def compare_years_date_to_date(df: pd.DataFrame, annee_n: int, annee_n1: int, mo
         # Pas de données jour, fallback sur comparaison mensuelle classique
         return compare_years(df_filtered, annee_n, annee_n1)
     
-    # Pour chaque mois, trouver le nombre max de jours disponibles en N
-    max_days_per_month = df_n.groupby("Mois")["Jour"].max().to_dict()
+    # Pour chaque mois, récupérer les JOURS EXACTS où N a des transactions
+    jours_par_mois = df_n.groupby("Mois")["Jour"].apply(set).to_dict()
     
     result_rows = []
-    for mois in sorted(max_days_per_month.keys()):
-        max_jour = max_days_per_month[mois]
+    for mois in sorted(jours_par_mois.keys()):
+        jours_n = jours_par_mois[mois]
         
-        # Filtrer N et N-1 pour ce mois, jour <= max_jour
-        ca_n = df_n[(df_n["Mois"] == mois) & (df_n["Jour"] <= max_jour)]["Montant TTC"].sum()
-        ca_n1 = df_n1[(df_n1["Mois"] == mois) & (df_n1["Jour"] <= max_jour)]["Montant TTC"].sum()
+        # N : toutes ses transactions (déjà filtrées aux jours existants)
+        ca_n = df_n[df_n["Mois"] == mois]["Montant TTC"].sum()
+        # N-1 : uniquement les mêmes jours que N
+        ca_n1 = df_n1[(df_n1["Mois"] == mois) & (df_n1["Jour"].isin(jours_n))]["Montant TTC"].sum()
         
         var_pct = ((ca_n - ca_n1) / ca_n1 * 100) if ca_n1 > 0 else (100 if ca_n > 0 else 0)
         
@@ -333,7 +334,7 @@ def compare_years_date_to_date(df: pd.DataFrame, annee_n: int, annee_n1: int, mo
             "CA N-1": ca_n1,
             "Variation %": round(var_pct, 1),
             "Mois Nom": MOIS.get(mois, str(mois)),
-            "Jours comparés": max_jour
+            "Jours comparés": len(jours_n)
         })
     
     comp = pd.DataFrame(result_rows)
@@ -384,14 +385,14 @@ def convention_risk_matrix(df_vc: pd.DataFrame, annee_n: int, annee_n1: int = No
     if df_vc.empty or "Nom" not in df_vc.columns:
         return pd.DataFrame()
 
-    # Date-à-date : tronquer N-1 au même nombre de jours que N
+    # Date-à-date : N-1 limité aux MÊMES JOURS que N
     df = df_vc.copy()
     if "Jour" in df.columns:
         df_n = df[df["Année"] == annee_n]
         if not df_n.empty:
-            max_days = df_n.groupby("Mois")["Jour"].max()
-            for mois, max_jour in max_days.items():
-                mask = (df["Année"] == annee_n1) & (df["Mois"] == mois) & (df["Jour"] > max_jour)
+            jours_par_mois = df_n.groupby("Mois")["Jour"].apply(set).to_dict()
+            for mois, jours_n in jours_par_mois.items():
+                mask = (df["Année"] == annee_n1) & (df["Mois"] == mois) & (~df["Jour"].isin(jours_n))
                 df = df[~mask]
 
     ca_n  = df[df["Année"] == annee_n].groupby("Nom")["Montant TTC"].sum().rename("CA N")
@@ -1106,19 +1107,27 @@ df_filt = df_vc_filt[df_vc_filt["Année"] == annee_sel].copy()
 if conv_sel != "Tous":
     df_filt = df_filt[df_filt["Nom"] == conv_sel]
 
-df_comp     = compare_years(df_vc_filt, annee_sel, annee_sel - 1)
-risk_mat    = convention_risk_matrix(df_vc_filt, annee_sel)
-df_inactive = inactive_conventions(df_vc_filt, seuil_inactif)
-df_3m       = get_rolling_3m(df_vc_filt)
+# ── Cache lourd : ces calculs coûteux ne sont PAS rejoués si les entrées n'ont pas changé ──
+@st.cache_data(show_spinner=False)
+def _cached_precalcs(df, annee, seuil, mois_tuple, _df_conv_ref):
+    """Tous les calculs lourds qui tournaient à chaque interaction.
+    df est hashé par contenu (pas de préfixe _), _df_conv_ref utilise l'identité (objet stable depuis le cache)."""
+    comp = compare_years(df, annee, annee - 1)
+    rm   = convention_risk_matrix(df, annee)
+    inac = inactive_conventions(df, seuil)
+    r3m  = get_rolling_3m(df)
+    ca_n, ca_n1, ev_nn1 = ca_sum_date_to_date(df, annee, annee - 1, list(mois_tuple) if mois_tuple else None)
+    ca_n2 = df[df["Année"] == annee - 2]["Montant TTC"].sum()
+    nb_a  = df[df["Année"] == annee]["Nom"].dropna().nunique() if "Nom" in df.columns else 0
+    nb_i  = len(inac)
+    nb_t  = len(_df_conv_ref) if not _df_conv_ref.empty else 0
+    return comp, rm, inac, r3m, ca_n, ca_n1, ev_nn1, ca_n2, nb_a, nb_i, nb_t
 
-ca_n, ca_n1, ev_nn1 = ca_sum_date_to_date(df_vc_filt, annee_sel, annee_sel - 1, mois_sel)
-ca_n2 = df_vc_filt[df_vc_filt["Année"] == annee_sel - 2]["Montant TTC"].sum()
+df_comp, risk_mat, df_inactive, df_3m, ca_n, ca_n1, ev_nn1, ca_n2, nb_actives, nb_inact, nb_total = \
+    _cached_precalcs(df_vc_filt, annee_sel, seuil_inactif, tuple(mois_sel) if mois_sel else (), df_conv)
+
 ev_n1n2 = evol_pct(ca_n1, ca_n2)
 
-nb_actives  = df_vc_filt[df_vc_filt["Année"] == annee_sel]["Nom"].dropna().nunique() \
-              if "Nom" in df_vc_filt.columns else 0
-nb_total    = len(df_conv) if not df_conv.empty else 0
-nb_inact    = len(df_inactive)
 panier_min = df_filt["Montant TTC"].min() if len(df_filt) > 0 else 0
 panier_max = df_filt["Montant TTC"].max() if len(df_filt) > 0 else 0
 panier_moy  = df_filt["Montant TTC"].mean() if len(df_filt) > 0 else 0
@@ -1149,7 +1158,7 @@ tabs = st.tabs([
     "🏪 Magasins",
     "🏫 EDC",
     "🏬 Pilotage par magasin",
-    "📋 Conventions SMG",
+    "📋 Conventions encours",
     "🤝 CRM",
 ])
 
@@ -1628,11 +1637,12 @@ with tabs[2]:
         with col_cv2:
             _df_fn  = df_cv[df_cv["Année"] == annee_sel]
             _df_fn1 = df_cv[df_cv["Année"] == annee_sel - 1]
-            # Troncature date-à-date : N-1 limité au max jour de N par mois
+            # Troncature date-à-date : N-1 limité aux MÊMES JOURS que N
             if "Jour" in _df_fn.columns and not _df_fn.empty:
-                max_days = _df_fn.groupby("Mois")["Jour"].max()
-                for mois, max_jour in max_days.items():
-                    _df_fn1 = _df_fn1[~((_df_fn1["Mois"] == mois) & (_df_fn1["Jour"] > max_jour))]
+                jours_par_mois = _df_fn.groupby("Mois")["Jour"].apply(set).to_dict()
+                for mois, jours_n in jours_par_mois.items():
+                    mask = (_df_fn1["Mois"] == mois) & (~_df_fn1["Jour"].isin(jours_n))
+                    _df_fn1 = _df_fn1[~mask]
             _cn  = _df_fn.groupby("Mois")["Montant TTC"].sum().reset_index()
             _cn1 = _df_fn1.groupby("Mois")["Montant TTC"].sum().reset_index()
             _cn["CA Cum N"]    = _cn["Montant TTC"].cumsum()
@@ -1881,40 +1891,52 @@ with tabs[3]:
             # ── Crédit Conso / Particulier / EDC (expanders) ─────────
             st.markdown("### 💳 Autres segments")
 
+            @st.cache_data(show_spinner=False)
+            def _cached_segment_kpis(df_src_val, store, _df_vc_ref, annee, mois_tuple):
+                """Calcule les KPIs d'un segment pour un magasin donné — mis en cache."""
+                df_n = pd.DataFrame()
+                df_n1 = pd.DataFrame()
+                if "Unite Code" in df_src_val.columns:
+                    code_col = next((c for c in _df_vc_ref.columns if c.lower() == "unite code"), None)
+                    if code_col and "Magasin" in _df_vc_ref.columns:
+                        codes = _df_vc_ref[_df_vc_ref["Magasin"] == store][code_col].dropna().unique()
+                        if len(codes) > 0:
+                            sc = [str(c).strip() for c in codes]
+                            scf = [c + ".0" if not c.endswith(".0") else c for c in sc]
+                            match = df_src_val["Unite Code"].astype(str).str.strip().isin(sc + scf)
+                            df_n = df_src_val[match & (df_src_val["Année"] == annee)]
+                            df_n1 = df_src_val[match & (df_src_val["Année"] == annee - 1)]
+                if df_n.empty:
+                    return "empty", 0, 0, 0, 0
+
+                ml = list(mois_tuple) if mois_tuple else None
+                if ml:
+                    df_n = df_n[df_n["Mois"].isin(ml)]
+                    df_n1 = df_n1[df_n1["Mois"].isin(ml)]
+
+                if len(df_n) > 0 and "Jour" in df_n.columns and len(df_n1) > 0:
+                    comp = compare_years_date_to_date(pd.concat([df_n, df_n1]),
+                                                      annee, annee - 1, ml)
+                    ca_n_val = comp["CA N"].sum() if not comp.empty else 0
+                    ca_n1_val = comp["CA N-1"].sum() if not comp.empty else 0
+                else:
+                    ca_n_val = df_n["Montant TTC"].sum() if len(df_n) > 0 else 0
+                    ca_n1_val = df_n1["Montant TTC"].sum() if len(df_n1) > 0 else 0
+
+                ev = evol_pct(ca_n_val, ca_n1_val)
+                nb = len(df_n)
+                pm = ca_n_val / nb if nb > 0 else 0
+                return "ok", ca_n_val, ca_n1_val, ev, nb, pm
+
             def _segment_expander(label, icon, df_src):
                 with st.expander(f"{icon} {label}", expanded=False):
-                    df_n = pd.DataFrame()
-                    df_n1 = pd.DataFrame()
-                    if "Unite Code" in df_src.columns:
-                        code_col = next((c for c in df_vc.columns if c.lower() == "unite code"), None)
-                        if code_col and "Magasin" in df_vc.columns:
-                            codes = df_vc[df_vc["Magasin"] == selected_store][code_col].dropna().unique()
-                            if len(codes) > 0:
-                                sc = [str(c).strip() for c in codes]
-                                scf = [c + ".0" if not c.endswith(".0") else c for c in sc]
-                                match = df_src["Unite Code"].astype(str).str.strip().isin(sc + scf)
-                                df_n = df_src[match & (df_src["Année"] == annee_sel)]
-                                df_n1 = df_src[match & (df_src["Année"] == annee_sel - 1)]
-                    if df_n.empty:
+                    mo_tup = tuple(mois_sel) if mois_sel else ()
+                    result = _cached_segment_kpis(df_src, selected_store, df_vc, annee_sel, mo_tup)
+                    status = result[0]
+                    if status == "empty":
                         st.info(f"Aucune donnée {label} pour ce magasin.")
                         return
-
-                    if mois_sel:
-                        df_n = df_n[df_n["Mois"].isin(mois_sel)]
-                        df_n1 = df_n1[df_n1["Mois"].isin(mois_sel)]
-
-                    if len(df_n) > 0 and "Jour" in df_n.columns and len(df_n1) > 0:
-                        comp = compare_years_date_to_date(pd.concat([df_n, df_n1]),
-                                                          annee_sel, annee_sel - 1, mois_sel)
-                        ca_n_val = comp["CA N"].sum() if not comp.empty else 0
-                        ca_n1_val = comp["CA N-1"].sum() if not comp.empty else 0
-                    else:
-                        ca_n_val = df_n["Montant TTC"].sum() if len(df_n) > 0 else 0
-                        ca_n1_val = df_n1["Montant TTC"].sum() if len(df_n1) > 0 else 0
-
-                    ev = evol_pct(ca_n_val, ca_n1_val)
-                    nb = len(df_n)
-                    pm = ca_n_val / nb if nb > 0 else 0
+                    _, ca_n_val, ca_n1_val, ev, nb, pm = result
 
                     c1, c2, c3, c4 = st.columns(4)
                     c1.metric(f"{icon} Dossiers", nb)
@@ -2266,120 +2288,92 @@ with tabs[5]:
 # ══════════════════════════════════════════════════════════════
 with tabs[6]:
 
-    st.markdown("### 📋 Pilotage Conventions SMG — GPO View")
+    st.markdown("Conventions encours")
+    st.caption("Suivi des projets de convention — de la prospection a la finalisation.")
 
-    # ── Session state for conventions data ──
-    if "smg_convs" not in st.session_state:
-        st.session_state.smg_convs = [
-            {"ref":"CONV-2026-001","client":"SONEDE","scenario":3,"regime":"Classique","plafond":3000,"duree":18,"taux":0.75,"encours":1200,"ds":22,"statut":"Active","date_fin":"2027-07-15","contact":"H. Chkondali","notes":"Paiements OK"},
-            {"ref":"CONV-2026-002","client":"MUTUELLE CIMENTERIE","scenario":9,"regime":"PLUS","plafond":25000,"duree":12,"taux":0.75,"encours":8500,"ds":35,"statut":"Active","date_fin":"2027-02-01","contact":"H. Chkondali","notes":"Phase pilote 3 mois"},
-            {"ref":"CONV-2026-003","client":"ONTT","scenario":6,"regime":"PLUS","plafond":2000,"duree":6,"taux":0.75,"encours":400,"ds":18,"statut":"En cours signature","date_fin":"2026-09-10","contact":"H. Chkondali","notes":"500 adherents pilote"},
-            {"ref":"CONV-2026-004","client":"BEN AROUS AMICALE","scenario":4,"regime":"Classique","plafond":3000,"duree":18,"taux":0.75,"encours":2800,"ds":48,"statut":"Active","date_fin":"2026-12-01","contact":"H. Chkondali","notes":"Utilisation quasi max"},
-            {"ref":"CONV-2025-012","client":"SOCIETE X","scenario":1,"regime":"Classique","plafond":3000,"duree":18,"taux":0.75,"encours":500,"ds":42,"statut":"Expiree","date_fin":"2026-07-20","contact":"H. Chkondali","notes":"A renouveler"},
-        ]
-
-    def jours_restants(date_str):
-        try:
-            return (datetime.strptime(date_str, "%Y-%m-%d") - datetime.now()).days
-        except:
-            return 999
-
-    def niveau_alerte(jrs):
-        if jrs < 0: return ("\U0001f534 Expiree", "inverse")
-        if jrs <= 30: return ("\U0001f534 Urgent", "inverse")
-        if jrs <= 60: return ("\U0001f7e0 Attention", "off")
-        if jrs <= 90: return ("\U0001f535 Anticiper", "off")
-        return ("\U0001f7e2 OK", "normal")
-
-    def util_pct(encours, plafond):
-        return round(encours / plafond * 100, 1) if plafond > 0 else 0
-
-    # ── Refresh data ──
-    df_smg = pd.DataFrame(st.session_state.smg_convs)
-    df_smg["jrs_restants"] = df_smg["date_fin"].apply(jours_restants)
-    df_smg["alerte"] = df_smg["jrs_restants"].apply(lambda j: niveau_alerte(j)[0])
-    df_smg["util_pct"] = df_smg.apply(lambda r: util_pct(r["encours"], r["plafond"]), axis=1)
-
-    # ── Top KPIs ──
-    actives = df_smg[df_smg["statut"] == "Active"]
-    alert_rouge = len(df_smg[df_smg["jrs_restants"].between(0, 30)])
-    alert_jaune = len(df_smg[df_smg["jrs_restants"].between(31, 60)])
-    encours_total = actives["encours"].sum()
-    dso_moy = round(actives["ds"].mean(), 1) if len(actives) > 0 else 0
-    util_moy = round(actives["util_pct"].mean(), 1) if len(actives) > 0 else 0
-
-    kpi1, kpi2, kpi3, kpi4, kpi5, kpi6 = st.columns(6)
-    kpi1.metric("Conventions actives", len(actives))
-    kpi2.metric("Encours total", f"{encours_total:,.0f} TND")
-    kpi3.metric("DSO moyen", f"{dso_moy} jrs")
-    kpi4.metric("Utilisation ligne moy.", f"{util_moy}%")
-    kpi5.metric("Alertes rouges", alert_rouge, delta_color="inverse")
-    kpi6.metric("Alertes jaunes", alert_jaune, delta_color="off")
-
-    # ── Tableau de suivi ──
-    st.markdown("### Suivi des conventions")
-    display_cols = {
-        "ref": "Convention", "client": "Client", "scenario": "Sc.", "regime": "Regime",
-        "plafond": "Plafond", "duree": "Mois", "encours": "Encours",
-        "util_pct": "Util.%", "ds": "DSO(j)", "jrs_restants": "Jours",
-        "alerte": "Alerte", "statut": "Statut", "date_fin": "Echeance",
-        "notes": "Notes",
-    }
-    df_display = df_smg[list(display_cols.keys())].rename(columns=display_cols)
-    df_display["Util.%"] = df_display["Util.%"].apply(lambda x: f"{x}%")
-    st.dataframe(df_display, use_container_width=True, height=280)
-
-    # ── Alertes échéances ──
-    st.markdown("### \U0001f514 Alertes echeances (prochains 90 jours)")
-    alertes = df_smg[(df_smg["jrs_restants"] >= 0) & (df_smg["jrs_restants"] <= 90)].sort_values("jrs_restants")
-    if len(alertes) > 0:
-        for _, r in alertes.iterrows():
-            lvl, delta = niveau_alerte(r["jrs_restants"])
-            st.metric(f"{r['client']} - {r['ref']}", f"{r['jrs_restants']} jours restants",
-                      f"{lvl}", delta_color=delta)
+    csv_path = os.path.join(os.path.dirname(__file__), "conventions_signees.csv")
+    if not os.path.exists(csv_path):
+        st.info("Fichier conventions_signees.csv introuvable.")
     else:
-        st.success("Aucune echeance dans les 90 jours.")
-
-    # ── Gestion rapide ──
-    st.markdown("### \u2699\ufe0f Ajouter / Modifier une convention")
-    with st.expander("Formulaire convention"):
-        with st.form("smg_form"):
-            col1, col2 = st.columns(2)
-            with col1:
-                ref = st.text_input("Ref convention", "CONV-2026-005")
-                client = st.text_input("Client", "")
-                scenario = st.selectbox("Scenario", range(1, 11), format_func=lambda x: f"S{x:02d}")
-            with col2:
-                regime = st.selectbox("Regime", ["Classique", "PLUS"])
-                plafond = st.number_input("Plafond (TND)", 300, 50000, 3000)
-                encours = st.number_input("Encours (TND)", 0, 50000, 0)
-            col3, col4 = st.columns(2)
-            with col3:
-                duree = st.number_input("Duree (mois)", 1, 24, 12)
-                dso = st.number_input("DSO (jours)", 0, 365, 30)
-            with col4:
-                statut = st.selectbox("Statut", ["Active", "En cours signature", "Expiree", "Resiliee"])
-                date_fin = st.date_input("Date echeance", datetime.now() + timedelta(days=365))
-            notes = st.text_area("Notes", "")
-            submitted = st.form_submit_button("Ajouter / Mettre a jour")
-            if submitted and client and ref:
-                exists = [i for i, c in enumerate(st.session_state.smg_convs) if c["ref"] == ref]
-                entry = {"ref":ref,"client":client,"scenario":scenario,"regime":regime,
-                         "plafond":plafond,"duree":duree,"taux":0.75,"encours":encours,
-                         "ds":dso,"statut":statut,"date_fin":date_fin.strftime("%Y-%m-%d"),
-                         "contact":"H. Chkondali","notes":notes}
-                if exists:
-                    st.session_state.smg_convs[exists[0]] = entry
+        df_sig = pd.read_csv(csv_path, sep=";")
+        if df_sig.empty or "code" not in df_sig.columns:
+            st.info("CSV vide ou mal formatte.")
+        else:
+            # Calculs
+            today = pd.Timestamp.now()
+            rows = []
+            tot_jours = 0
+            tot_projets = len(df_sig)
+            stats = {}
+            for _, r in df_sig.iterrows():
+                debut = pd.NaT
+                fin = pd.NaT
+                if pd.notna(r.get("date_debut_prospection","")):
+                    debut = pd.Timestamp(r["date_debut_prospection"])
+                if pd.notna(r.get("date_signature","")):
+                    fin = pd.Timestamp(r["date_signature"])
+                # Delai : soit entre debut-fin (si signe), soit debut-aujourdhui (si encours)
+                if pd.notna(debut):
+                    ref = fin if pd.notna(fin) else today
+                    duree = (ref - debut).days
                 else:
-                    st.session_state.smg_convs.append(entry)
-                st.rerun()
+                    duree = 0
+                tot_jours += duree
+                statut = str(r.get("statut","")).strip()
+                stats[statut] = stats.get(statut, 0) + 1
+                rows.append({"Client":r["client"], "Statut":statut,
+                    "Debut":str(debut.date()) if pd.notna(debut) else "-",
+                    "Delai (j)":duree,
+                    "Modifs":int(r.get("nb_modifications",0)),
+                    "Notes":str(r.get("notes",""))})
 
-    # ── Export CSV ──
-    csv_data = df_display.to_csv(index=False).encode("utf-8")
-    st.download_button("Exporter CSV", data=csv_data, file_name="conventions_smg.csv", mime="text/csv")
+            # KPIs
+            dsoy = round(tot_jours/tot_projets,1) if tot_projets>0 else 0
+            status_str = " | ".join([f"{s}: {c}" for s,c in sorted(stats.items())])
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Projets suivis", tot_projets)
+            c2.metric("Delai moyen", f"{dsoy} jrs")
+            c3.caption(status_str)
 
+            # Tableau
+            st.markdown("#### Liste des projets")
+            df_out = pd.DataFrame(rows)
+            def color_statut(v):
+                c = {"Prospection":"#F59E0B","Negociation":"#F97316","En cours":"#3B82F6",
+                     "Finalisation":"#8B5CF6","Signe":"#10B981","Finalise":"#059669","Refuse":"#DC2626"}
+                return f"color:{c.get(v,'#6B7280')};font-weight:600" if v in c else ""
+            st.dataframe(
+                df_out.style.map(color_statut, subset=["Statut"]),
+                use_container_width=True, hide_index=True
+            )
 
-# --- CRM ---
+            # Total des modifications
+            tot_modifs = sum(int(r.get("nb_modifications",0)) for _, r in df_sig.iterrows())
+            st.caption(f"Total des modifications apportees : {tot_modifs}")
+
+            # Section ajout
+            st.markdown("#### Ajouter un projet")
+            with st.expander("Nouvelle convention"):
+                with st.form("conv_form"):
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        nc = st.text_input("Client")
+                        ns = st.selectbox("Statut", ["Prospection","Negociation","En cours","Finalisation","Signe","Finalise"])
+                    with col2:
+                        nd = st.date_input("Debut prospection", datetime.now())
+                        nv = st.text_input("Scenario", "01-Prive avec Amicale")
+                    if st.form_submit_button("Ajouter"):
+                        import csv, os
+                        new_code = nc.upper().replace(" ","_")[:20] if nc else "NOUVEAU"
+                        fn = ["code","client","scenario","garantie","statut","date_debut_prospection","date_signature","nb_modifications","notes"]
+                        nr = {"code":new_code, "client":nc, "scenario":nv, "garantie":"",
+                              "statut":ns, "date_debut_prospection":str(nd),
+                              "date_signature":"", "nb_modifications":0, "notes":""}
+                        with open(csv_path, "a", newline="", encoding="utf-8") as f:
+                            w = csv.DictWriter(f, fieldnames=fn, delimiter=";")
+                            w.writerow(nr)
+                        st.success(f"Ajoute : {nc}")
+                        st.rerun()# --- CRM ---
 with tabs[7]:
     try:
         import sys as _cs, os as _co, importlib as _ci
