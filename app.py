@@ -2299,102 +2299,176 @@ with tabs[6]:
         if df_sig.empty or "code" not in df_sig.columns:
             st.info("CSV vide ou mal formatte.")
         else:
-            # Calculs
+            # Filtres
+            cf1, cf2 = st.columns([1, 2])
+            with cf1:
+                sf = st.selectbox("Filtrer par statut",
+                    ["Tous","Prospection","Negociation","En cours","Finalisation","Signe","Finalise","Refuse"])
+            with cf2:
+                q = st.text_input("Rechercher un client", "")
+
+            # Masque de filtrage
+            mask = pd.Series(True, index=df_sig.index)
+            if sf != "Tous":
+                mask &= df_sig["statut"].fillna("").str.strip() == sf
+            if q.strip():
+                mask &= df_sig["client"].fillna("").str.lower().str.contains(q.strip().lower())
+
+            df_filt = df_sig[mask].copy()
             today = pd.Timestamp.now()
-            rows = []
-            tot_jours = 0
-            tot_projets = len(df_sig)
+
+            # Calculs
+            rows_data = []
+            tot_j = 0
             stats = {}
-            for _, r in df_sig.iterrows():
-                debut = pd.NaT
-                fin = pd.NaT
+            for _, r in df_filt.iterrows():
+                d = pd.NaT
+                f = pd.NaT
                 if pd.notna(r.get("date_debut_prospection","")):
-                    debut = pd.Timestamp(r["date_debut_prospection"])
+                    d = pd.Timestamp(r["date_debut_prospection"])
                 if pd.notna(r.get("date_signature","")):
-                    fin = pd.Timestamp(r["date_signature"])
-                # Delai : soit entre debut-fin (si signe), soit debut-aujourdhui (si encours)
-                if pd.notna(debut):
-                    ref = fin if pd.notna(fin) else today
-                    duree = (ref - debut).days
-                else:
-                    duree = 0
-                tot_jours += duree
-                statut = str(r.get("statut","")).strip()
-                stats[statut] = stats.get(statut, 0) + 1
-                rows.append({"Client":r["client"], "Statut":statut,
-                    "Debut":str(debut.date()) if pd.notna(debut) else "-",
-                    "Delai (j)":duree,
-                    "Modifs":int(r.get("nb_modifications",0)),
-                    "Notes":str(r.get("notes",""))})
+                    f = pd.Timestamp(r["date_signature"])
+                dur = (f - d).days if pd.notna(f) and pd.notna(d) else ((today - d).days if pd.notna(d) else 0)
+                tot_j += dur
+                s = str(r.get("statut","")).strip()
+                stats[s] = stats.get(s, 0) + 1
+                rows_data.append({
+                    "Client": r["client"], "Statut": s,
+                    "Debut": str(d.date()) if pd.notna(d) else "-",
+                    "Delai (j)": dur,
+                    "Modifs": int(r.get("nb_modifications",0)),
+                    "Notes": str(r.get("notes",""))
+                })
 
             # KPIs
-            dsoy = round(tot_jours/tot_projets,1) if tot_projets>0 else 0
-            status_str = " | ".join([f"{s}: {c}" for s,c in sorted(stats.items())])
-            c1, c2, c3 = st.columns(3)
-            c1.metric("Projets suivis", tot_projets)
-            c2.metric("Delai moyen", f"{dsoy} jrs")
-            c3.caption(status_str)
+            if len(rows_data) > 0:
+                dm = round(tot_j/len(rows_data), 1)
+                ss = " | ".join([f"{s}: {c}" for s,c in sorted(stats.items())])
+                c1, c2, c3 = st.columns(3)
+                c1.metric("Projets", len(rows_data))
+                c2.metric("Delai moyen", f"{dm} jrs")
+                c3.caption(ss)
 
-            # Tableau editable (notes modifiables)
-            st.markdown("#### Liste des projets")
-            df_out = pd.DataFrame(rows)
+            # Barres de progression
+            if rows_data:
+                st.markdown("#### Delais par projet")
+                for rw in rows_data:
+                    d = rw["Delai (j)"]
+                    pct = min(d/180, 1.0)
+                    clr = "#10B981" if d < 60 else "#F59E0B" if d < 120 else "#EF4444"
+                    st.markdown(f"**{rw['Client']}** ({d} jrs) - {rw['Statut']}")
+                    st.progress(pct, text=f"{d}j / 180j")
 
-            def color_statut(v):
-                c = {"Prospection":"#F59E0B","Negociation":"#F97316","En cours":"#3B82F6",
-                     "Finalisation":"#8B5CF6","Signe":"#10B981","Finalise":"#059669","Refuse":"#DC2626"}
-                return f"color:{c.get(v,'#6B7280')};font-weight:600" if v in c else ""
-
-            df_edit = df_out.copy()
-            df_edit["Notes"] = df_sig["notes"].values
+            # Tableau editable
+            st.markdown("#### Edition")
+            df_edit = df_filt.copy()
+            df_edit["_idx"] = df_filt.index
+            df_edit["Client"] = df_edit["client"]
+            df_edit["Statut"] = df_edit["statut"]
+            df_edit["Debut"] = df_edit["date_debut_prospection"].fillna("-")
+            df_edit["Delai (j)"] = 0
+            df_edit["Modifs"] = df_edit["nb_modifications"].fillna(0).astype(int)
+            df_edit["Supprimer"] = False
+            # Set delai
+            for i in df_edit.index:
+                r = df_edit.loc[i]
+                d = pd.NaT; f = pd.NaT
+                if pd.notna(r.get("date_debut_prospection","")):
+                    d = pd.Timestamp(r["date_debut_prospection"])
+                if pd.notna(r.get("date_signature","")):
+                    f = pd.Timestamp(r["date_signature"])
+                dur = (f - d).days if pd.notna(f) and pd.notna(d) else ((today - d).days if pd.notna(d) else 0)
+                df_edit.at[i, "Delai (j)"] = dur
 
             edited = st.data_editor(
-                df_edit,
+                df_edit[["Client","Statut","Debut","Delai (j)","Modifs","Notes","Supprimer","_idx"]],
                 column_config={
                     "Client": st.column_config.TextColumn("Client", disabled=True),
-                    "Statut": st.column_config.TextColumn("Statut", disabled=True),
+                    "Statut": st.column_config.SelectColumn("Statut",
+                        options=["Prospection","Negociation","En cours","Finalisation","Signe","Finalise","Refuse"]),
                     "Debut": st.column_config.TextColumn("Debut", disabled=True),
                     "Delai (j)": st.column_config.NumberColumn("Delai (j)", disabled=True),
                     "Modifs": st.column_config.NumberColumn("Modifs", disabled=True),
                     "Notes": st.column_config.TextColumn("Notes", width="large"),
+                    "Supprimer": st.column_config.CheckboxColumn("Supprimer"),
+                    "_idx": st.column_config.NumberColumn("_idx", disabled=True, width="small")
                 },
                 use_container_width=True, hide_index=True, key="editor_conv"
             )
 
-            if edited is not None and "Notes" in edited.columns:
-                new_notes = edited["Notes"].tolist()
-                old_notes = df_sig["notes"].tolist()
-                if new_notes != old_notes:
-                    df_sig["notes"] = new_notes
-                    df_sig.to_csv(csv_path, sep=";", index=False, encoding="utf-8")
-                    st.success("Notes sauvegardees !")
+            # Actions : sauvegarder et supprimer
+            if edited is not None and "_idx" in edited.columns:
+                ca, cb = st.columns([1, 3])
+                with ca:
+                    if st.button("Sauvegarder les modifications"):
+                        changes = False
+                        for _, row in edited.iterrows():
+                            oidx = int(row["_idx"])
+                            if oidx in df_sig.index:
+                                new_note = str(row.get("Notes",""))
+                                new_stat = str(row.get("Statut","")).strip()
+                                old_note = str(df_sig.at[oidx, "notes"])
+                                old_stat = str(df_sig.at[oidx, "statut"]).strip()
+                                if new_note != old_note or new_stat != old_stat:
+                                    df_sig.at[oidx, "notes"] = new_note
+                                    df_sig.at[oidx, "statut"] = new_stat
+                                    df_sig.at[oidx, "nb_modifications"] = int(df_sig.at[oidx, "nb_modifications"]) + 1
+                                    changes = True
+                        if changes:
+                            df_sig.to_csv(csv_path, sep=";", index=False, encoding="utf-8")
+                            st.success("Modifications sauvegardees !")
+                            st.rerun()
+                        else:
+                            st.info("Aucune modification.")
 
-            # Total des modifications
-            tot_modifs = sum(int(r.get("nb_modifications",0)) for _, r in df_sig.iterrows())
-            st.caption(f"Total des modifications apportees : {tot_modifs}")
+                with cb:
+                    to_del = [int(r["_idx"]) for _, r in edited.iterrows() if r.get("Supprimer", False)]
+                    if to_del:
+                        st.warning(f"{len(to_del)} projet(s) a supprimer")
+                        if st.button("Confirmer la suppression"):
+                            df_sig = df_sig.drop(index=[i for i in to_del if i in df_sig.index]).reset_index(drop=True)
+                            df_sig.to_csv(csv_path, sep=";", index=False, encoding="utf-8")
+                            st.success(f"{len(to_del)} projet(s) supprime(s).")
+                            st.rerun()
 
-            # Section ajout
+            # Graphique repartition
+            if stats:
+                st.markdown("#### Repartition par statut")
+                import plotly.express as px
+                df_chart = pd.DataFrame({"Statut": list(stats.keys()), "Nombre": list(stats.values())})
+                colors = {"Prospection":"#F59E0B","Negociation":"#F97316","En cours":"#3B82F6",
+                          "Finalisation":"#8B5CF6","Signe":"#10B981","Finalise":"#059669","Refuse":"#DC2626"}
+                fig = px.bar(df_chart, x="Statut", y="Nombre", color="Statut",
+                             color_discrete_map=colors, text="Nombre", height=280)
+                fig.update_traces(textposition="outside")
+                fig.update_layout(margin=dict(l=10,r=10,t=10,b=10))
+                st.plotly_chart(fig, use_container_width=True, key="chart_statut")
+
+            # Ajout d'un projet
             st.markdown("#### Ajouter un projet")
             with st.expander("Nouvelle convention"):
                 with st.form("conv_form"):
-                    col1, col2 = st.columns(2)
-                    with col1:
+                    x1, x2 = st.columns(2)
+                    with x1:
                         nc = st.text_input("Client")
-                        ns = st.selectbox("Statut", ["Prospection","Negociation","En cours","Finalisation","Signe","Finalise"])
-                    with col2:
-                        nd = st.date_input("Debut prospection", datetime.now())
+                        ns = st.selectbox("Statut",
+                            ["Prospection","Negociation","En cours","Finalisation","Signe","Finalise","Refuse"])
+                    with x2:
+                        nd = st.date_input("Debut prospection")
                         nv = st.text_input("Scenario", "01-Prive avec Amicale")
                     if st.form_submit_button("Ajouter"):
-                        import csv, os
+                        import csv
                         new_code = nc.upper().replace(" ","_")[:20] if nc else "NOUVEAU"
                         fn = ["code","client","scenario","garantie","statut","date_debut_prospection","date_signature","nb_modifications","notes"]
-                        nr = {"code":new_code, "client":nc, "scenario":nv, "garantie":"",
-                              "statut":ns, "date_debut_prospection":str(nd),
-                              "date_signature":"", "nb_modifications":0, "notes":""}
+                        nr = {"code":new_code,"client":nc,"scenario":nv,"garantie":"",
+                              "statut":ns,"date_debut_prospection":str(nd),
+                              "date_signature":"","nb_modifications":0,"notes":""}
                         with open(csv_path, "a", newline="", encoding="utf-8") as f:
                             w = csv.DictWriter(f, fieldnames=fn, delimiter=";")
                             w.writerow(nr)
                         st.success(f"Ajoute : {nc}")
-                        st.rerun()# --- CRM ---
+                        st.rerun()
+
 with tabs[7]:
     try:
         import sys as _cs, os as _co, importlib as _ci
