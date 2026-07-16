@@ -2349,16 +2349,6 @@ with tabs[6]:
                 c2.metric("Delai moyen", f"{dm} jrs")
                 c3.caption(ss)
 
-            # Barres de progression
-            if rows_data:
-                st.markdown("#### Delais par projet")
-                for rw in rows_data:
-                    d = rw["Delai (j)"]
-                    pct = min(d/180, 1.0)
-                    clr = "#10B981" if d < 60 else "#F59E0B" if d < 120 else "#EF4444"
-                    st.markdown(f"**{rw['Client']}** ({d} jrs) - {rw['Statut']}")
-                    st.progress(pct, text=f"{d}j / 180j")
-
             # Tableau editable
             st.markdown("#### Edition")
             df_edit = df_filt.copy()
