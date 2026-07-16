@@ -2369,6 +2369,7 @@ with tabs[6]:
             df_edit["Delai (j)"] = 0
             df_edit["Modifs"] = df_edit["nb_modifications"].fillna(0).astype(int)
             df_edit["Supprimer"] = False
+            df_edit["Notes"] = df_edit["notes"]
             # Set delai
             for i in df_edit.index:
                 r = df_edit.loc[i]
