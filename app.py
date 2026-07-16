@@ -2335,17 +2335,38 @@ with tabs[6]:
             c2.metric("Delai moyen", f"{dsoy} jrs")
             c3.caption(status_str)
 
-            # Tableau
+            # Tableau editable (notes modifiables)
             st.markdown("#### Liste des projets")
             df_out = pd.DataFrame(rows)
+
             def color_statut(v):
                 c = {"Prospection":"#F59E0B","Negociation":"#F97316","En cours":"#3B82F6",
                      "Finalisation":"#8B5CF6","Signe":"#10B981","Finalise":"#059669","Refuse":"#DC2626"}
                 return f"color:{c.get(v,'#6B7280')};font-weight:600" if v in c else ""
-            st.dataframe(
-                df_out.style.map(color_statut, subset=["Statut"]),
-                use_container_width=True, hide_index=True
+
+            df_edit = df_out.copy()
+            df_edit["Notes"] = df_sig["notes"].values
+
+            edited = st.data_editor(
+                df_edit,
+                column_config={
+                    "Client": st.column_config.TextColumn("Client", disabled=True),
+                    "Statut": st.column_config.TextColumn("Statut", disabled=True),
+                    "Debut": st.column_config.TextColumn("Debut", disabled=True),
+                    "Delai (j)": st.column_config.NumberColumn("Delai (j)", disabled=True),
+                    "Modifs": st.column_config.NumberColumn("Modifs", disabled=True),
+                    "Notes": st.column_config.TextColumn("Notes", width="large"),
+                },
+                use_container_width=True, hide_index=True, key="editor_conv"
             )
+
+            if edited is not None and "Notes" in edited.columns:
+                new_notes = edited["Notes"].tolist()
+                old_notes = df_sig["notes"].tolist()
+                if new_notes != old_notes:
+                    df_sig["notes"] = new_notes
+                    df_sig.to_csv(csv_path, sep=";", index=False, encoding="utf-8")
+                    st.success("Notes sauvegardees !")
 
             # Total des modifications
             tot_modifs = sum(int(r.get("nb_modifications",0)) for _, r in df_sig.iterrows())
