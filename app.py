@@ -2385,8 +2385,7 @@ with tabs[6]:
                 df_edit[["Client","Statut","Debut","Delai (j)","Modifs","Notes","Supprimer","_idx"]],
                 column_config={
                     "Client": st.column_config.TextColumn("Client", disabled=True),
-                    "Statut": st.column_config.SelectColumn("Statut",
-                        options=["Prospection","Negociation","En cours","Finalisation","Signe","Finalise","Refuse"]),
+                    "Statut": st.column_config.TextColumn("Statut", help="Valeurs: Prospection, Negociation, En cours, Finalisation, Signe, Finalise, Refuse"),
                     "Debut": st.column_config.TextColumn("Debut", disabled=True),
                     "Delai (j)": st.column_config.NumberColumn("Delai (j)", disabled=True),
                     "Modifs": st.column_config.NumberColumn("Modifs", disabled=True),
