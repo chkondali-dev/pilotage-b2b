@@ -15,9 +15,9 @@ def load_alerts(path="data/trend_alerts.json"):
 
 
 def _severity_badge(severity):
-    if severity=="RED": return ":red_circle:"
-    if severity=="AMBER": return ":large_orange_diamond:"
-    return ":large_green_circle:"
+    if severity=="RED": return "🔴"
+    if severity=="AMBER": return "🟡"
+    return "🟢"
 
 
 def _severity_color(severity):
