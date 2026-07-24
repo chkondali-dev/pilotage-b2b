@@ -1,0 +1,2969 @@
+{
+  "generated_at": "2026-07-24T13:46:30.670746",
+  "scan_version": "1.0",
+  "summary": {
+    "total_alerts": 85,
+    "red_alerts": 67,
+    "amber_alerts": 18,
+    "total_magasins_analyzed": 73,
+    "total_conventions_analyzed": 84,
+    "inactive_count": 14
+  },
+  "magasin_alerts": [
+    {
+      "magasin": "BATAM JEAN JAURES",
+      "enseigne": "BATAM",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 26.2% vs N-1 (263833 TND vs 194808 TND)",
+          "metric_current": 194808.996,
+          "metric_previous": 263833.95900000003,
+          "threshold": 10.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 194808.996,
+        "ca_same_month_last_year": 263833.95900000003,
+        "yoy_change_pct": -26.2,
+        "mom_change_pct": -21.7,
+        "rolling_3m_avg": 201813.91,
+        "consecutive_decline_months": 1,
+        "transaction_count_current": 97,
+        "transaction_count_yoy_change_pct": -24.8
+      }
+    },
+    {
+      "magasin": "BATAM  ZAHROUNI",
+      "enseigne": "BATAM",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 14.9% vs N-1 (129991 TND vs 110605 TND)",
+          "metric_current": 110605.00200000001,
+          "metric_previous": 129991.83599999998,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "ROLLING_AVG_DROP",
+          "severity": "AMBER",
+          "message_fr": "CA (110605 TND) < 80% moyenne 3 mois (141885 TND)",
+          "metric_current": 110605.00200000001,
+          "metric_previous": 141885.59,
+          "threshold": 0.8
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 110605.00200000001,
+        "ca_same_month_last_year": 129991.83599999998,
+        "yoy_change_pct": -14.9,
+        "mom_change_pct": -42.4,
+        "rolling_3m_avg": 141885.59,
+        "consecutive_decline_months": 1,
+        "transaction_count_current": 55,
+        "transaction_count_yoy_change_pct": -29.5
+      }
+    },
+    {
+      "magasin": "BATAM ARIANA",
+      "enseigne": "BATAM",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 35.7% vs N-1 (141052 TND vs 90744 TND)",
+          "metric_current": 90744.96199999998,
+          "metric_previous": 141052.97400000002,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "CONSECUTIVE_3",
+          "severity": "RED",
+          "message_fr": "6 mois consecutifs de baisse vs N-1",
+          "metric_current": 6.0,
+          "metric_previous": 0,
+          "threshold": 3
+        },
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 38.4% (73 vs 45)",
+          "metric_current": 45.0,
+          "metric_previous": 73.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 90744.96199999998,
+        "ca_same_month_last_year": 141052.97400000002,
+        "yoy_change_pct": -35.7,
+        "mom_change_pct": 23.9,
+        "rolling_3m_avg": 66703.03,
+        "consecutive_decline_months": 6,
+        "transaction_count_current": 45,
+        "transaction_count_yoy_change_pct": -38.4
+      }
+    },
+    {
+      "magasin": "MG PROXI BIZERTE",
+      "enseigne": "MG",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 23.6% vs N-1 (107067 TND vs 81779 TND)",
+          "metric_current": 81779.393,
+          "metric_previous": 107067.61900000002,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "CONSECUTIVE_3",
+          "severity": "RED",
+          "message_fr": "3 mois consecutifs de baisse vs N-1",
+          "metric_current": 3.0,
+          "metric_previous": 0,
+          "threshold": 3
+        },
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 31.5% (54 vs 37)",
+          "metric_current": 37.0,
+          "metric_previous": 54.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 81779.393,
+        "ca_same_month_last_year": 107067.61900000002,
+        "yoy_change_pct": -23.6,
+        "mom_change_pct": -9.8,
+        "rolling_3m_avg": 80126.63,
+        "consecutive_decline_months": 3,
+        "transaction_count_current": 37,
+        "transaction_count_yoy_change_pct": -31.5
+      }
+    },
+    {
+      "magasin": "BATAM AV PARIS",
+      "enseigne": "BATAM",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 25.1% vs N-1 (92286 TND vs 69155 TND)",
+          "metric_current": 69155.39,
+          "metric_previous": 92286.56700000001,
+          "threshold": 10.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 69155.39,
+        "ca_same_month_last_year": 92286.56700000001,
+        "yoy_change_pct": -25.1,
+        "mom_change_pct": -38.4,
+        "rolling_3m_avg": 76912.32,
+        "consecutive_decline_months": 1,
+        "transaction_count_current": 37,
+        "transaction_count_yoy_change_pct": -24.5
+      }
+    },
+    {
+      "magasin": "BATAM INTELEKA",
+      "enseigne": "BATAM",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "CONSECUTIVE_3",
+          "severity": "RED",
+          "message_fr": "6 mois consecutifs de baisse vs N-1",
+          "metric_current": 6.0,
+          "metric_previous": 0,
+          "threshold": 3
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 56366.317,
+        "ca_same_month_last_year": 58409.82600000001,
+        "yoy_change_pct": -3.5,
+        "mom_change_pct": 24.2,
+        "rolling_3m_avg": 46109.99,
+        "consecutive_decline_months": 6,
+        "transaction_count_current": 30,
+        "transaction_count_yoy_change_pct": 0.0
+      }
+    },
+    {
+      "magasin": "MG PROXI SIDI HASSINE",
+      "enseigne": "MG",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 10.6% vs N-1 (57227 TND vs 51178 TND)",
+          "metric_current": 51178.763,
+          "metric_previous": 57227.10800000001,
+          "threshold": 10.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 51178.763,
+        "ca_same_month_last_year": 57227.10800000001,
+        "yoy_change_pct": -10.6,
+        "mom_change_pct": -13.8,
+        "rolling_3m_avg": 45511.06,
+        "consecutive_decline_months": 1,
+        "transaction_count_current": 28,
+        "transaction_count_yoy_change_pct": -20.0
+      }
+    },
+    {
+      "magasin": "MG CITY MOKNINE",
+      "enseigne": "MG",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 29.6% vs N-1 (67268 TND vs 47382 TND)",
+          "metric_current": 47382.111,
+          "metric_previous": 67268.88699999999,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 37.0% (46 vs 29)",
+          "metric_current": 29.0,
+          "metric_previous": 46.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 47382.111,
+        "ca_same_month_last_year": 67268.88699999999,
+        "yoy_change_pct": -29.6,
+        "mom_change_pct": 39.7,
+        "rolling_3m_avg": 43052.4,
+        "consecutive_decline_months": 2,
+        "transaction_count_current": 29,
+        "transaction_count_yoy_change_pct": -37.0
+      }
+    },
+    {
+      "magasin": "MG MAXI TUNIS BAB BHAR",
+      "enseigne": "MG",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 53.3% vs N-1 (48133 TND vs 22489 TND)",
+          "metric_current": 22489.82,
+          "metric_previous": 48133.332,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 54.5% (22 vs 10)",
+          "metric_current": 10.0,
+          "metric_previous": 22.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 22489.82,
+        "ca_same_month_last_year": 48133.332,
+        "yoy_change_pct": -53.3,
+        "mom_change_pct": -36.9,
+        "rolling_3m_avg": 27529.29,
+        "consecutive_decline_months": 1,
+        "transaction_count_current": 10,
+        "transaction_count_yoy_change_pct": -54.5
+      }
+    },
+    {
+      "magasin": "MG MAXI LA MARSA",
+      "enseigne": "MG",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 46.8% vs N-1 (32524 TND vs 17308 TND)",
+          "metric_current": 17308.735999999997,
+          "metric_previous": 32524.879999999997,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 42.9% (14 vs 8)",
+          "metric_current": 8.0,
+          "metric_previous": 14.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 17308.735999999997,
+        "ca_same_month_last_year": 32524.879999999997,
+        "yoy_change_pct": -46.8,
+        "mom_change_pct": 11.5,
+        "rolling_3m_avg": 13863.11,
+        "consecutive_decline_months": 2,
+        "transaction_count_current": 8,
+        "transaction_count_yoy_change_pct": -42.9
+      }
+    },
+    {
+      "magasin": "MG CITY KSAR HELAL",
+      "enseigne": "MG",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_5",
+          "severity": "AMBER",
+          "message_fr": "CA en baisse de 9.7% vs N-1 (19016 TND vs 17181 TND)",
+          "metric_current": 17181.22,
+          "metric_previous": 19016.734,
+          "threshold": 5.0
+        },
+        {
+          "rule_id": "CONSECUTIVE_3",
+          "severity": "RED",
+          "message_fr": "6 mois consecutifs de baisse vs N-1",
+          "metric_current": 6.0,
+          "metric_previous": 0,
+          "threshold": 3
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 17181.22,
+        "ca_same_month_last_year": 19016.734,
+        "yoy_change_pct": -9.7,
+        "mom_change_pct": 7.5,
+        "rolling_3m_avg": 13686.17,
+        "consecutive_decline_months": 6,
+        "transaction_count_current": 9,
+        "transaction_count_yoy_change_pct": 12.5
+      }
+    },
+    {
+      "magasin": "MG PROXI HAMMAM-LIF",
+      "enseigne": "MG",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 14.3% vs N-1 (19522 TND vs 16729 TND)",
+          "metric_current": 16729.611,
+          "metric_previous": 19522.455,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "ROLLING_AVG_DROP",
+          "severity": "AMBER",
+          "message_fr": "CA (16729 TND) < 80% moyenne 3 mois (26841 TND)",
+          "metric_current": 16729.611,
+          "metric_previous": 26841.76,
+          "threshold": 0.8
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 16729.611,
+        "ca_same_month_last_year": 19522.455,
+        "yoy_change_pct": -14.3,
+        "mom_change_pct": -43.1,
+        "rolling_3m_avg": 26841.76,
+        "consecutive_decline_months": 1,
+        "transaction_count_current": 10,
+        "transaction_count_yoy_change_pct": -23.1
+      }
+    },
+    {
+      "magasin": "BATAM ZAGHOUAN",
+      "enseigne": "BATAM",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 55.2% vs N-1 (32505 TND vs 14547 TND)",
+          "metric_current": 14547.464,
+          "metric_previous": 32505.051,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "ROLLING_AVG_DROP",
+          "severity": "AMBER",
+          "message_fr": "CA (14547 TND) < 80% moyenne 3 mois (21401 TND)",
+          "metric_current": 14547.464,
+          "metric_previous": 21401.01,
+          "threshold": 0.8
+        },
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 52.6% (19 vs 9)",
+          "metric_current": 9.0,
+          "metric_previous": 19.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 14547.464,
+        "ca_same_month_last_year": 32505.051,
+        "yoy_change_pct": -55.2,
+        "mom_change_pct": -52.7,
+        "rolling_3m_avg": 21401.01,
+        "consecutive_decline_months": 1,
+        "transaction_count_current": 9,
+        "transaction_count_yoy_change_pct": -52.6
+      }
+    },
+    {
+      "magasin": "BATAM JENDOUBA",
+      "enseigne": "BATAM",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 51.0% vs N-1 (27931 TND vs 13693 TND)",
+          "metric_current": 13693.788,
+          "metric_previous": 27931.448999999997,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "ROLLING_AVG_DROP",
+          "severity": "AMBER",
+          "message_fr": "CA (13693 TND) < 80% moyenne 3 mois (23525 TND)",
+          "metric_current": 13693.788,
+          "metric_previous": 23525.61,
+          "threshold": 0.8
+        },
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 60.0% (15 vs 6)",
+          "metric_current": 6.0,
+          "metric_previous": 15.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 13693.788,
+        "ca_same_month_last_year": 27931.448999999997,
+        "yoy_change_pct": -51.0,
+        "mom_change_pct": -49.7,
+        "rolling_3m_avg": 23525.61,
+        "consecutive_decline_months": 2,
+        "transaction_count_current": 6,
+        "transaction_count_yoy_change_pct": -60.0
+      }
+    },
+    {
+      "magasin": "Batam Monastir",
+      "enseigne": "BATAM",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 58.7% vs N-1 (32826 TND vs 13572 TND)",
+          "metric_current": 13572.057999999997,
+          "metric_previous": 32826.221,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "CONSECUTIVE_3",
+          "severity": "RED",
+          "message_fr": "4 mois consecutifs de baisse vs N-1",
+          "metric_current": 4.0,
+          "metric_previous": 0,
+          "threshold": 3
+        },
+        {
+          "rule_id": "ROLLING_AVG_DROP",
+          "severity": "AMBER",
+          "message_fr": "CA (13572 TND) < 80% moyenne 3 mois (19083 TND)",
+          "metric_current": 13572.057999999997,
+          "metric_previous": 19083.27,
+          "threshold": 0.8
+        },
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 53.8% (13 vs 6)",
+          "metric_current": 6.0,
+          "metric_previous": 13.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 13572.057999999997,
+        "ca_same_month_last_year": 32826.221,
+        "yoy_change_pct": -58.7,
+        "mom_change_pct": -46.5,
+        "rolling_3m_avg": 19083.27,
+        "consecutive_decline_months": 4,
+        "transaction_count_current": 6,
+        "transaction_count_yoy_change_pct": -53.8
+      }
+    },
+    {
+      "magasin": "BATAM Sousse Trocadero",
+      "enseigne": "BATAM",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 73.0% vs N-1 (42127 TND vs 11359 TND)",
+          "metric_current": 11359.360999999999,
+          "metric_previous": 42127.191999999995,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "CONSECUTIVE_3",
+          "severity": "RED",
+          "message_fr": "3 mois consecutifs de baisse vs N-1",
+          "metric_current": 3.0,
+          "metric_previous": 0,
+          "threshold": 3
+        },
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 72.7% (22 vs 6)",
+          "metric_current": 6.0,
+          "metric_previous": 22.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 11359.360999999999,
+        "ca_same_month_last_year": 42127.191999999995,
+        "yoy_change_pct": -73.0,
+        "mom_change_pct": -27.4,
+        "rolling_3m_avg": 13855.83,
+        "consecutive_decline_months": 3,
+        "transaction_count_current": 6,
+        "transaction_count_yoy_change_pct": -72.7
+      }
+    },
+    {
+      "magasin": "BATAM AIN ZAGHOUAN",
+      "enseigne": "BATAM",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 96.1% vs N-1 (197258 TND vs 7724 TND)",
+          "metric_current": 7724.388,
+          "metric_previous": 197258.622,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "CONSECUTIVE_3",
+          "severity": "RED",
+          "message_fr": "6 mois consecutifs de baisse vs N-1",
+          "metric_current": 6.0,
+          "metric_previous": 0,
+          "threshold": 3
+        },
+        {
+          "rule_id": "ROLLING_AVG_DROP",
+          "severity": "AMBER",
+          "message_fr": "CA (7724 TND) < 80% moyenne 3 mois (19333 TND)",
+          "metric_current": 7724.388,
+          "metric_previous": 19333.53,
+          "threshold": 0.8
+        },
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 93.4% (76 vs 5)",
+          "metric_current": 5.0,
+          "metric_previous": 76.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 7724.388,
+        "ca_same_month_last_year": 197258.622,
+        "yoy_change_pct": -96.1,
+        "mom_change_pct": -72.7,
+        "rolling_3m_avg": 19333.53,
+        "consecutive_decline_months": 6,
+        "transaction_count_current": 5,
+        "transaction_count_yoy_change_pct": -93.4
+      }
+    },
+    {
+      "magasin": "MG MAXI NABEUL",
+      "enseigne": "MG",
+      "severity": "AMBER",
+      "rules_triggered": [
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 33.3% (3 vs 2)",
+          "metric_current": 2.0,
+          "metric_previous": 3.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 5489.535,
+        "ca_same_month_last_year": 5095.8330000000005,
+        "yoy_change_pct": 7.7,
+        "mom_change_pct": -63.4,
+        "rolling_3m_avg": 6829.16,
+        "consecutive_decline_months": 0,
+        "transaction_count_current": 2,
+        "transaction_count_yoy_change_pct": -33.3
+      }
+    },
+    {
+      "magasin": "MG PROXI KELIBIA",
+      "enseigne": "MG",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 28.3% vs N-1 (7192 TND vs 5154 TND)",
+          "metric_current": 5154.4349999999995,
+          "metric_previous": 7192.154,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 33.3% (3 vs 2)",
+          "metric_current": 2.0,
+          "metric_previous": 3.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 5154.4349999999995,
+        "ca_same_month_last_year": 7192.154,
+        "yoy_change_pct": -28.3,
+        "mom_change_pct": 0.0,
+        "rolling_3m_avg": 2328.13,
+        "consecutive_decline_months": 1,
+        "transaction_count_current": 2,
+        "transaction_count_yoy_change_pct": -33.3
+      }
+    },
+    {
+      "magasin": "MG PROXI BEJA",
+      "enseigne": "MG",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 88.3% vs N-1 (42426 TND vs 4960 TND)",
+          "metric_current": 4960.751,
+          "metric_previous": 42426.33000000001,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 83.3% (18 vs 3)",
+          "metric_current": 3.0,
+          "metric_previous": 18.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 4960.751,
+        "ca_same_month_last_year": 42426.33000000001,
+        "yoy_change_pct": -88.3,
+        "mom_change_pct": 39.7,
+        "rolling_3m_avg": 5571.95,
+        "consecutive_decline_months": 1,
+        "transaction_count_current": 3,
+        "transaction_count_yoy_change_pct": -83.3
+      }
+    },
+    {
+      "magasin": "SMG BORJ CEDRIA",
+      "enseigne": "MG",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 31.4% vs N-1 (7154 TND vs 4904 TND)",
+          "metric_current": 4904.91,
+          "metric_previous": 7154.314,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "CONSECUTIVE_3",
+          "severity": "RED",
+          "message_fr": "3 mois consecutifs de baisse vs N-1",
+          "metric_current": 3.0,
+          "metric_previous": 0,
+          "threshold": 3
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 4904.91,
+        "ca_same_month_last_year": 7154.314,
+        "yoy_change_pct": -31.4,
+        "mom_change_pct": 118.4,
+        "rolling_3m_avg": 2383.44,
+        "consecutive_decline_months": 3,
+        "transaction_count_current": 3,
+        "transaction_count_yoy_change_pct": 0.0
+      }
+    },
+    {
+      "magasin": "BATAM DJERBA",
+      "enseigne": "BATAM",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 68.1% vs N-1 (13819 TND vs 4403 TND)",
+          "metric_current": 4403.853999999999,
+          "metric_previous": 13819.364,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "CONSECUTIVE_3",
+          "severity": "RED",
+          "message_fr": "6 mois consecutifs de baisse vs N-1",
+          "metric_current": 6.0,
+          "metric_previous": 0,
+          "threshold": 3
+        },
+        {
+          "rule_id": "ROLLING_AVG_DROP",
+          "severity": "AMBER",
+          "message_fr": "CA (4403 TND) < 80% moyenne 3 mois (8841 TND)",
+          "metric_current": 4403.853999999999,
+          "metric_previous": 8841.62,
+          "threshold": 0.8
+        },
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 71.4% (7 vs 2)",
+          "metric_current": 2.0,
+          "metric_previous": 7.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 4403.853999999999,
+        "ca_same_month_last_year": 13819.364,
+        "yoy_change_pct": -68.1,
+        "mom_change_pct": -73.1,
+        "rolling_3m_avg": 8841.62,
+        "consecutive_decline_months": 6,
+        "transaction_count_current": 2,
+        "transaction_count_yoy_change_pct": -71.4
+      }
+    },
+    {
+      "magasin": "BATAL KEF",
+      "enseigne": "MG",
+      "severity": "AMBER",
+      "rules_triggered": [
+        {
+          "rule_id": "ROLLING_AVG_DROP",
+          "severity": "AMBER",
+          "message_fr": "CA (4049 TND) < 80% moyenne 3 mois (8785 TND)",
+          "metric_current": 4049.811,
+          "metric_previous": 8785.56,
+          "threshold": 0.8
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 4049.811,
+        "ca_same_month_last_year": 1200.528,
+        "yoy_change_pct": 237.3,
+        "mom_change_pct": -50.8,
+        "rolling_3m_avg": 8785.56,
+        "consecutive_decline_months": 0,
+        "transaction_count_current": 2,
+        "transaction_count_yoy_change_pct": 100.0
+      }
+    },
+    {
+      "magasin": "MG PROXI JENDOUBA",
+      "enseigne": "MG",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 22.1% vs N-1 (4415 TND vs 3440 TND)",
+          "metric_current": 3440.097,
+          "metric_previous": 4415.289000000001,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 50.0% (2 vs 1)",
+          "metric_current": 1.0,
+          "metric_previous": 2.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 3440.097,
+        "ca_same_month_last_year": 4415.289000000001,
+        "yoy_change_pct": -22.1,
+        "mom_change_pct": -6.6,
+        "rolling_3m_avg": 2374.56,
+        "consecutive_decline_months": 1,
+        "transaction_count_current": 1,
+        "transaction_count_yoy_change_pct": -50.0
+      }
+    },
+    {
+      "magasin": "MG PROXI SILIANA",
+      "enseigne": "MG",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 61.2% vs N-1 (8555 TND vs 3315 TND)",
+          "metric_current": 3315.4880000000003,
+          "metric_previous": 8555.91,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 50.0% (4 vs 2)",
+          "metric_current": 2.0,
+          "metric_previous": 4.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 3315.4880000000003,
+        "ca_same_month_last_year": 8555.91,
+        "yoy_change_pct": -61.2,
+        "mom_change_pct": 692.8,
+        "rolling_3m_avg": 2220.84,
+        "consecutive_decline_months": 2,
+        "transaction_count_current": 2,
+        "transaction_count_yoy_change_pct": -50.0
+      }
+    },
+    {
+      "magasin": "BATAM Sidi Bouzid",
+      "enseigne": "BATAM",
+      "severity": "AMBER",
+      "rules_triggered": [
+        {
+          "rule_id": "ROLLING_AVG_DROP",
+          "severity": "AMBER",
+          "message_fr": "CA (2927 TND) < 80% moyenne 3 mois (5546 TND)",
+          "metric_current": 2927.514,
+          "metric_previous": 5546.03,
+          "threshold": 0.8
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 2927.514,
+        "ca_same_month_last_year": 2469.723,
+        "yoy_change_pct": 18.5,
+        "mom_change_pct": -56.6,
+        "rolling_3m_avg": 5546.03,
+        "consecutive_decline_months": 0,
+        "transaction_count_current": 1,
+        "transaction_count_yoy_change_pct": 0.0
+      }
+    },
+    {
+      "magasin": "MG MAXI IBN KHALDOUN",
+      "enseigne": "MG",
+      "severity": "AMBER",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_5",
+          "severity": "AMBER",
+          "message_fr": "CA en baisse de 8.5% vs N-1 (2705 TND vs 2475 TND)",
+          "metric_current": 2475.426,
+          "metric_previous": 2705.479,
+          "threshold": 5.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 2475.426,
+        "ca_same_month_last_year": 2705.479,
+        "yoy_change_pct": -8.5,
+        "mom_change_pct": -46.9,
+        "rolling_3m_avg": 2380.45,
+        "consecutive_decline_months": 1,
+        "transaction_count_current": 1,
+        "transaction_count_yoy_change_pct": 0.0
+      }
+    },
+    {
+      "magasin": "MG MAXI SFAX TANIOUR",
+      "enseigne": "MG",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 38.1% vs N-1 (2972 TND vs 1839 TND)",
+          "metric_current": 1839.556,
+          "metric_previous": 2972.137,
+          "threshold": 10.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 1839.556,
+        "ca_same_month_last_year": 2972.137,
+        "yoy_change_pct": -38.1,
+        "mom_change_pct": 0.0,
+        "rolling_3m_avg": 613.19,
+        "consecutive_decline_months": 2,
+        "transaction_count_current": 1,
+        "transaction_count_yoy_change_pct": 0.0
+      }
+    },
+    {
+      "magasin": "101",
+      "enseigne": "MG",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 62.6% vs N-1 (3762 TND vs 1406 TND)",
+          "metric_current": 1406.534,
+          "metric_previous": 3762.633,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 50.0% (2 vs 1)",
+          "metric_current": 1.0,
+          "metric_previous": 2.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 1406.534,
+        "ca_same_month_last_year": 3762.633,
+        "yoy_change_pct": -62.6,
+        "mom_change_pct": 0.0,
+        "rolling_3m_avg": 1432.86,
+        "consecutive_decline_months": 2,
+        "transaction_count_current": 1,
+        "transaction_count_yoy_change_pct": -50.0
+      }
+    },
+    {
+      "magasin": "MG MAXI NASER",
+      "enseigne": "MG",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 77.8% vs N-1 (5409 TND vs 1199 TND)",
+          "metric_current": 1199.395,
+          "metric_previous": 5409.815,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "CONSECUTIVE_3",
+          "severity": "RED",
+          "message_fr": "5 mois consecutifs de baisse vs N-1",
+          "metric_current": 5.0,
+          "metric_previous": 0,
+          "threshold": 3
+        },
+        {
+          "rule_id": "ROLLING_AVG_DROP",
+          "severity": "AMBER",
+          "message_fr": "CA (1199 TND) < 80% moyenne 3 mois (2069 TND)",
+          "metric_current": 1199.395,
+          "metric_previous": 2069.99,
+          "threshold": 0.8
+        },
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 50.0% (2 vs 1)",
+          "metric_current": 1.0,
+          "metric_previous": 2.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 1199.395,
+        "ca_same_month_last_year": 5409.815,
+        "yoy_change_pct": -77.8,
+        "mom_change_pct": -64.4,
+        "rolling_3m_avg": 2069.99,
+        "consecutive_decline_months": 5,
+        "transaction_count_current": 1,
+        "transaction_count_yoy_change_pct": -50.0
+      }
+    },
+    {
+      "magasin": "MG Proxi El Jem",
+      "enseigne": "MG",
+      "severity": "AMBER",
+      "rules_triggered": [
+        {
+          "rule_id": "ROLLING_AVG_DROP",
+          "severity": "AMBER",
+          "message_fr": "CA (744 TND) < 80% moyenne 3 mois (2225 TND)",
+          "metric_current": 744.388,
+          "metric_previous": 2225.07,
+          "threshold": 0.8
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 744.388,
+        "ca_same_month_last_year": 0.0,
+        "yoy_change_pct": 0.0,
+        "mom_change_pct": 36.1,
+        "rolling_3m_avg": 2225.07,
+        "consecutive_decline_months": 0,
+        "transaction_count_current": 1,
+        "transaction_count_yoy_change_pct": 0.0
+      }
+    },
+    {
+      "magasin": "MG CITY SOUSSE",
+      "enseigne": "MG",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 100.0% vs N-1 (3522 TND vs 0 TND)",
+          "metric_current": 0.0,
+          "metric_previous": 3522.006,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "ROLLING_AVG_DROP",
+          "severity": "AMBER",
+          "message_fr": "CA (0 TND) < 80% moyenne 3 mois (2941 TND)",
+          "metric_current": 0.0,
+          "metric_previous": 2941.41,
+          "threshold": 0.8
+        },
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 100.0% (2 vs 0)",
+          "metric_current": 0.0,
+          "metric_previous": 2.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 0.0,
+        "ca_same_month_last_year": 3522.006,
+        "yoy_change_pct": -100.0,
+        "mom_change_pct": -100.0,
+        "rolling_3m_avg": 2941.41,
+        "consecutive_decline_months": 1,
+        "transaction_count_current": 0,
+        "transaction_count_yoy_change_pct": -100.0
+      }
+    },
+    {
+      "magasin": "MG PROXI HRAIRIA",
+      "enseigne": "MG",
+      "severity": "AMBER",
+      "rules_triggered": [
+        {
+          "rule_id": "ROLLING_AVG_DROP",
+          "severity": "AMBER",
+          "message_fr": "CA (0 TND) < 80% moyenne 3 mois (1383 TND)",
+          "metric_current": 0.0,
+          "metric_previous": 1383.39,
+          "threshold": 0.8
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 0.0,
+        "ca_same_month_last_year": 0.0,
+        "yoy_change_pct": 0.0,
+        "mom_change_pct": -100.0,
+        "rolling_3m_avg": 1383.39,
+        "consecutive_decline_months": 0,
+        "transaction_count_current": 0,
+        "transaction_count_yoy_change_pct": 0.0
+      }
+    },
+    {
+      "magasin": "MG CITY MENZEL TEMIM",
+      "enseigne": "MG",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 100.0% vs N-1 (3144 TND vs 0 TND)",
+          "metric_current": 0.0,
+          "metric_previous": 3144.948,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "ROLLING_AVG_DROP",
+          "severity": "AMBER",
+          "message_fr": "CA (0 TND) < 80% moyenne 3 mois (2539 TND)",
+          "metric_current": 0.0,
+          "metric_previous": 2539.54,
+          "threshold": 0.8
+        },
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 100.0% (2 vs 0)",
+          "metric_current": 0.0,
+          "metric_previous": 2.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 0.0,
+        "ca_same_month_last_year": 3144.948,
+        "yoy_change_pct": -100.0,
+        "mom_change_pct": -100.0,
+        "rolling_3m_avg": 2539.54,
+        "consecutive_decline_months": 1,
+        "transaction_count_current": 0,
+        "transaction_count_yoy_change_pct": -100.0
+      }
+    },
+    {
+      "magasin": "MG PROXI KEBILI",
+      "enseigne": "MG",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 100.0% vs N-1 (1829 TND vs 0 TND)",
+          "metric_current": 0.0,
+          "metric_previous": 1829.975,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "ROLLING_AVG_DROP",
+          "severity": "AMBER",
+          "message_fr": "CA (0 TND) < 80% moyenne 3 mois (1269 TND)",
+          "metric_current": 0.0,
+          "metric_previous": 1269.85,
+          "threshold": 0.8
+        },
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 100.0% (1 vs 0)",
+          "metric_current": 0.0,
+          "metric_previous": 1.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 0.0,
+        "ca_same_month_last_year": 1829.975,
+        "yoy_change_pct": -100.0,
+        "mom_change_pct": -100.0,
+        "rolling_3m_avg": 1269.85,
+        "consecutive_decline_months": 2,
+        "transaction_count_current": 0,
+        "transaction_count_yoy_change_pct": -100.0
+      }
+    },
+    {
+      "magasin": "MG PROXI SOUSSE BAB BHAR",
+      "enseigne": "MG",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 100.0% vs N-1 (2946 TND vs 0 TND)",
+          "metric_current": 0.0,
+          "metric_previous": 2946.874,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "CONSECUTIVE_3",
+          "severity": "RED",
+          "message_fr": "4 mois consecutifs de baisse vs N-1",
+          "metric_current": 4.0,
+          "metric_previous": 0,
+          "threshold": 3
+        },
+        {
+          "rule_id": "ROLLING_AVG_DROP",
+          "severity": "AMBER",
+          "message_fr": "CA (0 TND) < 80% moyenne 3 mois (1156 TND)",
+          "metric_current": 0.0,
+          "metric_previous": 1156.49,
+          "threshold": 0.8
+        },
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 100.0% (2 vs 0)",
+          "metric_current": 0.0,
+          "metric_previous": 2.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 0.0,
+        "ca_same_month_last_year": 2946.874,
+        "yoy_change_pct": -100.0,
+        "mom_change_pct": 0.0,
+        "rolling_3m_avg": 1156.49,
+        "consecutive_decline_months": 4,
+        "transaction_count_current": 0,
+        "transaction_count_yoy_change_pct": -100.0
+      }
+    },
+    {
+      "magasin": "MG PROXI MAHDIA",
+      "enseigne": "MG",
+      "severity": "AMBER",
+      "rules_triggered": [
+        {
+          "rule_id": "ROLLING_AVG_DROP",
+          "severity": "AMBER",
+          "message_fr": "CA (0 TND) < 80% moyenne 3 mois (503 TND)",
+          "metric_current": 0.0,
+          "metric_previous": 503.2,
+          "threshold": 0.8
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 0.0,
+        "ca_same_month_last_year": 0.0,
+        "yoy_change_pct": 0.0,
+        "mom_change_pct": 0.0,
+        "rolling_3m_avg": 503.2,
+        "consecutive_decline_months": 0,
+        "transaction_count_current": 0,
+        "transaction_count_yoy_change_pct": 0.0
+      }
+    },
+    {
+      "magasin": "MG PROXI MHAMDIA",
+      "enseigne": "MG",
+      "severity": "AMBER",
+      "rules_triggered": [
+        {
+          "rule_id": "ROLLING_AVG_DROP",
+          "severity": "AMBER",
+          "message_fr": "CA (0 TND) < 80% moyenne 3 mois (924 TND)",
+          "metric_current": 0.0,
+          "metric_previous": 924.34,
+          "threshold": 0.8
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 0.0,
+        "ca_same_month_last_year": 0.0,
+        "yoy_change_pct": 0.0,
+        "mom_change_pct": 0.0,
+        "rolling_3m_avg": 924.34,
+        "consecutive_decline_months": 0,
+        "transaction_count_current": 0,
+        "transaction_count_yoy_change_pct": 0.0
+      }
+    },
+    {
+      "magasin": "MG PROXI KAIROUAN",
+      "enseigne": "MG",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 100.0% vs N-1 (2337 TND vs 0 TND)",
+          "metric_current": 0.0,
+          "metric_previous": 2337.903,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 100.0% (1 vs 0)",
+          "metric_current": 0.0,
+          "metric_previous": 1.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 0.0,
+        "ca_same_month_last_year": 2337.903,
+        "yoy_change_pct": -100.0,
+        "mom_change_pct": 0.0,
+        "rolling_3m_avg": 0.0,
+        "consecutive_decline_months": 2,
+        "transaction_count_current": 0,
+        "transaction_count_yoy_change_pct": -100.0
+      }
+    },
+    {
+      "magasin": "MG PROXI EL MANAZEH CENTER",
+      "enseigne": "MG",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 100.0% vs N-1 (2436 TND vs 0 TND)",
+          "metric_current": 0.0,
+          "metric_previous": 2436.534,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 100.0% (1 vs 0)",
+          "metric_current": 0.0,
+          "metric_previous": 1.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 0.0,
+        "ca_same_month_last_year": 2436.534,
+        "yoy_change_pct": -100.0,
+        "mom_change_pct": 0.0,
+        "rolling_3m_avg": 0.0,
+        "consecutive_decline_months": 1,
+        "transaction_count_current": 0,
+        "transaction_count_yoy_change_pct": -100.0
+      }
+    }
+  ],
+  "convention_alerts": [
+    {
+      "nom": "AMICALE DES CADRES DE LA STEG",
+      "enseigne": "MG",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 23.8% vs N-1 (158404 TND vs 120766 TND)",
+          "metric_current": 120766.22700000001,
+          "metric_previous": 158404.58000000002,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 31.7% (82 vs 56)",
+          "metric_current": 56.0,
+          "metric_previous": 82.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 120766.22700000001,
+        "ca_same_month_last_year": 158404.58000000002,
+        "yoy_change_pct": -23.8,
+        "mom_change_pct": -25.6,
+        "rolling_3m_avg": 132000.1,
+        "consecutive_decline_months": 1,
+        "transaction_count_current": 56,
+        "transaction_count_yoy_change_pct": -31.7
+      }
+    },
+    {
+      "nom": "D E M C C O I N T E R",
+      "enseigne": "MG",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 15.8% vs N-1 (90917 TND vs 76546 TND)",
+          "metric_current": 76546.25,
+          "metric_previous": 90917.89499999999,
+          "threshold": 10.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 76546.25,
+        "ca_same_month_last_year": 90917.89499999999,
+        "yoy_change_pct": -15.8,
+        "mom_change_pct": 25.5,
+        "rolling_3m_avg": 71300.72,
+        "consecutive_decline_months": 2,
+        "transaction_count_current": 44,
+        "transaction_count_yoy_change_pct": -21.4
+      }
+    },
+    {
+      "nom": "COFAT  MATEUR",
+      "enseigne": "MG",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 43.3% vs N-1 (127521 TND vs 72307 TND)",
+          "metric_current": 72307.81999999999,
+          "metric_previous": 127521.66100000002,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 47.6% (63 vs 33)",
+          "metric_current": 33.0,
+          "metric_previous": 63.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 72307.81999999999,
+        "ca_same_month_last_year": 127521.66100000002,
+        "yoy_change_pct": -43.3,
+        "mom_change_pct": -19.1,
+        "rolling_3m_avg": 79336.87,
+        "consecutive_decline_months": 1,
+        "transaction_count_current": 33,
+        "transaction_count_yoy_change_pct": -47.6
+      }
+    },
+    {
+      "nom": "S T A M",
+      "enseigne": "BATAM",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 56.9% vs N-1 (135489 TND vs 58342 TND)",
+          "metric_current": 58342.189999999995,
+          "metric_previous": 135489.297,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "CONSECUTIVE_3",
+          "severity": "RED",
+          "message_fr": "3 mois consecutifs de baisse vs N-1",
+          "metric_current": 3.0,
+          "metric_previous": 0,
+          "threshold": 3
+        },
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 58.3% (60 vs 25)",
+          "metric_current": 25.0,
+          "metric_previous": 60.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 58342.189999999995,
+        "ca_same_month_last_year": 135489.297,
+        "yoy_change_pct": -56.9,
+        "mom_change_pct": 18.4,
+        "rolling_3m_avg": 48957.17,
+        "consecutive_decline_months": 3,
+        "transaction_count_current": 25,
+        "transaction_count_yoy_change_pct": -58.3
+      }
+    },
+    {
+      "nom": "TUNISIE TELECOM",
+      "enseigne": "BATAM",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 14.8% vs N-1 (54176 TND vs 46173 TND)",
+          "metric_current": 46173.316999999995,
+          "metric_previous": 54176.463,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "CONSECUTIVE_3",
+          "severity": "RED",
+          "message_fr": "5 mois consecutifs de baisse vs N-1",
+          "metric_current": 5.0,
+          "metric_previous": 0,
+          "threshold": 3
+        },
+        {
+          "rule_id": "ROLLING_AVG_DROP",
+          "severity": "AMBER",
+          "message_fr": "CA (46173 TND) < 80% moyenne 3 mois (58922 TND)",
+          "metric_current": 46173.316999999995,
+          "metric_previous": 58922.69,
+          "threshold": 0.8
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 46173.316999999995,
+        "ca_same_month_last_year": 54176.463,
+        "yoy_change_pct": -14.8,
+        "mom_change_pct": -34.9,
+        "rolling_3m_avg": 58922.69,
+        "consecutive_decline_months": 5,
+        "transaction_count_current": 23,
+        "transaction_count_yoy_change_pct": -20.7
+      }
+    },
+    {
+      "nom": "C T N",
+      "enseigne": "MG",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 29.8% vs N-1 (57303 TND vs 40211 TND)",
+          "metric_current": 40211.729,
+          "metric_previous": 57303.096,
+          "threshold": 10.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 40211.729,
+        "ca_same_month_last_year": 57303.096,
+        "yoy_change_pct": -29.8,
+        "mom_change_pct": -25.9,
+        "rolling_3m_avg": 46258.88,
+        "consecutive_decline_months": 2,
+        "transaction_count_current": 22,
+        "transaction_count_yoy_change_pct": -26.7
+      }
+    },
+    {
+      "nom": "CHAKIRA  CABLE",
+      "enseigne": "MG",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 45.6% vs N-1 (46021 TND vs 25021 TND)",
+          "metric_current": 25021.976,
+          "metric_previous": 46021.185999999994,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 55.6% (27 vs 12)",
+          "metric_current": 12.0,
+          "metric_previous": 27.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 25021.976,
+        "ca_same_month_last_year": 46021.185999999994,
+        "yoy_change_pct": -45.6,
+        "mom_change_pct": -24.2,
+        "rolling_3m_avg": 27300.09,
+        "consecutive_decline_months": 2,
+        "transaction_count_current": 12,
+        "transaction_count_yoy_change_pct": -55.6
+      }
+    },
+    {
+      "nom": "Office National des postes",
+      "enseigne": "BATAM",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 28.4% vs N-1 (33759 TND vs 24171 TND)",
+          "metric_current": 24171.249000000003,
+          "metric_previous": 33759.032,
+          "threshold": 10.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 24171.249000000003,
+        "ca_same_month_last_year": 33759.032,
+        "yoy_change_pct": -28.4,
+        "mom_change_pct": -14.7,
+        "rolling_3m_avg": 22066.74,
+        "consecutive_decline_months": 1,
+        "transaction_count_current": 13,
+        "transaction_count_yoy_change_pct": -27.8
+      }
+    },
+    {
+      "nom": "COFICAB TUNIS",
+      "enseigne": "MG",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 58.3% vs N-1 (54131 TND vs 22548 TND)",
+          "metric_current": 22548.354999999996,
+          "metric_previous": 54131.668,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 59.3% (27 vs 11)",
+          "metric_current": 11.0,
+          "metric_previous": 27.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 22548.354999999996,
+        "ca_same_month_last_year": 54131.668,
+        "yoy_change_pct": -58.3,
+        "mom_change_pct": -42.4,
+        "rolling_3m_avg": 22170.83,
+        "consecutive_decline_months": 1,
+        "transaction_count_current": 11,
+        "transaction_count_yoy_change_pct": -59.3
+      }
+    },
+    {
+      "nom": "S.N.T  RURAL ET INTERURBAIN",
+      "enseigne": "MG",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 16.1% vs N-1 (20387 TND vs 17097 TND)",
+          "metric_current": 17097.768,
+          "metric_previous": 20387.264999999996,
+          "threshold": 10.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 17097.768,
+        "ca_same_month_last_year": 20387.264999999996,
+        "yoy_change_pct": -16.1,
+        "mom_change_pct": -30.4,
+        "rolling_3m_avg": 18101.98,
+        "consecutive_decline_months": 1,
+        "transaction_count_current": 8,
+        "transaction_count_yoy_change_pct": -27.3
+      }
+    },
+    {
+      "nom": "OFFICE DE COMMERCE DE TUNISIE",
+      "enseigne": "MG",
+      "severity": "AMBER",
+      "rules_triggered": [
+        {
+          "rule_id": "ROLLING_AVG_DROP",
+          "severity": "AMBER",
+          "message_fr": "CA (17067 TND) < 80% moyenne 3 mois (22461 TND)",
+          "metric_current": 17067.695999999996,
+          "metric_previous": 22461.4,
+          "threshold": 0.8
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 17067.695999999996,
+        "ca_same_month_last_year": 15662.857,
+        "yoy_change_pct": 9.0,
+        "mom_change_pct": -55.4,
+        "rolling_3m_avg": 22461.4,
+        "consecutive_decline_months": 0,
+        "transaction_count_current": 11,
+        "transaction_count_yoy_change_pct": 22.2
+      }
+    },
+    {
+      "nom": "COMMUNE  HAMMAM-LIF",
+      "enseigne": "MG",
+      "severity": "AMBER",
+      "rules_triggered": [
+        {
+          "rule_id": "ROLLING_AVG_DROP",
+          "severity": "AMBER",
+          "message_fr": "CA (16729 TND) < 80% moyenne 3 mois (23805 TND)",
+          "metric_current": 16729.611,
+          "metric_previous": 23805.01,
+          "threshold": 0.8
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 16729.611,
+        "ca_same_month_last_year": 11591.416,
+        "yoy_change_pct": 44.3,
+        "mom_change_pct": -36.0,
+        "rolling_3m_avg": 23805.01,
+        "consecutive_decline_months": 0,
+        "transaction_count_current": 10,
+        "transaction_count_yoy_change_pct": 25.0
+      }
+    },
+    {
+      "nom": "TUNICAST",
+      "enseigne": "MG",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 35.9% vs N-1 (22617 TND vs 14502 TND)",
+          "metric_current": 14502.343,
+          "metric_previous": 22617.8,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "CONSECUTIVE_3",
+          "severity": "RED",
+          "message_fr": "5 mois consecutifs de baisse vs N-1",
+          "metric_current": 5.0,
+          "metric_previous": 0,
+          "threshold": 3
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 14502.343,
+        "ca_same_month_last_year": 22617.8,
+        "yoy_change_pct": -35.9,
+        "mom_change_pct": 53.4,
+        "rolling_3m_avg": 12471.49,
+        "consecutive_decline_months": 5,
+        "transaction_count_current": 9,
+        "transaction_count_yoy_change_pct": -10.0
+      }
+    },
+    {
+      "nom": "Amicale fonctionnaires du minestere de Commerce",
+      "enseigne": "MG",
+      "severity": "AMBER",
+      "rules_triggered": [
+        {
+          "rule_id": "ROLLING_AVG_DROP",
+          "severity": "AMBER",
+          "message_fr": "CA (13878 TND) < 80% moyenne 3 mois (19739 TND)",
+          "metric_current": 13878.819,
+          "metric_previous": 19739.77,
+          "threshold": 0.8
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 13878.819,
+        "ca_same_month_last_year": 3461.424,
+        "yoy_change_pct": 301.0,
+        "mom_change_pct": -56.5,
+        "rolling_3m_avg": 19739.77,
+        "consecutive_decline_months": 0,
+        "transaction_count_current": 6,
+        "transaction_count_yoy_change_pct": 200.0
+      }
+    },
+    {
+      "nom": "MUNICIPALIT’ BOUMHEL BASSATINE",
+      "enseigne": "BATAM",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 35.5% vs N-1 (20677 TND vs 13344 TND)",
+          "metric_current": 13344.319,
+          "metric_previous": 20677.375,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 54.5% (11 vs 5)",
+          "metric_current": 5.0,
+          "metric_previous": 11.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 13344.319,
+        "ca_same_month_last_year": 20677.375,
+        "yoy_change_pct": -35.5,
+        "mom_change_pct": 1.4,
+        "rolling_3m_avg": 13871.74,
+        "consecutive_decline_months": 1,
+        "transaction_count_current": 5,
+        "transaction_count_yoy_change_pct": -54.5
+      }
+    },
+    {
+      "nom": "LLOYD TUNISIEN",
+      "enseigne": "BATAM",
+      "severity": "AMBER",
+      "rules_triggered": [
+        {
+          "rule_id": "ROLLING_AVG_DROP",
+          "severity": "AMBER",
+          "message_fr": "CA (13026 TND) < 80% moyenne 3 mois (20342 TND)",
+          "metric_current": 13026.902,
+          "metric_previous": 20342.07,
+          "threshold": 0.8
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 13026.902,
+        "ca_same_month_last_year": 13586.717,
+        "yoy_change_pct": -4.1,
+        "mom_change_pct": -45.4,
+        "rolling_3m_avg": 20342.07,
+        "consecutive_decline_months": 2,
+        "transaction_count_current": 7,
+        "transaction_count_yoy_change_pct": -12.5
+      }
+    },
+    {
+      "nom": "S R T  BEJA",
+      "enseigne": "BATAM",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 42.1% vs N-1 (21719 TND vs 12569 TND)",
+          "metric_current": 12569.383,
+          "metric_previous": 21719.144000000004,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "CONSECUTIVE_3",
+          "severity": "RED",
+          "message_fr": "6 mois consecutifs de baisse vs N-1",
+          "metric_current": 6.0,
+          "metric_previous": 0,
+          "threshold": 3
+        },
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 40.0% (10 vs 6)",
+          "metric_current": 6.0,
+          "metric_previous": 10.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 12569.383,
+        "ca_same_month_last_year": 21719.144000000004,
+        "yoy_change_pct": -42.1,
+        "mom_change_pct": 37.2,
+        "rolling_3m_avg": 9405.13,
+        "consecutive_decline_months": 6,
+        "transaction_count_current": 6,
+        "transaction_count_yoy_change_pct": -40.0
+      }
+    },
+    {
+      "nom": "Commune Hammam Chatt",
+      "enseigne": "BATAM",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 45.7% vs N-1 (23105 TND vs 12538 TND)",
+          "metric_current": 12538.824,
+          "metric_previous": 23105.304,
+          "threshold": 10.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 12538.824,
+        "ca_same_month_last_year": 23105.304,
+        "yoy_change_pct": -45.7,
+        "mom_change_pct": 33.3,
+        "rolling_3m_avg": 10290.61,
+        "consecutive_decline_months": 2,
+        "transaction_count_current": 6,
+        "transaction_count_yoy_change_pct": -25.0
+      }
+    },
+    {
+      "nom": "COFICAB  MED",
+      "enseigne": "BATAM",
+      "severity": "AMBER",
+      "rules_triggered": [
+        {
+          "rule_id": "ROLLING_AVG_DROP",
+          "severity": "AMBER",
+          "message_fr": "CA (11042 TND) < 80% moyenne 3 mois (16447 TND)",
+          "metric_current": 11042.837,
+          "metric_previous": 16447.96,
+          "threshold": 0.8
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 11042.837,
+        "ca_same_month_last_year": 10853.954000000002,
+        "yoy_change_pct": 1.7,
+        "mom_change_pct": -67.8,
+        "rolling_3m_avg": 16447.96,
+        "consecutive_decline_months": 0,
+        "transaction_count_current": 6,
+        "transaction_count_yoy_change_pct": 20.0
+      }
+    },
+    {
+      "nom": "TIS CIRCUITS",
+      "enseigne": "MG",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 68.1% vs N-1 (29699 TND vs 9469 TND)",
+          "metric_current": 9469.511,
+          "metric_previous": 29699.320000000003,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "CONSECUTIVE_3",
+          "severity": "RED",
+          "message_fr": "4 mois consecutifs de baisse vs N-1",
+          "metric_current": 4.0,
+          "metric_previous": 0,
+          "threshold": 3
+        },
+        {
+          "rule_id": "ROLLING_AVG_DROP",
+          "severity": "AMBER",
+          "message_fr": "CA (9469 TND) < 80% moyenne 3 mois (13805 TND)",
+          "metric_current": 9469.511,
+          "metric_previous": 13805.27,
+          "threshold": 0.8
+        },
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 69.2% (13 vs 4)",
+          "metric_current": 4.0,
+          "metric_previous": 13.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 9469.511,
+        "ca_same_month_last_year": 29699.320000000003,
+        "yoy_change_pct": -68.1,
+        "mom_change_pct": -44.3,
+        "rolling_3m_avg": 13805.27,
+        "consecutive_decline_months": 4,
+        "transaction_count_current": 4,
+        "transaction_count_yoy_change_pct": -69.2
+      }
+    },
+    {
+      "nom": "AGENCE TUNIS AFRIQUE PRESSE",
+      "enseigne": "BATAM",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 39.1% vs N-1 (14551 TND vs 8855 TND)",
+          "metric_current": 8855.357,
+          "metric_previous": 14551.913999999999,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 37.5% (8 vs 5)",
+          "metric_current": 5.0,
+          "metric_previous": 8.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 8855.357,
+        "ca_same_month_last_year": 14551.913999999999,
+        "yoy_change_pct": -39.1,
+        "mom_change_pct": -45.2,
+        "rolling_3m_avg": 10042.13,
+        "consecutive_decline_months": 1,
+        "transaction_count_current": 5,
+        "transaction_count_yoy_change_pct": -37.5
+      }
+    },
+    {
+      "nom": "TUNISAIR  HANDLING",
+      "enseigne": "BATAM",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 80.1% vs N-1 (39194 TND vs 7817 TND)",
+          "metric_current": 7817.765,
+          "metric_previous": 39194.179,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "CONSECUTIVE_3",
+          "severity": "RED",
+          "message_fr": "6 mois consecutifs de baisse vs N-1",
+          "metric_current": 6.0,
+          "metric_previous": 0,
+          "threshold": 3
+        },
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 81.8% (22 vs 4)",
+          "metric_current": 4.0,
+          "metric_previous": 22.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 7817.765,
+        "ca_same_month_last_year": 39194.179,
+        "yoy_change_pct": -80.1,
+        "mom_change_pct": 69.4,
+        "rolling_3m_avg": 5332.74,
+        "consecutive_decline_months": 6,
+        "transaction_count_current": 4,
+        "transaction_count_yoy_change_pct": -81.8
+      }
+    },
+    {
+      "nom": "Amicale du Tribunal Administratif de Tunis",
+      "enseigne": "BATAM",
+      "severity": "AMBER",
+      "rules_triggered": [
+        {
+          "rule_id": "ROLLING_AVG_DROP",
+          "severity": "AMBER",
+          "message_fr": "CA (6550 TND) < 80% moyenne 3 mois (11550 TND)",
+          "metric_current": 6550.853,
+          "metric_previous": 11550.21,
+          "threshold": 0.8
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 6550.853,
+        "ca_same_month_last_year": 6045.540999999999,
+        "yoy_change_pct": 8.4,
+        "mom_change_pct": -60.8,
+        "rolling_3m_avg": 11550.21,
+        "consecutive_decline_months": 0,
+        "transaction_count_current": 4,
+        "transaction_count_yoy_change_pct": -20.0
+      }
+    },
+    {
+      "nom": "COMMUNE BEN AROUS",
+      "enseigne": "BATAM",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 37.5% vs N-1 (9599 TND vs 5998 TND)",
+          "metric_current": 5998.267,
+          "metric_previous": 9599.891,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "ROLLING_AVG_DROP",
+          "severity": "AMBER",
+          "message_fr": "CA (5998 TND) < 80% moyenne 3 mois (18210 TND)",
+          "metric_current": 5998.267,
+          "metric_previous": 18210.91,
+          "threshold": 0.8
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 5998.267,
+        "ca_same_month_last_year": 9599.891,
+        "yoy_change_pct": -37.5,
+        "mom_change_pct": -81.7,
+        "rolling_3m_avg": 18210.91,
+        "consecutive_decline_months": 1,
+        "transaction_count_current": 4,
+        "transaction_count_yoy_change_pct": 0.0
+      }
+    },
+    {
+      "nom": "U.C.C.V",
+      "enseigne": "MG",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 31.8% vs N-1 (8634 TND vs 5889 TND)",
+          "metric_current": 5889.349,
+          "metric_previous": 8634.263,
+          "threshold": 10.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 5889.349,
+        "ca_same_month_last_year": 8634.263,
+        "yoy_change_pct": -31.8,
+        "mom_change_pct": -60.4,
+        "rolling_3m_avg": 6925.31,
+        "consecutive_decline_months": 1,
+        "transaction_count_current": 4,
+        "transaction_count_yoy_change_pct": -20.0
+      }
+    },
+    {
+      "nom": "Amicale du personnel de l'ANAPE",
+      "enseigne": "BATAM",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 16.2% vs N-1 (6650 TND vs 5573 TND)",
+          "metric_current": 5573.406,
+          "metric_previous": 6650.349999999999,
+          "threshold": 10.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 5573.406,
+        "ca_same_month_last_year": 6650.349999999999,
+        "yoy_change_pct": -16.2,
+        "mom_change_pct": 0.0,
+        "rolling_3m_avg": 1857.8,
+        "consecutive_decline_months": 2,
+        "transaction_count_current": 3,
+        "transaction_count_yoy_change_pct": 0.0
+      }
+    },
+    {
+      "nom": "Office National de la Télédiffusion \" ONT \".",
+      "enseigne": "BATAM",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 34.5% vs N-1 (7440 TND vs 4870 TND)",
+          "metric_current": 4870.8,
+          "metric_previous": 7440.502,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "ROLLING_AVG_DROP",
+          "severity": "AMBER",
+          "message_fr": "CA (4870 TND) < 80% moyenne 3 mois (6156 TND)",
+          "metric_current": 4870.8,
+          "metric_previous": 6156.75,
+          "threshold": 0.8
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 4870.8,
+        "ca_same_month_last_year": 7440.502,
+        "yoy_change_pct": -34.5,
+        "mom_change_pct": -64.2,
+        "rolling_3m_avg": 6156.75,
+        "consecutive_decline_months": 1,
+        "transaction_count_current": 3,
+        "transaction_count_yoy_change_pct": 0.0
+      }
+    },
+    {
+      "nom": "GIFRUITS",
+      "enseigne": "BATAM",
+      "severity": "AMBER",
+      "rules_triggered": [
+        {
+          "rule_id": "ROLLING_AVG_DROP",
+          "severity": "AMBER",
+          "message_fr": "CA (3634 TND) < 80% moyenne 3 mois (5781 TND)",
+          "metric_current": 3634.796,
+          "metric_previous": 5781.97,
+          "threshold": 0.8
+        },
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 50.0% (2 vs 1)",
+          "metric_current": 1.0,
+          "metric_previous": 2.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 3634.796,
+        "ca_same_month_last_year": 1483.923,
+        "yoy_change_pct": 144.9,
+        "mom_change_pct": -73.5,
+        "rolling_3m_avg": 5781.97,
+        "consecutive_decline_months": 0,
+        "transaction_count_current": 1,
+        "transaction_count_yoy_change_pct": -50.0
+      }
+    },
+    {
+      "nom": "societ regional de transport jendouba",
+      "enseigne": "BATAM",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 62.9% vs N-1 (9501 TND vs 3522 TND)",
+          "metric_current": 3522.79,
+          "metric_previous": 9501.225,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "CONSECUTIVE_3",
+          "severity": "RED",
+          "message_fr": "3 mois consecutifs de baisse vs N-1",
+          "metric_current": 3.0,
+          "metric_previous": 0,
+          "threshold": 3
+        },
+        {
+          "rule_id": "ROLLING_AVG_DROP",
+          "severity": "AMBER",
+          "message_fr": "CA (3522 TND) < 80% moyenne 3 mois (4754 TND)",
+          "metric_current": 3522.79,
+          "metric_previous": 4754.52,
+          "threshold": 0.8
+        },
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 60.0% (5 vs 2)",
+          "metric_current": 2.0,
+          "metric_previous": 5.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 3522.79,
+        "ca_same_month_last_year": 9501.225,
+        "yoy_change_pct": -62.9,
+        "mom_change_pct": 94.9,
+        "rolling_3m_avg": 4754.52,
+        "consecutive_decline_months": 3,
+        "transaction_count_current": 2,
+        "transaction_count_yoy_change_pct": -60.0
+      }
+    },
+    {
+      "nom": "STE TUNISIENNE DE LUBRIFIANTS",
+      "enseigne": "MG",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 78.1% vs N-1 (16007 TND vs 3502 TND)",
+          "metric_current": 3502.091,
+          "metric_previous": 16007.256000000001,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "CONSECUTIVE_3",
+          "severity": "RED",
+          "message_fr": "3 mois consecutifs de baisse vs N-1",
+          "metric_current": 3.0,
+          "metric_previous": 0,
+          "threshold": 3
+        },
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 71.4% (7 vs 2)",
+          "metric_current": 2.0,
+          "metric_previous": 7.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 3502.091,
+        "ca_same_month_last_year": 16007.256000000001,
+        "yoy_change_pct": -78.1,
+        "mom_change_pct": 93.7,
+        "rolling_3m_avg": 2353.25,
+        "consecutive_decline_months": 3,
+        "transaction_count_current": 2,
+        "transaction_count_yoy_change_pct": -71.4
+      }
+    },
+    {
+      "nom": "AMICALE DE L'OFFICE CEREALE",
+      "enseigne": "BATAM",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 71.4% vs N-1 (11396 TND vs 3262 TND)",
+          "metric_current": 3262.111,
+          "metric_previous": 11396.713,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "ROLLING_AVG_DROP",
+          "severity": "AMBER",
+          "message_fr": "CA (3262 TND) < 80% moyenne 3 mois (6739 TND)",
+          "metric_current": 3262.111,
+          "metric_previous": 6739.71,
+          "threshold": 0.8
+        },
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 60.0% (5 vs 2)",
+          "metric_current": 2.0,
+          "metric_previous": 5.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 3262.111,
+        "ca_same_month_last_year": 11396.713,
+        "yoy_change_pct": -71.4,
+        "mom_change_pct": -69.8,
+        "rolling_3m_avg": 6739.71,
+        "consecutive_decline_months": 1,
+        "transaction_count_current": 2,
+        "transaction_count_yoy_change_pct": -60.0
+      }
+    },
+    {
+      "nom": "NOUVELAIRE HANDLING",
+      "enseigne": "BATAM",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 71.2% vs N-1 (9841 TND vs 2835 TND)",
+          "metric_current": 2835.946,
+          "metric_previous": 9841.812,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "ROLLING_AVG_DROP",
+          "severity": "AMBER",
+          "message_fr": "CA (2835 TND) < 80% moyenne 3 mois (4104 TND)",
+          "metric_current": 2835.946,
+          "metric_previous": 4104.23,
+          "threshold": 0.8
+        },
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 66.7% (3 vs 1)",
+          "metric_current": 1.0,
+          "metric_previous": 3.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 2835.946,
+        "ca_same_month_last_year": 9841.812,
+        "yoy_change_pct": -71.2,
+        "mom_change_pct": -31.4,
+        "rolling_3m_avg": 4104.23,
+        "consecutive_decline_months": 1,
+        "transaction_count_current": 1,
+        "transaction_count_yoy_change_pct": -66.7
+      }
+    },
+    {
+      "nom": "TUNIS AIR",
+      "enseigne": "BATAM",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 99.1% vs N-1 (299922 TND vs 2716 TND)",
+          "metric_current": 2716.935,
+          "metric_previous": 299922.608,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "CONSECUTIVE_3",
+          "severity": "RED",
+          "message_fr": "6 mois consecutifs de baisse vs N-1",
+          "metric_current": 6.0,
+          "metric_previous": 0,
+          "threshold": 3
+        },
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 99.2% (119 vs 1)",
+          "metric_current": 1.0,
+          "metric_previous": 119.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 2716.935,
+        "ca_same_month_last_year": 299922.608,
+        "yoy_change_pct": -99.1,
+        "mom_change_pct": 0.0,
+        "rolling_3m_avg": 905.64,
+        "consecutive_decline_months": 6,
+        "transaction_count_current": 1,
+        "transaction_count_yoy_change_pct": -99.2
+      }
+    },
+    {
+      "nom": "AG.REHABI ET RENOV URBAIN",
+      "enseigne": "BATAM",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 69.8% vs N-1 (8856 TND vs 2675 TND)",
+          "metric_current": 2675.735,
+          "metric_previous": 8856.859,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "CONSECUTIVE_3",
+          "severity": "RED",
+          "message_fr": "4 mois consecutifs de baisse vs N-1",
+          "metric_current": 4.0,
+          "metric_previous": 0,
+          "threshold": 3
+        },
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 60.0% (5 vs 2)",
+          "metric_current": 2.0,
+          "metric_previous": 5.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 2675.735,
+        "ca_same_month_last_year": 8856.859,
+        "yoy_change_pct": -69.8,
+        "mom_change_pct": 70.8,
+        "rolling_3m_avg": 1615.97,
+        "consecutive_decline_months": 4,
+        "transaction_count_current": 2,
+        "transaction_count_yoy_change_pct": -60.0
+      }
+    },
+    {
+      "nom": "C E T I M E",
+      "enseigne": "BATAM",
+      "severity": "AMBER",
+      "rules_triggered": [
+        {
+          "rule_id": "ROLLING_AVG_DROP",
+          "severity": "AMBER",
+          "message_fr": "CA (2530 TND) < 80% moyenne 3 mois (6173 TND)",
+          "metric_current": 2530.202,
+          "metric_previous": 6173.87,
+          "threshold": 0.8
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 2530.202,
+        "ca_same_month_last_year": 2322.811,
+        "yoy_change_pct": 8.9,
+        "mom_change_pct": -75.9,
+        "rolling_3m_avg": 6173.87,
+        "consecutive_decline_months": 0,
+        "transaction_count_current": 1,
+        "transaction_count_yoy_change_pct": 0.0
+      }
+    },
+    {
+      "nom": "M A E",
+      "enseigne": "BATAM",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 60.3% vs N-1 (4952 TND vs 1965 TND)",
+          "metric_current": 1965.661,
+          "metric_previous": 4952.623,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "ROLLING_AVG_DROP",
+          "severity": "AMBER",
+          "message_fr": "CA (1965 TND) < 80% moyenne 3 mois (4947 TND)",
+          "metric_current": 1965.661,
+          "metric_previous": 4947.95,
+          "threshold": 0.8
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 1965.661,
+        "ca_same_month_last_year": 4952.623,
+        "yoy_change_pct": -60.3,
+        "mom_change_pct": -84.7,
+        "rolling_3m_avg": 4947.95,
+        "consecutive_decline_months": 1,
+        "transaction_count_current": 2,
+        "transaction_count_yoy_change_pct": 0.0
+      }
+    },
+    {
+      "nom": "APIP",
+      "enseigne": "BATAM",
+      "severity": "AMBER",
+      "rules_triggered": [
+        {
+          "rule_id": "ROLLING_AVG_DROP",
+          "severity": "AMBER",
+          "message_fr": "CA (1887 TND) < 80% moyenne 3 mois (2815 TND)",
+          "metric_current": 1887.203,
+          "metric_previous": 2815.15,
+          "threshold": 0.8
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 1887.203,
+        "ca_same_month_last_year": 1577.576,
+        "yoy_change_pct": 19.6,
+        "mom_change_pct": -30.5,
+        "rolling_3m_avg": 2815.15,
+        "consecutive_decline_months": 0,
+        "transaction_count_current": 1,
+        "transaction_count_yoy_change_pct": 0.0
+      }
+    },
+    {
+      "nom": "AMICLE DU PERSONNEL ANETI",
+      "enseigne": "BATAM",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 76.0% vs N-1 (7386 TND vs 1772 TND)",
+          "metric_current": 1772.758,
+          "metric_previous": 7386.996999999999,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "ROLLING_AVG_DROP",
+          "severity": "AMBER",
+          "message_fr": "CA (1772 TND) < 80% moyenne 3 mois (4683 TND)",
+          "metric_current": 1772.758,
+          "metric_previous": 4683.17,
+          "threshold": 0.8
+        },
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 75.0% (4 vs 1)",
+          "metric_current": 1.0,
+          "metric_previous": 4.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 1772.758,
+        "ca_same_month_last_year": 7386.996999999999,
+        "yoy_change_pct": -76.0,
+        "mom_change_pct": -70.0,
+        "rolling_3m_avg": 4683.17,
+        "consecutive_decline_months": 1,
+        "transaction_count_current": 1,
+        "transaction_count_yoy_change_pct": -75.0
+      }
+    },
+    {
+      "nom": "LLOYD VIE",
+      "enseigne": "BATAM",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 39.2% vs N-1 (2102 TND vs 1278 TND)",
+          "metric_current": 1278.0,
+          "metric_previous": 2102.703,
+          "threshold": 10.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 1278.0,
+        "ca_same_month_last_year": 2102.703,
+        "yoy_change_pct": -39.2,
+        "mom_change_pct": 167.4,
+        "rolling_3m_avg": 1119.9,
+        "consecutive_decline_months": 1,
+        "transaction_count_current": 1,
+        "transaction_count_yoy_change_pct": 0.0
+      }
+    },
+    {
+      "nom": "Commune zaghouan",
+      "enseigne": "BATAM",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 89.6% vs N-1 (4290 TND vs 448 TND)",
+          "metric_current": 448.386,
+          "metric_previous": 4290.929,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "ROLLING_AVG_DROP",
+          "severity": "AMBER",
+          "message_fr": "CA (448 TND) < 80% moyenne 3 mois (4310 TND)",
+          "metric_current": 448.386,
+          "metric_previous": 4310.65,
+          "threshold": 0.8
+        },
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 66.7% (3 vs 1)",
+          "metric_current": 1.0,
+          "metric_previous": 3.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 448.386,
+        "ca_same_month_last_year": 4290.929,
+        "yoy_change_pct": -89.6,
+        "mom_change_pct": -93.3,
+        "rolling_3m_avg": 4310.65,
+        "consecutive_decline_months": 1,
+        "transaction_count_current": 1,
+        "transaction_count_yoy_change_pct": -66.7
+      }
+    },
+    {
+      "nom": "ORANGE TUNISIE",
+      "enseigne": "BATAM",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 100.0% vs N-1 (6265 TND vs 0 TND)",
+          "metric_current": 0.0,
+          "metric_previous": 6265.866,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "CONSECUTIVE_3",
+          "severity": "RED",
+          "message_fr": "3 mois consecutifs de baisse vs N-1",
+          "metric_current": 3.0,
+          "metric_previous": 0,
+          "threshold": 3
+        },
+        {
+          "rule_id": "ROLLING_AVG_DROP",
+          "severity": "AMBER",
+          "message_fr": "CA (0 TND) < 80% moyenne 3 mois (3506 TND)",
+          "metric_current": 0.0,
+          "metric_previous": 3506.15,
+          "threshold": 0.8
+        },
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 100.0% (3 vs 0)",
+          "metric_current": 0.0,
+          "metric_previous": 3.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 0.0,
+        "ca_same_month_last_year": 6265.866,
+        "yoy_change_pct": -100.0,
+        "mom_change_pct": -100.0,
+        "rolling_3m_avg": 3506.15,
+        "consecutive_decline_months": 3,
+        "transaction_count_current": 0,
+        "transaction_count_yoy_change_pct": -100.0
+      }
+    },
+    {
+      "nom": "BNA ASSURANCE",
+      "enseigne": "MG",
+      "severity": "AMBER",
+      "rules_triggered": [
+        {
+          "rule_id": "ROLLING_AVG_DROP",
+          "severity": "AMBER",
+          "message_fr": "CA (0 TND) < 80% moyenne 3 mois (7061 TND)",
+          "metric_current": 0.0,
+          "metric_previous": 7061.24,
+          "threshold": 0.8
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 0.0,
+        "ca_same_month_last_year": 0.0,
+        "yoy_change_pct": 0.0,
+        "mom_change_pct": -100.0,
+        "rolling_3m_avg": 7061.24,
+        "consecutive_decline_months": 0,
+        "transaction_count_current": 0,
+        "transaction_count_yoy_change_pct": 0.0
+      }
+    },
+    {
+      "nom": "BONNA  BETON  ET MATERIAUX PREFABRIQUES",
+      "enseigne": "MG",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 100.0% vs N-1 (7098 TND vs 0 TND)",
+          "metric_current": 0.0,
+          "metric_previous": 7098.187,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "CONSECUTIVE_3",
+          "severity": "RED",
+          "message_fr": "6 mois consecutifs de baisse vs N-1",
+          "metric_current": 6.0,
+          "metric_previous": 0,
+          "threshold": 3
+        },
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 100.0% (4 vs 0)",
+          "metric_current": 0.0,
+          "metric_previous": 4.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 0.0,
+        "ca_same_month_last_year": 7098.187,
+        "yoy_change_pct": -100.0,
+        "mom_change_pct": 0.0,
+        "rolling_3m_avg": 0.0,
+        "consecutive_decline_months": 6,
+        "transaction_count_current": 0,
+        "transaction_count_yoy_change_pct": -100.0
+      }
+    },
+    {
+      "nom": "ASSURANCE EL ITTIHAD*",
+      "enseigne": "BATAM",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 100.0% vs N-1 (7397 TND vs 0 TND)",
+          "metric_current": 0.0,
+          "metric_previous": 7397.096,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 100.0% (3 vs 0)",
+          "metric_current": 0.0,
+          "metric_previous": 3.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 0.0,
+        "ca_same_month_last_year": 7397.096,
+        "yoy_change_pct": -100.0,
+        "mom_change_pct": 0.0,
+        "rolling_3m_avg": 0.0,
+        "consecutive_decline_months": 1,
+        "transaction_count_current": 0,
+        "transaction_count_yoy_change_pct": -100.0
+      }
+    },
+    {
+      "nom": "SOTEE",
+      "enseigne": "BATAM",
+      "severity": "RED",
+      "rules_triggered": [
+        {
+          "rule_id": "YOY_DROP_10",
+          "severity": "RED",
+          "message_fr": "CA en baisse de 100.0% vs N-1 (1702 TND vs 0 TND)",
+          "metric_current": 0.0,
+          "metric_previous": 1702.942,
+          "threshold": 10.0
+        },
+        {
+          "rule_id": "VOLUME_DROP",
+          "severity": "AMBER",
+          "message_fr": "Transactions en baisse de 100.0% (1 vs 0)",
+          "metric_current": 0.0,
+          "metric_previous": 1.0,
+          "threshold": 30.0
+        }
+      ],
+      "metrics": {
+        "ca_current_month": 0.0,
+        "ca_same_month_last_year": 1702.942,
+        "yoy_change_pct": -100.0,
+        "mom_change_pct": 0.0,
+        "rolling_3m_avg": 0.0,
+        "consecutive_decline_months": 1,
+        "transaction_count_current": 0,
+        "transaction_count_yoy_change_pct": -100.0
+      }
+    }
+  ],
+  "inactivity": [
+    {
+      "entity": "MG Proxi Ariana Essoughra",
+      "type": "magasin",
+      "enseigne": "MG",
+      "days_since_last_sale": 483,
+      "last_sale_date": "2025-03-28"
+    },
+    {
+      "entity": "MG MAXI DJERBA",
+      "type": "magasin",
+      "enseigne": "MG",
+      "days_since_last_sale": 422,
+      "last_sale_date": "2025-05-28"
+    },
+    {
+      "entity": "MG PROXI TABARKA",
+      "type": "magasin",
+      "enseigne": "MG",
+      "days_since_last_sale": 421,
+      "last_sale_date": "2025-05-29"
+    },
+    {
+      "entity": "MG PROXI EL MANAZEH CENTER",
+      "type": "magasin",
+      "enseigne": "MG",
+      "days_since_last_sale": 380,
+      "last_sale_date": "2025-07-09"
+    },
+    {
+      "entity": "MG PROXI KAIROUAN",
+      "type": "magasin",
+      "enseigne": "MG",
+      "days_since_last_sale": 372,
+      "last_sale_date": "2025-07-17"
+    },
+    {
+      "entity": "522",
+      "type": "magasin",
+      "enseigne": "MG",
+      "days_since_last_sale": 233,
+      "last_sale_date": "2025-12-03"
+    },
+    {
+      "entity": "MG CITY SOLIMAN",
+      "type": "magasin",
+      "enseigne": "MG",
+      "days_since_last_sale": 196,
+      "last_sale_date": "2026-01-09"
+    },
+    {
+      "entity": "MG PROXI TAJEROUINE",
+      "type": "magasin",
+      "enseigne": "MG",
+      "days_since_last_sale": 167,
+      "last_sale_date": "2026-02-07"
+    },
+    {
+      "entity": "MG MAXI MEDNINE",
+      "type": "magasin",
+      "enseigne": "MG",
+      "days_since_last_sale": 164,
+      "last_sale_date": "2026-02-10"
+    },
+    {
+      "entity": "MG PROXI GABES MENZEL",
+      "type": "magasin",
+      "enseigne": "MG",
+      "days_since_last_sale": 155,
+      "last_sale_date": "2026-02-19"
+    },
+    {
+      "entity": "MG CITY EZZAHRA",
+      "type": "magasin",
+      "enseigne": "MG",
+      "days_since_last_sale": 141,
+      "last_sale_date": "2026-03-05"
+    },
+    {
+      "entity": "SMG MEDINA JADIDA",
+      "type": "magasin",
+      "enseigne": "MG",
+      "days_since_last_sale": 98,
+      "last_sale_date": "2026-04-17"
+    },
+    {
+      "entity": "MG PROXI MHAMDIA",
+      "type": "magasin",
+      "enseigne": "MG",
+      "days_since_last_sale": 65,
+      "last_sale_date": "2026-05-20"
+    },
+    {
+      "entity": "MG PROXI MAHDIA",
+      "type": "magasin",
+      "enseigne": "MG",
+      "days_since_last_sale": 65,
+      "last_sale_date": "2026-05-20"
+    }
+  ]
+}

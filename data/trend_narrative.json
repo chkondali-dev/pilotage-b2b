@@ -1,0 +1,59 @@
+{
+  "synthese": {
+    "alertes": 85,
+    "regressions": 67,
+    "actions": 18,
+    "magasins": 73,
+    "conventions": 84,
+    "inactifs": 14
+  },
+  "regressions": [
+    {
+      "nom": "BATAM JEAN JAURES",
+      "analyse": "CA en baisse de 26.2% vs N-1, atteignant 194808 TND",
+      "recommandation": "Analyser les causes de la baisse et élaborer un plan d'action pour améliorer les ventes"
+    },
+    {
+      "nom": "BATAM  ZAHROUNI",
+      "analyse": "CA en baisse de 14.9% vs N-1, atteignant 110605 TND, avec une moyenne mobile inférieure à 80% sur 3 mois",
+      "recommandation": "Évaluer les stratégies de vente et ajuster les objectifs pour améliorer les performances"
+    },
+    {
+      "nom": "BATAM ARIANA",
+      "analyse": "CA en baisse de 35.7% vs N-1, atteignant 90744 TND, avec 6 mois consécutifs de baisse et une diminution des transactions de 38.4%",
+      "recommandation": "Mettre en place un plan d'urgence pour inverser la tendance et améliorer les ventes"
+    },
+    {
+      "nom": "MG PROXI BIZERTE",
+      "analyse": "CA en baisse de 23.6% vs N-1, atteignant 81779 TND, avec 3 mois consécutifs de baisse et une diminution des transactions de 31.5%",
+      "recommandation": "Réévaluer les stratégies de vente et les objectifs pour améliorer les performances"
+    },
+    {
+      "nom": "BATAM AV PARIS",
+      "analyse": "CA en baisse de 25.1% vs N-1, atteignant 69155 TND",
+      "recommandation": "Analyser les causes de la baisse et élaborer un plan d'action pour améliorer les ventes"
+    }
+  ],
+  "priorites": [
+    {
+      "action": "Analyser les causes de la baisse et élaborer un plan d'action",
+      "urgence": "Élevée"
+    },
+    {
+      "action": "Évaluer les stratégies de vente et ajuster les objectifs",
+      "urgence": "Moyenne"
+    },
+    {
+      "action": "Mettre en place un plan d'urgence pour inverser la tendance",
+      "urgence": "Élevée"
+    },
+    {
+      "action": "Réévaluer les stratégies de vente et les objectifs",
+      "urgence": "Moyenne"
+    },
+    {
+      "action": "Analyser les causes de la baisse et élaborer un plan d'action",
+      "urgence": "Moyenne"
+    }
+  ]
+}

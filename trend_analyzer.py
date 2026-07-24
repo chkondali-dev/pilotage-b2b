@@ -129,8 +129,14 @@ class TrendAnalyzer:
         return int(len(df[(df["Annee"] == annee) & (df["Mois"] == mois)]))
 
     def _compute_entity_trends(self, df: pd.DataFrame, group_col: str, name_col: str = "Magasin") -> pd.DataFrame:
-        if df.empty or group_col not in df.columns:
+        if df.empty:
             return pd.DataFrame()
+        df = df.copy()
+        col_lookup = {c.lower(): c for c in df.columns}
+        gc = col_lookup.get(group_col.lower())
+        if gc is None:
+            return pd.DataFrame()
+        group_col = gc
         df = self._add_date_cols(df)
         df = self._map_magasins(df)
         entities = df[group_col].unique()
@@ -185,7 +191,7 @@ class TrendAnalyzer:
             if tx_n1 > 0:
                 tx_yoy_pct = round((tx_current - tx_n1) / tx_n1 * 100, 1)
             rows.append({
-                name_col: entity,
+                name_col: edf[name_col].iloc[0] if name_col in edf.columns else entity,
                 "Enseigne": enseigne,
                 "ca_current_month": ca_current,
                 "ca_same_month_last_year": ca_n1,
