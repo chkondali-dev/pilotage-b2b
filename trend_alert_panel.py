@@ -29,6 +29,7 @@ def _format_k(x):
     if x>=1000: return f"{x/1000:.1f}k"
     return f"{x:,.0f}"
 
+
 def render_alert_panel(alerts):
     if not alerts:
         st.info("Aucune donnee alerte. Lancez un scan d abord.")

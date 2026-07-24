@@ -16,6 +16,7 @@ from io import BytesIO
 import base64
 from datetime import datetime, timedelta
 from pathlib import Path
+from trend_alert_panel import render_alert_panel
 
 st.set_page_config(
     page_title="Pilotage B2B — SMG",
@@ -1214,6 +1215,7 @@ tabs = st.tabs([
     "🏬 Pilotage par magasin",
     "📋 Conventions encours",
     "🤝 CRM",
+    "🚨 Alertes Tendances",
 ])
 
 # ══════════════════════════════════════════════════════════════
@@ -2626,6 +2628,17 @@ with tabs[7]:
                 st.markdown("</div>", unsafe_allow_html=True)
     else:
         st.info("CRM desactive. Verifiez TDC2.xlsx et crm.py")
+
+with tabs[8]:
+    st.markdown("### 🚨 Alertes Tendances")
+    try:
+        from trend_analyzer import TrendAnalyzer
+        with st.spinner("Analyse des tendances..."):
+            ta = TrendAnalyzer(df_vc=df_vc, df_edc=df_edc, conventions=df_conv, code_magasin=code_df)
+            alerts = ta.scan_all()
+            render_alert_panel(alerts)
+    except Exception as e:
+        st.warning(f"Analyse des tendances indisponible: {e}")
 # ── Footer ────────────────────────────────────────────────────
 st.markdown("---")
 st.caption(
