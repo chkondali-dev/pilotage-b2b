@@ -88,8 +88,8 @@ def load_all_data() -> dict:
         try:
             raw = _fetch(GITHUB_RAW + fname)
             if key == "conventions_signees":
-                sheets = pd.read_excel(BytesIO(raw), engine="openpyxl", sheet_name=None)
-                dfs[key] = _clean(list(sheets.values())[0])
+                dfs["conventions_signees"] = _clean(pd.read_excel(BytesIO(raw), engine="openpyxl", sheet_name="Conventions signées"))
+                dfs["conventions_en_cours"] = _clean(pd.read_excel(BytesIO(raw), engine="openpyxl", sheet_name="convention en cours", skiprows=12))
             else:
                 dfs[key] = _clean(pd.read_excel(BytesIO(raw), engine="openpyxl"))
         except Exception as exc:
@@ -180,7 +180,7 @@ def _map_magasins(df: pd.DataFrame, code_df: pd.DataFrame) -> pd.DataFrame:
 def prepare_data(_raw: dict) -> tuple:
     """
     Point d'entrée unique pour tout le processing.
-    Retourne (df_vc, df_credit, df_edc, df_conv, code_df, df_credit_part).
+    Retourne (df_vc, df_credit, df_edc, df_conv, code_df, df_credit_part, df_cube_mag, df_prospection).
     """
     code_df   = _raw.get("code_magasin", pd.DataFrame())
     df_vc     = _filter_conventions(_map_magasins(_add_date_cols(_raw.get("vc",       pd.DataFrame())), code_df))
@@ -190,9 +190,10 @@ def prepare_data(_raw: dict) -> tuple:
     if "Nbr_Mois_Échance" in df_edc.columns:
         df_edc = df_edc.rename(columns={"Nbr_Mois_Échance": "Nbr_Mois_Echance"})
     df_conv   = _raw.get("conventions_signees", pd.DataFrame())
+    df_prospection = _raw.get("conventions_en_cours", pd.DataFrame())
     df_credit_part = _map_magasins(_add_date_cols(_raw.get("credit_particulier", pd.DataFrame())), code_df)
     df_cube_mag = load_cube_magasin(_raw.get("cube_magasin", pd.DataFrame()), code_df)
-    return df_vc, df_credit, df_edc, df_conv, code_df, df_credit_part, df_cube_mag
+    return df_vc, df_credit, df_edc, df_conv, code_df, df_credit_part, df_cube_mag, df_prospection
 
 
 # ══════════════════════════════════════════════════════════════
@@ -992,7 +993,7 @@ with st.sidebar:
 with st.spinner("Chargement des données…"):
     _raw = load_all_data()
 
-df_vc, df_credit, df_edc, df_conv, code_df, df_credit_part, df_cube_mag = prepare_data(_raw)
+df_vc, df_credit, df_edc, df_conv, code_df, df_credit_part, df_cube_mag, df_prospection = prepare_data(_raw)
 _raw_part = _raw.get("credit_particulier", pd.DataFrame())
 
 if df_vc.empty or "Année" not in df_vc.columns:
@@ -2343,6 +2344,40 @@ with tabs[6]:
 
     st.markdown("Conventions encours")
     st.caption("Suivi des projets de convention — de la prospection a la finalisation.")
+
+    # -----------------------------------------------------------------------
+    # Pipeline prospection (depuis Excel TDC CONVENTION)
+    # -----------------------------------------------------------------------
+    if not df_prospection.empty:
+        st.markdown("### Pipeline Prospection")
+        st.caption(f"{len(df_prospection)} prospects suivis dans le pipeline")
+
+        non_dem = len(df_prospection[df_prospection["AVANCEMENT2"] == "Non démarré"])
+        en_cours = len(df_prospection[df_prospection["AVANCEMENT2"] == "En cours"])
+        cloture = len(df_prospection[df_prospection["AVANCEMENT2"] == "Clôturé"])
+
+        pc1, pc2, pc3, pc4 = st.columns(4)
+        pc1.metric("Total prospects", len(df_prospection))
+        pc2.metric("Non démarré", non_dem)
+        pc3.metric("En cours", en_cours)
+        pc4.metric("Clôturé", cloture)
+
+        import plotly.graph_objects as go
+        fig_funnel = go.Figure(go.Funnel(
+            y=["Non démarré", "En cours", "Clôturé"],
+            x=[non_dem, en_cours, cloture],
+            textposition="inside",
+            marker={"color": ["#94A3B8", "#1D4ED8", "#059669"]}
+        ))
+        fig_funnel.update_layout(height=350, margin=dict(l=20, r=20, t=20, b=20))
+        st.plotly_chart(fig_funnel, use_container_width=True)
+
+        st.markdown("#### Détails prospects")
+        cols_prosp = ["conventions en cours", "AVANCEMENT2", "contacts", "EMAIL", "RANKING"]
+        cols_exist = [c for c in cols_prosp if c in df_prospection.columns]
+        st.dataframe(df_prospection[cols_exist], use_container_width=True)
+
+        st.divider()
 
     data_dir = os.path.join(os.path.dirname(__file__), "data")
     if not os.path.exists(data_dir):
