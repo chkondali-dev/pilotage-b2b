@@ -2362,15 +2362,20 @@ with tabs[6]:
         pc3.metric("En cours", en_cours)
         pc4.metric("Clôturé", cloture)
 
-        import plotly.graph_objects as go
-        fig_funnel = go.Figure(go.Funnel(
-            y=["Non démarré", "En cours", "Clôturé"],
-            x=[non_dem, en_cours, cloture],
-            textposition="inside",
-            marker={"color": ["#94A3B8", "#1D4ED8", "#059669"]}
-        ))
-        fig_funnel.update_layout(height=350, margin=dict(l=20, r=20, t=20, b=20))
-        st.plotly_chart(fig_funnel, use_container_width=True)
+        import plotly.express as px
+        df_pipe = pd.DataFrame({
+            "Étape": ["Non démarré", "En cours", "Clôturé"],
+            "Prospects": [non_dem, en_cours, cloture]
+        })
+        fig_bar = px.bar(df_pipe, y="Étape", x="Prospects", orientation="h",
+            title="Répartition du pipeline",
+            color="Étape",
+            color_discrete_map={"Non démarré": "#94A3B8", "En cours": "#1D4ED8", "Clôturé": "#059669"},
+            text="Prospects")
+        fig_bar.update_traces(textposition="outside")
+        fig_bar.update_layout(height=250, margin=dict(l=10, r=10, t=30, b=10),
+            showlegend=False, xaxis_visible=False, yaxis_title=None)
+        st.plotly_chart(fig_bar, use_container_width=True)
 
         st.markdown("#### Détails prospects")
         cols_prosp = ["conventions en cours", "AVANCEMENT2", "contacts", "EMAIL", "RANKING"]
