@@ -45,11 +45,13 @@ def render_alert_panel(alerts):
     if gen_at:
         st.caption("Dernier scan: "+gen_at[:19].replace("T"," "))
     st.divider()
-    cf1,cf2,_=st.columns([1,1,4])
+    cf1,cf2,cf3,_=st.columns([1,1,1,4])
     with cf1:
         sev_filter=st.selectbox("Severite",["Toutes","ROUGE","AMBRE"],key="sev_filter")
     with cf2:
         typ_filter=st.selectbox("Type",["Tous","Magasin","Convention"],key="typ_filter")
+    with cf3:
+        limit_filter=st.selectbox("Afficher",[20,50,100,"Toutes"],index=0,key="limit_filter")
     all_alerts=[]
     for a in alerts.get("magasin_alerts",[]):
         a["_type"]="Magasin"
@@ -71,41 +73,20 @@ def render_alert_panel(alerts):
     if not all_alerts:
         st.success("Aucune alerte avec les filtres selectionnes.")
         return
-    st.markdown("### Alertes ("+str(len(all_alerts))+")")
+    rows=[]
     for a in all_alerts:
-        badge=_severity_badge(a["severity"])
-        name=a["_name"]
-        etype=a["_type"]
-        enseigne=a.get("enseigne","MG")
-        rules=a.get("rules_triggered",[])
-        metrics=a.get("metrics",{})
-        with st.container(border=True):
-            cols=st.columns([1,3,2])
-            with cols[0]:
-                st.markdown("<h2 style=text-align:center;margin:0>"+badge+"</h2>",unsafe_allow_html=True)
-            with cols[1]:
-                st.markdown("**"+name+"**")
-                st.caption(etype+" | "+enseigne)
-            with cols[2]:
-                if metrics:
-                    val=metrics.get("yoy_change_pct",0)
-                    st.metric("CA Mois",_format_k(metrics.get("ca_current_month",0)),"{:+.1f}%".format(val))
-            for r in rules:
-                st.markdown("**"+r["rule_id"]+"** "+r["message_fr"])
-            with st.expander("Voir details"):
-                if metrics:
-                    md=metrics
-                    cols2=st.columns(3)
-                    cols2[0].metric("CA N",_format_k(md.get("ca_current_month",0)))
-                    cols2[1].metric("CA N-1",_format_k(md.get("ca_same_month_last_year",0)))
-                    cols2[2].metric("Var. N-1","{:+.1f}%".format(md.get("yoy_change_pct",0)))
-                    cols3=st.columns(3)
-                    cols3[0].metric("Var. M/M","{:+.1f}%".format(md.get("mom_change_pct",0)))
-                    cols3[1].metric("Moy. 3 mois",_format_k(md.get("rolling_3m_avg",0)))
-                    cols3[2].metric("Mois baisse",str(int(md.get("consecutive_decline_months",0))))
-                    cols4=st.columns(2)
-                    cols4[0].metric("Transactions",int(md.get("transaction_count_current",0)))
-                    cols4[1].metric("Var. transactions","{:+.1f}%".format(md.get("transaction_count_yoy_change_pct",0)))
+        r=a.get("rules_triggered",[])
+        m=a.get("metrics",{})
+        top_rule=r[0]["rule_id"] if r else ""
+        top_msg=(r[0]["message_fr"][:70]+"...") if r and len(r[0].get("message_fr",""))>70 else (r[0].get("message_fr","") if r else "")
+        yoy=m.get("yoy_change_pct",0)
+        rows.append({"Severite":_severity_badge(a["severity"]),"Entite":a["_name"],"Type":a["_type"],"CA Mois":_format_k(m.get("ca_current_month",0)),"Var.":"{:+.1f}%".format(yoy),"Regle":top_rule,"Detail":top_msg})
+    limit_val=limit_filter
+    display_rows=rows if limit_val=="Toutes" else rows[:int(limit_val)]
+    df=pd.DataFrame(display_rows)
+    styled=df.style.map(lambda v:"background-color:#FEF2F2;color:#7F1D1D" if "\U0001F534" in str(v) else "background-color:#FFFBEB;color:#78350F" if "\U0001F7E1" in str(v) else "")
+    st.dataframe(styled,use_container_width=True,hide_index=True)
+    st.caption(f"Affiche {len(display_rows)}/{len(rows)} alertes")
     inactivity=alerts.get("inactivity",[])
     if inactivity:
         st.divider()
