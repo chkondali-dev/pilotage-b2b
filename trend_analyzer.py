@@ -185,6 +185,15 @@ class TrendAnalyzer:
             mom_pct = 0.0
             if ca_prev > 0:
                 mom_pct = round((ca_current - ca_prev) / ca_prev * 100, 1)
+            # YTD CA (Jan to current month)
+            ytd_current = 0.0
+            ytd_n1 = 0.0
+            for m in range(1, self._current_month + 1):
+                ytd_current += self._ca_for_period(edf, self._current_year, m)
+                ytd_n1 += self._ca_for_period(edf, self._current_year - 1, m)
+            ytd_pct = 0.0
+            if ytd_n1 > 0:
+                ytd_pct = round((ytd_current - ytd_n1) / ytd_n1 * 100, 1)
             tx_current = self._count_for_period(edf, self._current_year, self._current_month)
             tx_n1 = self._count_for_period(edf, self._current_year - 1, self._current_month)
             tx_yoy_pct = 0.0
@@ -204,6 +213,7 @@ class TrendAnalyzer:
                 "transaction_count_current": tx_current,
                 "transaction_count_last_year": tx_n1,
                 "transaction_count_yoy_change_pct": tx_yoy_pct,
+                "ytd_change_pct": ytd_pct,
             })
         result = pd.DataFrame(rows)
         if not result.empty:
@@ -308,6 +318,7 @@ class TrendAnalyzer:
                     "consecutive_decline_months": int(row["consecutive_decline_months"]),
                     "transaction_count_current": int(row["transaction_count_current"]),
                     "transaction_count_yoy_change_pct": float(row["transaction_count_yoy_change_pct"]),
+                    "ytd_change_pct": float(row["ytd_change_pct"]),
                 },
             })
         return alerts
