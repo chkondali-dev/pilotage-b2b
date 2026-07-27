@@ -2634,8 +2634,15 @@ with tabs[8]:
     try:
         from trend_analyzer import TrendAnalyzer
         with st.spinner("Analyse des tendances..."):
-            ta = TrendAnalyzer(df_vc=df_vc, df_edc=df_edc, conventions=df_conv, code_magasin=code_df, mois_sel=mois_sel)
+            ta = TrendAnalyzer(df_vc=df_vc, df_edc=df_edc, conventions=df_conv, code_magasin=code_df)
             alerts = ta.scan_all()
+            # Inject YTD from risk_mat (same calculation as Tab 2)
+            if not risk_mat.empty and "Nom" in risk_mat.columns:
+                ytd_lookup = dict(zip(risk_mat["Nom"], risk_mat["Évolution %"]))
+                for a in alerts.get("convention_alerts", []):
+                    nom = a.get("nom", "")
+                    if nom in ytd_lookup:
+                        a["metrics"]["ytd_change_pct"] = float(ytd_lookup[nom])
             render_alert_panel(alerts)
     except Exception as e:
         st.warning(f"Analyse des tendances indisponible: {e}")
