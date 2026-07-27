@@ -2636,13 +2636,40 @@ with tabs[8]:
         with st.spinner("Analyse des tendances..."):
             ta = TrendAnalyzer(df_vc=df_vc, df_edc=df_edc, conventions=df_conv, code_magasin=code_df)
             alerts = ta.scan_all()
-            # Inject YTD from risk_mat (same calculation as Tab 2)
-            if not risk_mat.empty and "Nom" in risk_mat.columns:
-                ytd_lookup = dict(zip(risk_mat["Nom"], risk_mat["Évolution %"]))
+            # Compute per-convention YTD (same day alignment as ca_sum_date_to_date in Tab 2)
+            if "Nom" in df_vc_filt.columns:
+                _df_ytd_n = df_vc_filt[df_vc_filt["Année"] == annee_sel].copy()
+                _df_ytd_n1 = df_vc_filt[df_vc_filt["Année"] == annee_sel - 1].copy()
+                if mois_sel and len(mois_sel) > 0:
+                    _df_ytd_n = _df_ytd_n[_df_ytd_n["Mois"].isin(mois_sel)]
+                    _df_ytd_n1 = _df_ytd_n1[_df_ytd_n1["Mois"].isin(mois_sel)]
+                if "Jour" in _df_ytd_n.columns and not _df_ytd_n.empty:
+                    _conv_jours = _df_ytd_n.groupby(["Nom", "Mois"])["Jour"].apply(set).to_dict()
+                else:
+                    _conv_jours = {}
+                _ytd_index = {}
+                _ytd_orig = {}
+                for (n, m), jours in _conv_jours.items():
+                    key = str(n).strip().upper()
+                    if key not in _ytd_index:
+                        _ytd_index[key] = {}
+                        _ytd_orig[key] = n
+                    _ytd_index[key][m] = jours
                 for a in alerts.get("convention_alerts", []):
-                    nom = a.get("nom", "")
-                    if nom in ytd_lookup:
-                        a["metrics"]["ytd_change_pct"] = float(ytd_lookup[nom])
+                    nom = str(a.get("nom", "")).strip().upper()
+                    if not nom or nom not in _ytd_index:
+                        continue
+                    orig = _ytd_orig[nom]
+                    dn = _df_ytd_n[_df_ytd_n["Nom"] == orig]
+                    dn1 = _df_ytd_n1[_df_ytd_n1["Nom"] == orig]
+                    if dn.empty:
+                        continue
+                    ca_n = float(dn["Montant TTC"].sum())
+                    ca_n1 = 0.0
+                    for m, jours_n in _ytd_index[nom].items():
+                        ca_n1 += float(dn1[(dn1["Mois"] == m) & (dn1["Jour"].isin(jours_n))]["Montant TTC"].sum())
+                    evo = round((ca_n - ca_n1) / ca_n1 * 100, 1) if ca_n1 > 0 else (100.0 if ca_n > 0 else 0.0)
+                    a["metrics"]["ytd_change_pct"] = evo
             render_alert_panel(alerts)
     except Exception as e:
         st.warning(f"Analyse des tendances indisponible: {e}")
