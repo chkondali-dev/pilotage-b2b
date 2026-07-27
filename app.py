@@ -2634,7 +2634,7 @@ with tabs[8]:
     try:
         from trend_analyzer import TrendAnalyzer
         with st.spinner("Analyse des tendances..."):
-            ta = TrendAnalyzer(df_vc=df_vc, df_edc=df_edc, conventions=df_conv, code_magasin=code_df)
+            ta = TrendAnalyzer(df_vc=df_vc, df_edc=df_edc, conventions=df_conv, code_magasin=code_df, mois_sel=mois_sel)
             alerts = ta.scan_all()
             render_alert_panel(alerts)
     except Exception as e:

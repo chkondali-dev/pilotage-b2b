@@ -61,13 +61,15 @@ def load_all_data() -> dict:
 
 class TrendAnalyzer:
     def __init__(self, df_vc: pd.DataFrame, df_edc: pd.DataFrame,
-                 conventions: pd.DataFrame, code_magasin: pd.DataFrame):
+                 conventions: pd.DataFrame, code_magasin: pd.DataFrame,
+                 mois_sel: list = None):
         self._df_vc = df_vc.copy() if not df_vc.empty else df_vc
         self._df_edc = df_edc.copy() if not df_edc.empty else df_edc
         self._conventions = conventions.copy() if not conventions.empty else conventions
         self._code_magasin = code_magasin.copy() if not code_magasin.empty else code_magasin
         self._current_month = datetime.now().month
         self._current_year = datetime.now().year
+        self._mois_sel = mois_sel
 
     def _add_date_cols(self, df: pd.DataFrame) -> pd.DataFrame:
         if df.empty:
@@ -188,7 +190,8 @@ class TrendAnalyzer:
             # YTD CA (Jan to current month) — JOURS ALIGNÉS date-à-date
             ytd_current = 0.0
             ytd_n1 = 0.0
-            for m in range(1, self._current_month + 1):
+            mois_range = self._mois_sel if self._mois_sel else range(1, self._current_month + 1)
+            for m in mois_range:
                 ytd_current += self._ca_for_period(edf, self._current_year, m)
                 jours_n = set(edf[(edf["Annee"] == self._current_year) & (edf["Mois"] == m)]["Jour"].dropna().unique())
                 if jours_n:
