@@ -169,5 +169,6 @@ def prepare_data(_raw: dict) -> tuple:
     # CRM — chargé séparément via GitHub, parsé par crm.py
     from data.loader import load_crm
     df_crm = load_crm()
-    df_crm = _compute_ca_realise(df_crm, df_vc)
+    if df_crm is not None:
+        df_crm = _compute_ca_realise(df_crm, df_vc)
     return df_vc, df_credit, df_edc, df_conv, code_df, df_credit_part, df_cube_mag, df_prospection, df_crm

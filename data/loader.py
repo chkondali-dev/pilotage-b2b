@@ -55,8 +55,11 @@ def load_all_data() -> dict:
 
 
 @st.cache_data(show_spinner=False, ttl=3600)
-def load_crm() -> pd.DataFrame:
-    """Charge CRM depuis GitHub avec le parser crm.py."""
-    raw = _fetch(CRM_URL)
-    import crm as _crm
-    return _crm.load_crm_data(source=BytesIO(raw))
+def load_crm() -> pd.DataFrame | None:
+    """Charge CRM depuis GitHub avec le parser crm.py. Retourne None si indisponible."""
+    try:
+        raw = _fetch(CRM_URL)
+        import crm as _crm
+        return _crm.load_crm_data(source=BytesIO(raw))
+    except Exception:
+        return None
