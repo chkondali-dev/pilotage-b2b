@@ -1001,17 +1001,19 @@ with tabs[3]:
 
             col_m1, col_m2 = st.columns(2)
             with col_m1:
-                top20 = ca_mag.head(20)
-                fig_top = px.bar(top20, x="CA N", y="Magasin", orientation="h",
-                                title=f"Top 20 — CA {annee_sel}", color="CA N",
-                                color_continuous_scale=["#1D4ED8", "#3B82F6", "#60A5FA"], text_auto=".0f")
-                fig_top.update_layout(height=400, yaxis=dict(autorange="reversed"))
+                top10 = ca_mag.head(10)
+                fig_top = px.bar(top10, x="CA N", y="Magasin", orientation="h",
+                                title=f"Top 10 — CA {annee_sel}", color="CA N",
+                                color_continuous_scale=["#1D4ED8", "#3B82F6", "#60A5FA"],
+                                text_auto=".0f", height=450)
+                fig_top.update_layout(yaxis=dict(autorange="reversed"))
                 st.plotly_chart(fig_top, use_container_width=True)
             with col_m2:
-                fig_evo = px.bar(top20, x="Evolution %", y="Magasin", orientation="h",
-                               title="Évolution N/N-1", color="Evolution %",
-                               color_continuous_scale=["#DC2626", "#FCD34D", "#059669"], text_auto="+.1f")
-                fig_evo.update_layout(height=400, yaxis=dict(autorange="reversed"))
+                fig_evo = px.bar(top10, x="Evolution %", y="Magasin", orientation="h",
+                               title="Top 10 — Évolution N/N-1", color="Evolution %",
+                               color_continuous_scale=["#DC2626", "#FCD34D", "#059669"],
+                               text_auto="+.1f", height=450)
+                fig_evo.update_layout(yaxis=dict(autorange="reversed"))
                 fig_evo.add_vline(x=0, line_dash="dash", line_color="grey")
                 st.plotly_chart(fig_evo, use_container_width=True)
 
