@@ -1375,7 +1375,7 @@ with tabs[3]:
                             title=f"Top 10 Magasins {enseigne} — {annee_sel}",
                             color="Montant TTC", color_continuous_scale=color_scale,
                             text_auto=".0f")
-            fig_tp.update_layout(height=280, yaxis=dict(autorange="reversed"),
+            fig_tp.update_layout(height=420, yaxis=dict(autorange="reversed"),
                                  margin=dict(l=10, r=10, t=30, b=10))
             st.plotly_chart(fig_tp, use_container_width=True)
 
