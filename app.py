@@ -1332,12 +1332,14 @@ with tabs[3]:
 
     # ── Performance par enseigne ─────────────────────────────
     def _render_enseigne_section(enseigne, color_scale):
-        _df = df_vc[df_vc["Enseigne"] == enseigne].copy()
+        _df = df_vc_filt[df_vc_filt["Enseigne"] == enseigne].copy()
         if _df.empty:
             st.caption(f"Aucune donnée {enseigne} disponible.")
             return
         _n  = _df[_df["Année"] == annee_sel]
         _n1 = _df[_df["Année"] == annee_sel - 1]
+        if "Jour" in _n.columns and "Jour" in _n1.columns and not _n.empty:
+            _n1 = _n1.merge(_n[["Mois", "Jour"]].drop_duplicates(), on=["Mois", "Jour"], how="inner")  # ponytail: date-à-date
         _ca_n  = _n["Montant TTC"].sum()
         _ca_n1 = _n1["Montant TTC"].sum()
         _ev = evol_pct(_ca_n, _ca_n1) if _ca_n1 > 0 else 0
