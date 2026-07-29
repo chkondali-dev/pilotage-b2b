@@ -690,7 +690,7 @@ with tabs[1]:
     section("Saisonnalité — Heatmap CA mensuel × année")
     _hm = df_vc.groupby(["Année", "Mois"])["Montant TTC"].sum().reset_index()
     _hm_pivot = _hm.pivot(index="Année", columns="Mois", values="Montant TTC").fillna(0)
-    _hm_pivot.columns = [_hm_pivot.columns.map(MOIS).get(c, c) for c in _hm_pivot.columns]
+    _hm_pivot = _hm_pivot.rename(columns=MOIS)
     fig_hm = px.imshow(_hm_pivot, text_auto=".0f", aspect="auto",
                        title="CA mensuel par année",
                        color_continuous_scale="Blues",
@@ -1324,54 +1324,58 @@ with tabs[3]:
                 csv = detail.to_csv(index=False).encode("utf-8")
                 st.download_button("\U0001f4e5 Export CSV", data=csv, file_name="pilotage_magasin.csv", mime="text/csv")
 
-    # ── BATAM — Tableau de bord dédié ────────────────────────────
-    section("BATAM — Performance réseau")
-    _batam = df_vc[df_vc["Enseigne"] == "BATAM"].copy()
-    if not _batam.empty:
-        _bn  = _batam[_batam["Année"] == annee_sel]
-        _bn1 = _batam[_batam["Année"] == annee_sel - 1]
-        _ca_bn  = _bn["Montant TTC"].sum()
-        _ca_bn1 = _bn1["Montant TTC"].sum()
-        _ev_b = evol_pct(_ca_bn, _ca_bn1) if _ca_bn1 > 0 else 0
-        _nb_mag = _bn["Magasin"].nunique()
-        _nb_mag_n1 = _bn1["Magasin"].nunique()
-        _part_b = _ca_bn / df_vc[df_vc["Année"] == annee_sel]["Montant TTC"].sum() * 100 if not df_vc[df_vc["Année"] == annee_sel].empty else 0
-        _b1, _b2, _b3, _b4, _b5 = st.columns(5)
-        _b1.metric(f"CA BATAM {annee_sel}", f"{_ca_bn:,.0f}", f"{_ev_b:+.1f}%",
-                   delta_color="normal" if _ev_b >= 0 else "inverse")
-        _b2.metric(f"CA BATAM {annee_sel-1}", f"{_ca_bn1:,.0f}")
-        _b3.metric("Magasins actifs", _nb_mag, f"{_nb_mag - _nb_mag_n1:+d} vs N-1")
-        _b4.metric("Part du CA total", f"{_part_b:.1f}%",
-                   delta_color="inverse" if _part_b < 10 else "normal")
-        _b5.metric("Panier moyen BATAM", f"{_ca_bn/len(_bn):,.0f}" if len(_bn) > 0 else "0")
+    # ── Performance par enseigne ─────────────────────────────
+    def _render_enseigne_section(enseigne, color_scale):
+        _df = df_vc[df_vc["Enseigne"] == enseigne].copy()
+        if _df.empty:
+            st.caption(f"Aucune donnée {enseigne} disponible.")
+            return
+        _n  = _df[_df["Année"] == annee_sel]
+        _n1 = _df[_df["Année"] == annee_sel - 1]
+        _ca_n  = _n["Montant TTC"].sum()
+        _ca_n1 = _n1["Montant TTC"].sum()
+        _ev = evol_pct(_ca_n, _ca_n1) if _ca_n1 > 0 else 0
+        _nb_mag = _n["Magasin"].nunique()
+        _nb_mag_n1 = _n1["Magasin"].nunique()
+        _part = _ca_n / df_vc[df_vc["Année"] == annee_sel]["Montant TTC"].sum() * 100 if not df_vc[df_vc["Année"] == annee_sel].empty else 0
+        _c1, _c2, _c3, _c4, _c5 = st.columns(5)
+        _c1.metric(f"CA {enseigne} {annee_sel}", f"{_ca_n:,.0f}", f"{_ev:+.1f}%",
+                   delta_color="normal" if _ev >= 0 else "inverse")
+        _c2.metric(f"CA {enseigne} {annee_sel-1}", f"{_ca_n1:,.0f}")
+        _c3.metric("Magasins actifs", _nb_mag, f"{_nb_mag - _nb_mag_n1:+d} vs N-1")
+        _c4.metric("Part du CA total", f"{_part:.1f}%")
+        _c5.metric("Panier moyen", f"{_ca_n/len(_n):,.0f}" if len(_n) > 0 else "0")
         # Monthly trend
-        _bt = _batam[_batam["Année"].isin([annee_sel, annee_sel-1])]
-        _bt = _bt.groupby(["Année", "Mois"])["Montant TTC"].sum().reset_index()
-        _bt["Periode"] = _bt["Année"].astype(str) + "-" + _bt["Mois"].astype(str).str.zfill(2)
-        fig_bt = go.Figure()
+        _t = _df[_df["Année"].isin([annee_sel, annee_sel-1])]
+        _t = _t.groupby(["Année", "Mois"])["Montant TTC"].sum().reset_index()
+        fig_t = go.Figure()
         for yr in [annee_sel, annee_sel-1]:
-            _by = _bt[_bt["Année"] == yr]
-            fig_bt.add_trace(go.Bar(x=_by["Mois"], y=_by["Montant TTC"],
-                                    name=str(yr),
-                                    marker_color=C["blue"] if yr == annee_sel else C["slate"],
-                                    opacity=0.8 if yr == annee_sel else 0.5))
-        fig_bt.update_layout(height=280, barmode="group",
-                             xaxis=dict(tickmode="array", tickvals=list(range(1,13)),
-                                        ticktext=[MOIS[i] for i in range(1,13)]),
-                             margin=dict(l=10, r=10, t=10, b=10))
-        st.plotly_chart(fig_bt, use_container_width=True)
-        # Top BATAM stores
-        _top_b = _bn.groupby("Magasin")["Montant TTC"].sum().nlargest(10).reset_index()
-        if not _top_b.empty:
-            fig_tb = px.bar(_top_b, x="Montant TTC", y="Magasin", orientation="h",
-                            title=f"Top 10 Magasins BATAM — {annee_sel}",
-                            color="Montant TTC", color_continuous_scale=["#D97706", "#F59E0B"],
+            _by = _t[_t["Année"] == yr]
+            fig_t.add_trace(go.Bar(x=_by["Mois"], y=_by["Montant TTC"],
+                                   name=str(yr),
+                                   marker_color=C["blue"] if yr == annee_sel else C["slate"],
+                                   opacity=0.8 if yr == annee_sel else 0.5))
+        fig_t.update_layout(height=250, barmode="group",
+                            xaxis=dict(tickmode="array", tickvals=list(range(1,13)),
+                                       ticktext=[MOIS[i] for i in range(1,13)]),
+                            margin=dict(l=10, r=10, t=10, b=10))
+        st.plotly_chart(fig_t, use_container_width=True)
+        # Top stores
+        _top = _n.groupby("Magasin")["Montant TTC"].sum().nlargest(10).reset_index()
+        if not _top.empty:
+            fig_tp = px.bar(_top, x="Montant TTC", y="Magasin", orientation="h",
+                            title=f"Top 10 Magasins {enseigne} — {annee_sel}",
+                            color="Montant TTC", color_continuous_scale=color_scale,
                             text_auto=".0f")
-            fig_tb.update_layout(height=300, yaxis=dict(autorange="reversed"),
+            fig_tp.update_layout(height=280, yaxis=dict(autorange="reversed"),
                                  margin=dict(l=10, r=10, t=30, b=10))
-            st.plotly_chart(fig_tb, use_container_width=True)
-    else:
-        st.caption("Aucune donnée BATAM disponible.")
+            st.plotly_chart(fig_tp, use_container_width=True)
+
+    section("BATAM — Performance réseau")
+    _render_enseigne_section("BATAM", ["#D97706", "#F59E0B"])
+
+    section("MG — Performance réseau")
+    _render_enseigne_section("MG", ["#1D4ED8", "#3B82F6", "#60A5FA"])
 
 
 # ══════════════════════════════════════════════════════════════
@@ -1954,8 +1958,11 @@ with tabs[8]:
                         st.caption(f"Fichier non trouve: {html_file.name}")
 
                     # Lien pour ouvrir
-                    st.markdown(f"[Ouvrir le rapport](./{html_file.relative_to(Path(__file__).parent)})"
-                                if html_file.exists() else "")
+                    try:
+                        _rel = html_file.relative_to(Path(__file__).parent)
+                        st.markdown(f"[Ouvrir le rapport](./{_rel})")
+                    except ValueError:
+                        pass
 
 # ── Footer ────────────────────────────────────────────────────
 st.markdown("---")
