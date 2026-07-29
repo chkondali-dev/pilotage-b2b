@@ -948,6 +948,10 @@ with tabs[3]:
     else:
         _base_n  = df_vc_filt[df_vc_filt["Année"] == annee_sel].copy()
         _base_n1 = df_vc_filt[df_vc_filt["Année"] == annee_sel - 1].copy()
+        # ponytail: date-à-date — tronquer N-1 aux mêmes (Mois, Jour) que N
+        if "Jour" in _base_n.columns and "Jour" in _base_n1.columns and not _base_n.empty:
+            _n_dates = _base_n[["Mois", "Jour"]].drop_duplicates()
+            _base_n1 = _base_n1.merge(_n_dates, on=["Mois", "Jour"], how="inner")
 
         all_stores = sorted(_base_n["Magasin"].dropna().unique()) if "Magasin" in _base_n.columns else []
 
