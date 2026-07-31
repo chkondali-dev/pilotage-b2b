@@ -50,7 +50,7 @@ def chercher(question: str, top_k: int = 4) -> list[dict]:
     if MemoryStore is None:
         return []
     store = MemoryStore("convention_ai")
-    results = store.recall(question, limit=top_k)
+    results = store.recall(question, top_k=top_k)
     out = []
     for r in results:
         content = r.get("content", r) if isinstance(r, dict) else str(r)

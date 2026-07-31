@@ -12,6 +12,8 @@ Usage :
     python main.py workflow renouvellement <fichier> [--performance "texte"]
     python main.py indexer            # indexe KNOWLEDGE/ dans la mémoire
     python main.py question "texte"   # question avec contexte KNOWLEDGE (RAG)
+    python main.py register CODE "Client" --scenario "04-Amicale seule" --garantie "Cession"
+                                     # ajoute/met à jour le suivi conventions_signees.csv (dashboard)
 """
 import argparse
 import sys
@@ -61,6 +63,15 @@ def main() -> None:
     sp = sub.add_parser("question", help="Question avec RAG sur KNOWLEDGE/")
     sp.add_argument("texte")
 
+    sp = sub.add_parser("register", help="Ajouter/met à jour une convention dans le suivi (CSV dashboard)")
+    sp.add_argument("code")
+    sp.add_argument("client")
+    sp.add_argument("--scenario", default="")
+    sp.add_argument("--garantie", default="")
+    sp.add_argument("--statut", default="Prospection")
+    sp.add_argument("--date-signature", default="")
+    sp.add_argument("--notes", default="")
+
     args = p.parse_args()
 
     if args.cmd == "audit":
@@ -97,6 +108,11 @@ def main() -> None:
         prompt = rag.enrichir_prompt(args.texte, args.texte)
         system = "Tu es un expert des conventions B2B SMG (MG, BATAM, cession sur salaire). Réponds en français, factuel, cité si possible."
         print(client.chat(prompt, role="analyse", system=system) or "❌ Échec LLM")
+    elif args.cmd == "register":
+        res = workflows.register_convention(
+            args.code, args.client, scenario=args.scenario, garantie=args.garantie,
+            statut=args.statut, date_signature=args.date_signature, notes=args.notes)
+        print(f"✅ Convention {res} dans {workflows.CSV_SIGNEES}")
 
 
 if __name__ == "__main__":

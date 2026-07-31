@@ -7,9 +7,10 @@ manuellement par l'expert métier (ou via workflow dédié).
 
 | Document | Emplacement | Statut |
 |---|---|---|
-| Contrat de cession sur salaire (modèle) | `docs/contrat_cession_salaire.md` (repo racine) | ✅ prêt — référence principale |
+| Contrat de cession sur salaire (modèle) | `conventions/contrat_cession_salaire.md` | ✅ prêt — référence principale |
 | Contrat de cession sur salaire (.docx) | `docs/contrat_cession_salaire.docx` (repo racine) | ✅ prêt |
-| Convention modèle RTT | `conventions/convention_modele_rtt.docx` | ⬜ à déposer |
+| 5 scénarios de conventions type + matrice garanties | `conventions/conventions_type_scenarios.md` | ✅ prêt (design validé 2026-06-10) |
+| Convention modèle RTT | `conventions/convention_modele_rtt.md` | ⬜ à déposer |
 | Conditions générales | `conventions/conditions_generales.md` | ⬜ à déposer |
 
 ## Procédures
@@ -23,7 +24,7 @@ manuellement par l'expert métier (ou via workflow dédié).
 
 | Document | Emplacement | Statut |
 |---|---|---|
-| FAQ conventions | `reference/faq_conventions.md` | ⬜ à rédiger |
+| FAQ conventions | `reference/faq_conventions.md` | ✅ complétée — 2 réponses à confirmer (tiers saisissable, MG vs BATAM) |
 | Analyse mensuelle (prompt existant) | `prompts/analyse_convention.md` (repo racine) | ✅ prêt |
 
 ## Convention en cours de production

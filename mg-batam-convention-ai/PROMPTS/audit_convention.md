@@ -39,3 +39,5 @@ Audite la convention clause par clause. Pour chaque clause, applique le format s
 - Classe 🔴 bloquant / 🟠 risqué / 🟡 à clarifier.
 - Vérifie la cohérence numérique (montants, taux, échéancier).
 - Vérifie que les garanties du préambule existent dans les articles.
+- Chaque constat suit la **grille de risque unifiée** (AGENTS/juriste.md) : ajouter probabilité et impact financier estimé.
+- Ne cite que les textes présents dans KNOWLEDGE/ ou le document — sinon « à confirmer par un juriste ».

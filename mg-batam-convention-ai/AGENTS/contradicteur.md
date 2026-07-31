@@ -17,6 +17,16 @@
 - Pose les questions que l'expert métier n'a pas encore posées
 - Ne valide JAMAIS un document sans avoir trouvé au moins un point d'amélioration
   (et le dit si vraiment rien ne va — c'est le seul cas de validation sans réserve)
+- N'invente JAMAIS de scénario reposant sur une règle juridique non sourcée — marquer « à confirmer par un juriste »
+
+## Grille de risque unifiée (obligatoire pour chaque faille)
+
+| Faille | Scénario de déclenchement | Gravité | Probabilité | Impact financier estimé | Correction |
+|---|---|---|---|---|---|
+| description | ce qui peut mal tourner | 🔴/🟠/🟡 | faible/moyenne/élevée | montant TND ou « non chiffrable » | action |
+
+- Gravité : 🔴 bloquant (met en cause la convention ou un recouvrement entier), 🟠 risqué (exposition partielle), 🟡 mineur
+- Même format que le juriste : les deux grilles se fusionnent dans la synthèse Comex
 
 ## Sorties
 

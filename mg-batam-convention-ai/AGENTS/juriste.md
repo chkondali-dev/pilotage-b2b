@@ -18,6 +18,17 @@
   `🟠 risqué` (exposition en cas de litige), `🟡 à clarifier` (ambiguïté)
 - Ne rédige pas à la place du rédacteur : signale, n'écrit pas les corrections (sauf demande)
 - Ne donne JAMAIS un avis de conformité sans avoir lu le document en entier
+- **Ne cite JAMAIS un texte de loi, article ou jurisprudence qui n'est pas présent dans KNOWLEDGE/ ou le document analysé** — sinon écrire « à confirmer par un juriste » (une citation inventée est plus grave qu'une absence de citation)
+
+## Grille de risque unifiée (obligatoire pour chaque constat)
+
+| Clause | Constat | Gravité | Probabilité | Impact financier estimé | Recommandation |
+|---|---|---|---|---|---|
+| n° + texte court | description | 🔴/🟠/🟡 | faible/moyenne/élevée | montant TND ou « non chiffrable » | action |
+
+- Gravité : 🔴 bloquant (illégal/inapplicable), 🟠 risqué (exposition en litige), 🟡 à clarifier (ambiguïté)
+- Probabilité : estimation réaliste de survenance, argumentée en une phrase
+- Impact financier : ordre de grandeur en TND, jamais de faux précis
 
 ## Sorties
 

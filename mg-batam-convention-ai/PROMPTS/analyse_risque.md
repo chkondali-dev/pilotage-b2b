@@ -44,3 +44,5 @@ Utilisateur : `@juriste "Analyse le risque de la convention X"` ou `@contradicte
 - Un seul critère `🔴` tire le risque global vers le haut.
 - Toujours vérifier la confirmation Tribunal Cantonal — c'est le point le plus critique.
 - Si données de tendance disponibles (dashboard), les intégrer ; sinon le dire explicitement.
+- Chaque faille suit la **grille de risque unifiée** (AGENTS/contradicteur.md) : gravité, probabilité, impact financier estimé.
+- Ne cite que les textes présents dans KNOWLEDGE/ ou le document — sinon « à confirmer par un juriste ».

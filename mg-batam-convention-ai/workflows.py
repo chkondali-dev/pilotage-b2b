@@ -2,10 +2,18 @@
 Workflows orchestrés — les 3 procédures du dossier en code.
 Chaque étape écrit dans OUTPUTS/ et attend la précédente.
 """
+import csv as _csv
 import re
-from datetime import datetime
+import sys
+from datetime import date, datetime
 from pathlib import Path
 from llm import agents, config
+
+# Pont vers le repo racine : CSV de suivi des conventions signées (dashboard tabs[6])
+ROOT_REPO = Path(__file__).resolve().parent.parent
+CSV_SIGNEES = ROOT_REPO / "data" / "conventions_signees.csv"
+CSV_FIELDS = ["code", "client", "scenario", "garantie", "statut",
+              "date_debut_prospection", "date_signature", "nb_modifications", "notes"]
 
 
 def _slug(nom: str) -> str:
@@ -18,6 +26,109 @@ def _save(sub: str, nom: str, contenu: str) -> Path:
     p.write_text(contenu, encoding="utf-8")
     print(f"  💾 {p}")
     return p
+
+
+def register_convention(code: str, client: str, scenario: str = "", garantie: str = "",
+                        statut: str = "Prospection", date_signature: str = "", notes: str = "") -> str:
+    """Ajoute ou met à jour une ligne de data/conventions_signees.csv (suivi dashboard).
+
+    Retourne "created" ou "updated". Ponytail: lecture+écriture complète du CSV, sans verrou —
+    à passer en SQLite si des écritures concurrentes apparaissent.
+    """
+    CSV_SIGNEES.parent.mkdir(exist_ok=True)
+    rows: list[dict] = []
+    if CSV_SIGNEES.exists():
+        with open(CSV_SIGNEES, encoding="utf-8") as f:
+            rows = list(_csv.DictReader(f, delimiter=";"))
+    for r in rows:
+        if str(r.get("code", "")).strip().lower() == code.strip().lower():
+            for k, v in (("client", client), ("scenario", scenario), ("garantie", garantie),
+                         ("statut", statut), ("date_signature", date_signature), ("notes", notes)):
+                if v:
+                    r[k] = v
+            r["nb_modifications"] = str(int(r.get("nb_modifications") or 0) + 1)
+            break
+    else:
+        rows.append({"code": re.sub(r"[^A-Z0-9_]", "_", code.strip().upper())[:20],
+                     "client": client, "scenario": scenario, "garantie": garantie,
+                     "statut": statut, "date_debut_prospection": date.today().isoformat(),
+                     "date_signature": date_signature, "nb_modifications": "0", "notes": notes})
+        with open(CSV_SIGNEES, "w", newline="", encoding="utf-8") as f:
+            w = _csv.DictWriter(f, fieldnames=CSV_FIELDS, delimiter=";")
+            w.writeheader()
+            w.writerows(rows)
+        return "created"
+    with open(CSV_SIGNEES, "w", newline="", encoding="utf-8") as f:
+        w = _csv.DictWriter(f, fieldnames=CSV_FIELDS, delimiter=";")
+        w.writeheader()
+        w.writerows(rows)
+    return "updated"
+
+
+def _bilan_csv(chemin: str) -> dict | None:
+    """Retrouve la ligne conventions_signees.csv correspondant au fichier (bilan auto).
+
+    Matching par tokens (≥3 lettres) entre nom du fichier et client/code,
+    bonus si le code exact figure dans le nom. Ponytail: heuristique simple —
+    un match sur 2+ tokens ou le code; en dessous, pas de bilan (aucun faux positif).
+    """
+    if not CSV_SIGNEES.exists():
+        return None
+    stem = re.sub(r"[^a-z0-9]+", " ", Path(chemin).stem.lower())
+    stem_tokens = {t for t in stem.split() if len(t) >= 3}
+    if not stem_tokens:
+        return None
+    with open(CSV_SIGNEES, encoding="utf-8") as f:
+        rows = list(_csv.DictReader(f, delimiter=";"))
+    best, best_score, best_code = None, 0, False
+    for r in rows:
+        code = r.get("code", "").strip().lower()
+        hay_tokens = {t for t in re.split(r"[^a-z0-9]+", f"{r.get('client', '')} {code}".lower())
+                      if len(t) >= 3}
+        overlap = len(stem_tokens & hay_tokens)
+        has_code = code in stem.split()
+        score = overlap * 10 + (10 if has_code else 0)
+        if score > best_score:
+            best, best_score, best_code = r, score, has_code
+    if best is None or (best_score < 20 and not best_code):
+        return None
+    return {k: v for k, v in best.items() if str(v or "").strip()}
+
+
+def _kpis_vente(client: str) -> str:
+    """CA N / N-1 par convention via le pipeline du dashboard (dégradation silencieuse).
+
+    Matching par tokens (≥3 lettres, ≥2 tokens communs) — même heuristique que _bilan_csv.
+    """
+    try:
+        sys.path.insert(0, str(ROOT_REPO))
+        import pandas as pd
+        from data.loader import _filter_conventions, load_all_data
+        from data.transforms import _add_date_cols, _map_magasins
+        raw = load_all_data()
+        df_vc = _filter_conventions(
+            _map_magasins(_add_date_cols(raw.get("vc", pd.DataFrame())),
+                          raw.get("code_magasin", pd.DataFrame())))
+        if df_vc.empty or "Nom" not in df_vc.columns or "Montant TTC" not in df_vc.columns:
+            return ""
+        client_tokens = {t for t in re.split(r"[^a-z0-9]+", client.lower()) if len(t) >= 3}
+        if not client_tokens:
+            return ""
+        noms = df_vc["Nom"].fillna("")
+        noms_tokens = noms.map(
+            lambda n: {t for t in re.split(r"[^a-z0-9]+", n.lower()) if len(t) >= 3})
+        scores = noms_tokens.map(lambda s: len(client_tokens & s))
+        match = df_vc[scores >= 2]
+        if match.empty or "Année" not in match.columns:
+            return ""
+        annee_n = int(match["Année"].max())
+        ca_n = match[match["Année"] == annee_n]["Montant TTC"].sum()
+        ca_n1 = match[match["Année"] == annee_n - 1]["Montant TTC"].sum()
+        evo = f"{(ca_n / ca_n1 - 1) * 100:+.1f}%" if ca_n1 else "N/A (N-1 nul)"
+        return (f"CA facturé {annee_n}: {ca_n:,.0f} TND | CA {annee_n - 1}: {ca_n1:,.0f} TND"
+                f" | Évolution: {evo}")
+    except Exception:
+        return ""
 
 
 def revue_complete(chemin: str, renégocier: bool = False) -> None:
@@ -91,11 +202,21 @@ def nouvelle_convention(contexte: str) -> None:
 
 
 def renouvellement(chemin: str, performance: str = "") -> None:
-    """Workflow renouvellement : audit → contre-audit → négociation → décision."""
+    """Workflow renouvellement : audit → contre-audit → négociation → décision.
+
+    Le bilan est alimenté automatiquement : ligne conventions_signees.csv + KPIs vente
+    (CA N / N-1) via le pipeline du dashboard, si disponibles.
+    """
     doc = Path(chemin).read_text(encoding="utf-8", errors="ignore")
     nom = Path(chemin).stem
 
+    ligne = _bilan_csv(chemin)
+    bilan_csv = " | ".join(f"{k}={v}" for k, v in ligne.items()) if ligne else ""
+    kpis = _kpis_vente(ligne["client"] if ligne else nom)
+    bilan = " | ".join(x for x in (bilan_csv, kpis) if x) or performance or "(non fournie)"
+
     print(f"\n=== Renouvellement — {nom} ===")
+    print(f"  Bilan auto : {bilan}")
 
     print("\n[1/4] Audit documentaire...")
     audit = agents.audit(doc, chemin)
@@ -110,13 +231,13 @@ def renouvellement(chemin: str, performance: str = "") -> None:
 
     print("\n[3/4] Stratégie de renégociation...")
     fiche = agents.preparer_negociation(
-        f"Renouvellement de la convention {nom}. Performance de la période : {performance or '(non fournie)'}", doc)
+        f"Renouvellement de la convention {nom}. Bilan de la période : {bilan}", doc)
     if fiche:
         _save("syntheses", f"negociation_renouvellement_{nom}", fiche)
 
     print("\n[4/4] Décision comex...")
     decision = agents.synthese_comex(
-        f"Renouvellement de : {nom}\n\nPerformance : {performance or '(non fournie)'}\n\nAudit :\n{audit}\n\nContre-audit :\n{contre or '(non généré)'}")
+        f"Renouvellement de : {nom}\n\nBilan : {bilan}\n\nAudit :\n{audit}\n\nContre-audit :\n{contre or '(non généré)'}")
     if decision:
         _save("syntheses", f"decision_renouvellement_{nom}", decision)
 
