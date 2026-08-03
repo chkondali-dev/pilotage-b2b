@@ -32,13 +32,16 @@ import argparse
 import subprocess
 import warnings
 from datetime import datetime, timedelta
-from io import BytesIO
 from pathlib import Path
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 import pandas as pd
 import requests
+from data.config import GITHUB_RAW, FILES
+from data.loader import load_all_data
+from data.transforms import _add_date_cols, _map_magasins
+from metrics.kpi import evol_pct, truncate_n1_date_to_date
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
@@ -50,22 +53,38 @@ SMTP_SERVER = "mail.SMG.com.tn"
 SMTP_PORT = 587
 EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD", "")
 
-LLM_API_KEY = os.getenv("LLM_API_KEY", "")
-# Par defaut : Groq (API gratuite, sans CB, modele Llama 3 70B)
-# Alternatives payantes : mettre LLM_MODEL=gpt-4o-mini et LLM_ENDPOINT=https://api.openai.com/v1/chat/completions
-LLM_MODEL = os.getenv("LLM_MODEL", "llama-3.3-70b-versatile")
-LLM_ENDPOINT = os.getenv("LLM_ENDPOINT", "https://api.groq.com/openai/v1/chat/completions")
+# ── LLM : détection auto Ollama > Groq ────────────────────────
 
-GITHUB_RAW = "https://raw.githubusercontent.com/chkondali-dev/pilotage-b2b/main/2025/"
+OLLAMA_ENDPOINT = "http://localhost:11434"
 
-FILES = {
-    "vc":                "Factures%20ventes%20enregistr%C3%A9es%20VC%20(4).xlsx",
-    "vc_credit":         "Factures%20ventes%20enregistr%C3%A9es%20VC%20credit%20conso.xlsx",
-    "vc_edc":            "Factures%20ventes%20enregistr%C3%A9es%20VC%20CONVENTION%20EDC.xlsx",
-    "conventions":       "TDC%20CONVENTION%201.xlsm",
-    "code_magasin":      "Code%20MAGASIN%20Business%20Central.xlsx",
-    "cube_magasin":      "CUBE%20MAGASIN.xlsx",
-}
+def _detect_ollama() -> bool:
+    """Vérifie si Ollama tourne sur localhost."""
+    try:
+        r = requests.get(f"{OLLAMA_ENDPOINT}/api/tags", timeout=2)
+        return r.status_code == 200
+    except Exception:
+        return False
+
+_OLLAMA_AVAILABLE = _detect_ollama()
+_GROQ_API_KEY = os.getenv("LLM_API_KEY", "")
+
+if _OLLAMA_AVAILABLE:
+    # Ollama en priorité
+    LLM_API_KEY = ""  # pas besoin de clé
+    LLM_MODEL = os.getenv("LLM_MODEL", "qwen2.5-coder:1.5b")
+    LLM_ENDPOINT = f"{OLLAMA_ENDPOINT}/v1/chat/completions"
+    LLM_PROVIDER = "ollama"
+    print(f"  [LLM] Ollama detecte > {LLM_MODEL}")
+else:
+    # Fallback Groq (ou autre API OpenAI-compatible)
+    LLM_API_KEY = _GROQ_API_KEY
+    LLM_MODEL = os.getenv("LLM_MODEL", "llama-3.3-70b-versatile")
+    LLM_ENDPOINT = os.getenv("LLM_ENDPOINT", "https://api.groq.com/openai/v1/chat/completions")
+    LLM_PROVIDER = "groq"
+    if LLM_API_KEY:
+        print(f"  [LLM] Ollama indisponible > Groq ({LLM_MODEL})")
+    else:
+        print(f"  [LLM] Aucun LLM disponible (Ollama offline, pas de cle Groq)")
 
 MOIS_NOMS = {
     1: "Janvier", 2: "Fevrier", 3: "Mars", 4: "Avril",
@@ -75,98 +94,13 @@ MOIS_NOMS = {
 
 MOIS_COURTS = {
     1: "Jan", 2: "Fev", 3: "Mar", 4: "Avr",
-    5: "Mai", 6: "Juin", 7: "Juil", 8: "Aou",
+    5: "Mai", 6: "Jun", 7: "Jul", 8: "Aou",
     9: "Sep", 10: "Oct", 11: "Nov", 12: "Dec",
 }
 
 SORTIE = Path.home() / "Downloads" / "rapport_mensuel"
 CACHE_DIR = Path(__file__).parent / ".cache_monthly"
 PROMPT_FILE = Path(__file__).parent / "prompts" / "analyse_convention.md"
-
-
-# ─── Data Loading ──────────────────────────────────────────────
-
-def load_excel(url: str) -> pd.DataFrame | None:
-    """Charge un fichier Excel depuis une URL."""
-    try:
-        r = requests.get(url, timeout=30)
-        if r.status_code == 200:
-            df = pd.read_excel(BytesIO(r.content), engine="openpyxl")
-            df.columns = df.columns.str.replace("\n", " ").str.strip()
-            for col in df.select_dtypes("str").columns:
-                df[col] = df[col].astype(str).str.strip()
-            return df
-    except Exception as e:
-        print(f"  ⚠️  Erreur chargement {url}: {e}")
-    return None
-
-
-def load_all_data() -> dict:
-    """Charge tous les fichiers depuis GitHub."""
-    print("  Chargement des donnees...")
-    dfs = {}
-    for name, filename in FILES.items():
-        url = GITHUB_RAW + filename
-        df = load_excel(url)
-        if df is not None:
-            dfs[name] = df
-            print(f"    ✓ {name}: {len(df)} lignes")
-        else:
-            dfs[name] = pd.DataFrame()
-            print(f"    ✗ {name}: non trouve")
-    return dfs
-
-
-# ─── Data Processing ───────────────────────────────────────────
-
-def _add_date_cols(df: pd.DataFrame) -> pd.DataFrame:
-    """Ajoute colonnes Annee/Mois/Jour depuis la colonne date."""
-    if df.empty:
-        return df
-    date_col = next(
-        (c for c in df.columns if "date" in c.lower() and "comptabil" in c.lower()),
-        None
-    )
-    if date_col is None:
-        date_col = next(
-            (c for c in df.columns if "date" in c.lower()),
-            None
-        )
-    if date_col is None:
-        return df
-    df = df.copy()
-    df["Date"] = pd.to_datetime(df[date_col], errors="coerce")
-    df["Annee"] = df["Date"].dt.year.astype("Int64")
-    df["Mois"] = df["Date"].dt.month.astype("Int64")
-    df["Jour"] = df["Date"].dt.day.astype("Int64")
-    return df
-
-
-def _map_magasins(df: pd.DataFrame, code_df: pd.DataFrame) -> pd.DataFrame:
-    """Mapping code magasin → nom + enseigne."""
-    if df.empty or code_df.empty:
-        return df
-    df = df.copy()
-    df["Enseigne"] = "MG"
-    df["Magasin"] = "Inconnu"
-    code_col_src = next((c for c in df.columns if c.lower() == "unite code"), None)
-    if not code_col_src:
-        return df
-    code_col = list(code_df.columns)[0]
-    unite_col = list(code_df.columns)[2] if len(code_df.columns) > 2 else list(code_df.columns)[1]
-    def get_ense(unit: str) -> str:
-        s = str(unit).upper()
-        return "BATAM" if ("BATAM" in s or "BTM" in s) else "MG"
-    code_df = code_df.copy()
-    code_df.columns = code_df.columns.str.strip()
-    code_df["Enseigne"] = code_df[unite_col].apply(get_ense)
-    code_df[code_col] = code_df[code_col].astype(str).str.strip()
-    mapping_nom = code_df.set_index(code_col)[unite_col].to_dict()
-    mapping_ense = code_df.set_index(code_col)["Enseigne"].to_dict()
-    df[code_col_src] = df[code_col_src].astype(str).str.strip()
-    df["Magasin"] = df[code_col_src].map(mapping_nom).fillna(df[code_col_src])
-    df["Enseigne"] = df[code_col_src].map(mapping_ense).fillna("MG")
-    return df
 
 
 def format_k(x: float) -> str:
@@ -179,21 +113,13 @@ def format_k(x: float) -> str:
         return f"{x:,.0f}"
     return "0"
 
-
-def evol_pct(n: float, n1: float) -> float:
-    """Pourcentage d'evolution."""
-    if n1 == 0:
-        return 100.0 if n > 0 else 0.0
-    return round((n - n1) / n1 * 100, 2)
-
-
 # ─── KPI Engine ────────────────────────────────────────────────
 
 def ca_periode(df: pd.DataFrame, annee: int, mois: int) -> float:
     """CA pour un mois donne."""
     if df.empty or "Montant TTC" not in df.columns:
         return 0.0
-    d = df[(df["Annee"] == annee) & (df["Mois"] == mois)]
+    d = df[(df["Année"] == annee) & (df["Mois"] == mois)]
     return float(d["Montant TTC"].sum())
 
 
@@ -201,12 +127,12 @@ def nb_dossiers(df: pd.DataFrame, annee: int, mois: int) -> int:
     """Nombre de factures/dossiers pour un mois."""
     if df.empty:
         return 0
-    return int(len(df[(df["Annee"] == annee) & (df["Mois"] == mois)]))
+    return int(len(df[(df["Année"] == annee) & (df["Mois"] == mois)]))
 
 
 def panier_moyen(df: pd.DataFrame, annee: int, mois: int) -> float:
     """Panier moyen pour un mois."""
-    d = df[(df["Annee"] == annee) & (df["Mois"] == mois)]
+    d = df[(df["Année"] == annee) & (df["Mois"] == mois)]
     if len(d) == 0 or "Montant TTC" not in d.columns:
         return 0.0
     return float(d["Montant TTC"].mean())
@@ -216,7 +142,7 @@ def top_conventions(df: pd.DataFrame, annee: int, mois: int, n: int = 5) -> list
     """Top N conventions par CA."""
     if df.empty or "Nom" not in df.columns or "Montant TTC" not in df.columns:
         return []
-    d = df[(df["Annee"] == annee) & (df["Mois"] == mois)]
+    d = df[(df["Année"] == annee) & (df["Mois"] == mois)]
     top = d.groupby("Nom")["Montant TTC"].sum().sort_values(ascending=False).head(n)
     return list(top.items())
 
@@ -226,8 +152,8 @@ def flop_conventions(df: pd.DataFrame, annee: int, mois: int, annee_n1: int, moi
     Retourne une liste de tuples (nom, evolution_pct)."""
     if df.empty or "Nom" not in df.columns:
         return []
-    d_n = df[(df["Annee"] == annee) & (df["Mois"] == mois)]
-    d_n1 = df[(df["Annee"] == annee_n1) & (df["Mois"] == mois_n1)]
+    d_n = df[(df["Année"] == annee) & (df["Mois"] == mois)]
+    d_n1 = df[(df["Année"] == annee_n1) & (df["Mois"] == mois_n1)]
     ca_n = d_n.groupby("Nom")["Montant TTC"].sum()
     ca_n1 = d_n1.groupby("Nom")["Montant TTC"].sum()
     comp = pd.DataFrame({"ca_n": ca_n, "ca_n1": ca_n1}).fillna(0)
@@ -241,14 +167,14 @@ def conventions_actives(df: pd.DataFrame, annee: int, mois: int) -> int:
     """Nombre de conventions avec activite dans le mois."""
     if df.empty or "Nom" not in df.columns:
         return 0
-    return int(df[(df["Annee"] == annee) & (df["Mois"] == mois)]["Nom"].nunique())
+    return int(df[(df["Année"] == annee) & (df["Mois"] == mois)]["Nom"].nunique())
 
 
 def magasins_contributeurs(df: pd.DataFrame, annee: int, mois: int) -> int:
     """Nombre de magasins avec activite dans le mois."""
     if df.empty:
         return 0
-    d = df[(df["Annee"] == annee) & (df["Mois"] == mois)]
+    d = df[(df["Année"] == annee) & (df["Mois"] == mois)]
     if "Magasin" in d.columns:
         return int(d["Magasin"].nunique())
     if "Nom" in d.columns:
@@ -260,8 +186,8 @@ def analyse_par_convention(df: pd.DataFrame, annee: int, mois: int, annee_n1: in
     """Analyse detaillee par convention pour le mois."""
     if df.empty or "Nom" not in df.columns:
         return []
-    d_n = df[(df["Annee"] == annee) & (df["Mois"] == mois)]
-    d_n1 = df[(df["Annee"] == annee_n1) & (df["Mois"] == mois)]
+    d_n = df[(df["Année"] == annee) & (df["Mois"] == mois)]
+    d_n1 = df[(df["Année"] == annee_n1) & (df["Mois"] == mois)]
     ca_n = d_n.groupby("Nom")["Montant TTC"].sum()
     ca_n1 = d_n1.groupby("Nom")["Montant TTC"].sum()
     nb_n = d_n.groupby("Nom").size()
@@ -367,8 +293,8 @@ def analyse_par_magasin(df: pd.DataFrame, annee: int, mois: int, annee_n1: int) 
     """Analyse detaillee par magasin."""
     if df.empty or "Magasin" not in df.columns:
         return []
-    d_n = df[(df["Annee"] == annee) & (df["Mois"] == mois)]
-    d_n1 = df[(df["Annee"] == annee_n1) & (df["Mois"] == mois)]
+    d_n = df[(df["Année"] == annee) & (df["Mois"] == mois)]
+    d_n1 = df[(df["Année"] == annee_n1) & (df["Mois"] == mois)]
     ca_n = d_n.groupby("Magasin")["Montant TTC"].sum()
     ca_n1 = d_n1.groupby("Magasin")["Montant TTC"].sum()
     comp = pd.DataFrame({"ca_n": ca_n, "ca_n1": ca_n1}).fillna(0).reset_index()
@@ -391,28 +317,40 @@ def analyse_par_magasin(df: pd.DataFrame, annee: int, mois: int, annee_n1: int) 
 # ─── LLM Integration ───────────────────────────────────────────
 
 def call_llm(prompt: str, api_key: str | None = None) -> str | None:
-    """Appelle l'API LLM avec le prompt structure."""
-    key = api_key or LLM_API_KEY or os.getenv("LLM_API_KEY", "")
-    if not key:
-        print("  ⚠️  Pas de cle API LLM configuree (LLM_API_KEY)")
-        return None
-    headers = {
-        "Authorization": f"Bearer {key}",
-        "Content-Type": "application/json",
-    }
+    """Appelle le LLM (Ollama ou Groq selon disponibilite)."""
+    headers = {"Content-Type": "application/json"}
+
+    # Provider
+    is_ollama = _OLLAMA_AVAILABLE
+    endpoint = LLM_ENDPOINT
+    model = LLM_MODEL
+
+    # API key pour Groq/OpenAI uniquement
+    if not is_ollama:
+        key = api_key or _GROQ_API_KEY
+        if not key:
+            print("  ⚠️  Pas de LLM disponible (Ollama offline, pas de cle API)")
+            return None
+        headers["Authorization"] = f"Bearer {key}"
+
     payload = {
-        "model": LLM_MODEL,
+        "model": model,
         "messages": [
             {"role": "system", "content": "Tu es un analyste commercial senior. Reponds en JSON uniquement."},
             {"role": "user", "content": prompt},
         ],
         "temperature": 0.3,
         "max_tokens": 8000,
-        "response_format": {"type": "json_object"},
     }
+
+    # Ollama ne supporte pas response_format, Groq oui
+    if not is_ollama:
+        payload["response_format"] = {"type": "json_object"}
+
     try:
-        print(f"  Appel LLM ({LLM_MODEL}) via {LLM_ENDPOINT.split('/')[2]}...")
-        r = requests.post(LLM_ENDPOINT, headers=headers, json=payload, timeout=120)
+        provider_name = "Ollama" if is_ollama else "Groq"
+        print(f"  Appel LLM ({model}) via {provider_name}...")
+        r = requests.post(endpoint, headers=headers, json=payload, timeout=120)
         r.raise_for_status()
         resp = r.json()
         content = resp["choices"][0]["message"]["content"]
@@ -538,7 +476,8 @@ CRITIQUE: "ca_mois" doit contenir la VALEUR REELLE de la convention, pas 0 et pa
 
 # ─── Rapport HTML ──────────────────────────────────────────────
 
-def generer_html(data: dict, analyse_ia: dict | None = None) -> str:
+def generer_html(data: dict, analyse_ia: dict | None = None,
+                 exec_summary: dict | None = None) -> str:
     """Genere le rapport HTML complet, copiable comme texte."""
     m = data["mois"]
     a = data["annee"]
@@ -569,7 +508,47 @@ def generer_html(data: dict, analyse_ia: dict | None = None) -> str:
     evol_panier_h = evol_html(data["var_panier"])
     evol_panier_edc_h = evol_html(data["var_panier_edc"])
 
-    # ── Commentaire IA ──
+    # ── Résumé exécutif (tout en haut) ──
+    exec_html = ""
+    if exec_summary:
+        tg = exec_summary.get("tendance_globale", {})
+        direction = tg.get("direction", "stable")
+        intensite = tg.get("intensite", "")
+        dir_icon = {"hausse": "📈", "baisse": "📉", "stable": "📊"}
+        dir_cls = {"hausse": "", "baisse": "exec-red", "stable": ""}
+        exec_icon = dir_icon.get(direction, "📊")
+        extra_cls = dir_cls.get(direction, "")
+
+        points = exec_summary.get("points_cles", [])
+        points_html = "".join(f'<li>{p}</li>' for p in points)
+
+        recommandations = exec_summary.get("recommandations", [])
+        reco_html = ""
+        if recommandations:
+            reco_items = "".join(
+                f'<li><strong>{r.get("action","")}</strong>'
+                f'{" — " + r.get("impact_attendu","") if r.get("impact_attendu") else ""}'
+                f' <span class="exec-prio-{r.get("priorite","moyenne")}">[{r.get("priorite","moyenne").upper()}]</span></li>'
+                for r in recommandations
+            )
+            reco_html = f"<li class='exec-reco-title'>Recommandations :</li>{reco_items}"
+
+        alerte = exec_summary.get("alerte_principale", "")
+
+        exec_html = f"""
+        <div class="exec-box {extra_cls}">
+            <div class="exec-header">
+                <span class="exec-icon">{exec_icon}</span>
+                <span class="exec-title">Résumé Exécutif</span>
+                <span class="exec-direction">{direction.upper()} — {intensite}</span>
+            </div>
+            <p class="exec-text">{tg.get("texte", "")}</p>
+            <ul class="exec-points">{points_html}</ul>
+            {alerte and f'<div class="exec-alerte">⚠️ {alerte}</div>' or ""}
+            {recommandations and f'<ul class="exec-recos">{reco_html}</ul>' or ""}
+        </div>"""
+
+    # ── Analyse IA par convention ──
     ia_synthese = ""
     ia_conventions_html = ""
     ia_priorites_html = ""
@@ -727,6 +706,24 @@ td.num {{ text-align:right; font-weight:600; font-variant-numeric:tabular-nums; 
 .ia-label {{ font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#64748B; margin-bottom:8px; }}
 .ia-text {{ font-size:13px; line-height:1.7; color:#1E293B; }}
 
+/* Executive Summary */
+.exec-box {{ background:linear-gradient(135deg,#EFF6FF,#DBEAFE); border:1px solid #BFDBFE; border-left:4px solid #2563EB; border-radius:12px; padding:20px 24px; margin-bottom:20px; }}
+.exec-box.exec-red {{ background:linear-gradient(135deg,#FEF2F2,#FEE2E2); border-color:#FECACA; border-left-color:#DC2626; }}
+.exec-header {{ display:flex; align-items:center; gap:10px; margin-bottom:12px; }}
+.exec-icon {{ font-size:20px; }}
+.exec-title {{ font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#1E40AF; }}
+.exec-box.exec-red .exec-title {{ color:#991B1B; }}
+.exec-direction {{ font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:#64748B; margin-left:auto; padding:2px 8px; background:rgba(255,255,255,0.6); border-radius:4px; }}
+.exec-text {{ font-size:14px; font-weight:500; line-height:1.6; color:#1E293B; margin-bottom:10px; }}
+.exec-points {{ margin:8px 0 8px 20px; }}
+.exec-points li {{ font-size:13px; line-height:1.6; color:#334155; margin-bottom:4px; }}
+.exec-alerte {{ background:#FEF3C7; border:1px solid #FDE68A; border-radius:6px; padding:10px 14px; font-size:13px; font-weight:500; color:#92400E; margin:8px 0; }}
+.exec-recos {{ margin:8px 0 0 20px; list-style:none; padding:0; }}
+.exec-recos li {{ font-size:13px; line-height:1.6; color:#334155; margin-bottom:6px; padding:6px 10px; background:rgba(255,255,255,0.5); border-radius:6px; }}
+.exec-reco-title {{ font-weight:700; color:#1E40AF; list-style:none; margin-left:0 !important; background:transparent !important; }}
+.exec-prio-haute {{ color:#DC2626; font-weight:700; font-size:10px; }}
+.exec-prio-moyenne {{ color:#D97706; font-weight:700; font-size:10px; }}
+
 /* Convention Cards */
 .conv-card {{ border:1px solid #E2E8F0; border-radius:10px; padding:14px 16px; margin-bottom:10px; border-left:4px solid #94A3B8; }}
 .conv-green {{ border-left-color:#059669; background:#F0FDF4; }}
@@ -764,6 +761,11 @@ td.num {{ text-align:right; font-weight:600; font-variant-numeric:tabular-nums; 
     .ia-box {{ background:#1A3A2A; border-color:#2D5A3A; }}
     .ia-box.priorities {{ background:#3A2A1A; border-color:#5A4A2D; }}
     .ia-box.conclusion {{ background:#1A2A3A; border-color:#2D4A5A; }}
+    .exec-box {{ background:linear-gradient(135deg,#1E293B,#0F172A); border-color:#334155; border-left-color:#3B82F6; }}
+    .exec-box.exec-red {{ background:linear-gradient(135deg,#2A0F0F,#1A0F0F); border-color:#5A2D2D; border-left-color:#DC2626; }}
+    .exec-text {{ color:#E2E8F0; }}
+    .exec-points li {{ color:#CBD5E1; }}
+    .exec-recos li {{ background:#1E293B; color:#CBD5E1; }}
     .conv-name {{ color:#E2E8F0; }}
     .conv-card.conv-green {{ background:#0F2A1A; }}
     .conv-card.conv-amber {{ background:#2A1F0F; }}
@@ -787,6 +789,9 @@ td.num {{ text-align:right; font-weight:600; font-variant-numeric:tabular-nums; 
 
     <!-- SYNTHÈSE IA -->
     {ia_synthese}
+
+    <!-- RÉSUMÉ EXÉCUTIF -->
+    {exec_html}
 
     <!-- 1. PERFORMANCE GLOBALE -->
     <div class="section">
@@ -1121,27 +1126,151 @@ def copy_to_clipboard(text: str):
         return False
 
 
+# ─── Executive Summary (IA) ────────────────────────────────────
+
+
+def _generate_executive_summary(data: dict, api_key: str | None = None) -> dict | None:
+    """
+    Appelle le LLM pour produire un résumé exécutif : tendances clés,
+    anomalies, recommandations actionnables.
+    Retourne un dict structuré ou None si LLM indisponible.
+    """
+    # Avec Ollama pas besoin de cle API
+    if not api_key and not _OLLAMA_AVAILABLE:
+        print("  ⚠️  Resume executif : aucun LLM disponible")
+        return None
+
+    # ── Extraire les données ─────────────────────────────
+    top = data.get("top_convs", [])
+    flop = data.get("flop_convs", [])
+    conventions = data.get("conventions", [])
+    green = sum(1 for c in conventions if c.get("signal") == "green")
+    amber = sum(1 for c in conventions if c.get("signal") == "amber")
+    red = sum(1 for c in conventions if c.get("signal") == "red")
+
+    # ── Dossier de Réflexion structuré ───────────────────
+    from memory.dossier_builder import DossierBuilder, RendererPrompt
+
+    facts = [
+        f"Periode : {data.get('mois_nom','?')} {data.get('annee','?')}",
+        f"CA Total : {data.get('ca_total',0):,.0f} TND (N-1 : {data.get('ca_total_n1',0):,.0f} TND, variation {data.get('var_total',0):+.1f}%)",
+        f"CA Conventions : {data.get('ca_conv',0):,.0f} TND ({data.get('var_conv',0):+.1f}%)",
+        f"CA EDC : {data.get('ca_edc',0):,.0f} TND ({data.get('var_edc',0):+.1f}%)",
+        f"Conventions actives : {data.get('conv_actives',0)} (N-1 : {data.get('conv_actives_n1',0)})",
+        f"Magasins contributeurs : {data.get('mag_contributeurs',0)} (N-1 : {data.get('mag_contributeurs_n1',0)})",
+        f"Panier moyen : {data.get('panier_conv',0):,.0f} TND ({data.get('var_panier',0):+.1f}%)",
+        f"Nombre de dossiers : {data.get('nb_conv',0)} ({data.get('var_nb_conv',0):+.1f}%)",
+        f"Signaux : {green} verts, {amber} oranges, {red} rouges",
+    ]
+
+    if top:
+        facts.append(
+            "Top 5 : " + ", ".join(f"{n} ({c:,.0f} TND)" for n, c in top[:3])
+            + (f" +{len(top)-3} autres" if len(top) > 3 else "")
+        )
+    if flop:
+        facts.append(
+            "Flop 5 : " + ", ".join(f"{n} ({c:+.1f}%)" for n, c in flop[:3])
+            + (f" +{len(flop)-3} autres" if len(flop) > 3 else "")
+        )
+
+    dossier = DossierBuilder().build_report(
+        objective="Produire un resume executif pour la direction",
+        facts=facts,
+        constraints=[
+            "Format JSON uniquement — pas de texte libre",
+            "Audience : direction generale",
+            "Donnees du mois et cumul annuel (N vs N-1)",
+        ],
+        actions=[
+            "Analyser la tendance globale du mois",
+            "Identifier les points cles a retenir",
+            "Detecter les anomalies et signaux faibles",
+            "Proposer des recommandations actionnables",
+            "Signaler l'alerte principale si pertinent",
+        ],
+    )
+
+    prompt = f"""Tu es un analyste commercial senior.
+
+{RendererPrompt().render(dossier)}
+
+Reponds en JSON uniquement, avec ces champs obligatoires :
+- "tendance_globale": {{"texte": "...", "direction": "hausse|stable|baisse", "intensite": "forte|moderee|le gere"}}
+- "points_cles": ["point cle 1", "point cle 2", "point cle 3"]
+- "anomalies": [{{"convention": "nom", "probleme": "...", "gravite": "haute|moyenne|basse"}}]
+- "recommandations": [{{"action": "...", "priorite": "haute|moyenne", "impact_attendu": "..."}}]
+- "alerte_principale": "phrase d'alerte si pertinent, ou chaine vide"
+"""
+
+    response = call_llm(prompt, api_key=api_key)
+    if not response:
+        return None
+
+    try:
+        result = json.loads(response)
+        # Validation minimale
+        if not isinstance(result, dict):
+            return None
+        if "tendance_globale" not in result:
+            result["tendance_globale"] = {"texte": "Analyse non disponible", "direction": "stable", "intensite": "le gere"}
+        result["_generated_at"] = datetime.now().isoformat()
+        return result
+    except (json.JSONDecodeError, TypeError):
+        return None
+
+
+ARCHIVE_FILE = Path(__file__).parent / ".cache_monthly" / "report_archive.json"
+
+
+def _append_to_archive(data: dict, filename: str, exec_summary: dict | None = None):
+    """
+    Enregistre les métadonnées du rapport dans l'archive JSON.
+    Permet au dashboard de lister les rapports historiques.
+    """
+    ARCHIVE_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+    entry = {
+        "filename": filename,
+        "timestamp": datetime.now().isoformat(),
+        "mois": data["mois"],
+        "annee": data["annee"],
+        "mois_nom": data.get("mois_nom", f"{data['mois']}"),
+        "kpi": {
+            "ca_total": data.get("ca_total", 0),
+            "ca_conv": data.get("ca_conv", 0),
+            "ca_edc": data.get("ca_edc", 0),
+            "var_total": data.get("var_total", 0),
+            "var_conv": data.get("var_conv", 0),
+            "conv_actives": data.get("conv_actives", 0),
+            "mag_contributeurs": data.get("mag_contributeurs", 0),
+        },
+        "exec_summary": exec_summary,
+    }
+
+    # Charger l'existant
+    archive = []
+    if ARCHIVE_FILE.exists():
+        try:
+            archive = json.loads(ARCHIVE_FILE.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, ValueError):
+            archive = []
+
+    # Éviter les doublons (même mois/année)
+    archive = [
+        e for e in archive
+        if not (e.get("mois") == data["mois"] and e.get("annee") == data["annee"])
+    ]
+    archive.append(entry)
+    archive.sort(key=lambda e: (e.get("annee", 0), e.get("mois", 0)))
+
+    ARCHIVE_FILE.write_text(
+        json.dumps(archive, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+
 # ─── Main ──────────────────────────────────────────────────────
-
-def _truncate_n1_date_to_date(df: pd.DataFrame, annee: int, mois: int) -> pd.DataFrame:
-    """
-    Tronque N-1 au meme nombre de jours que N pour une comparaison equitable.
-    Ex: si Juillet 2026 a des donnees jusqu'au jour 7, on ne garde que les 7 premiers jours de Juillet 2025.
-    """
-    if df.empty or "Jour" not in df.columns or "Annee" not in df.columns:
-        return df
-    max_jour_n = df[(df["Annee"] == annee) & (df["Mois"] == mois)]["Jour"].max()
-    if pd.isna(max_jour_n):
-        return df
-    # Ne pas tronquer si N a plus de jours que N-1 (cas normal en fin de mois)
-    df_n1 = df[df["Annee"] == annee - 1]
-    max_jour_n1 = df_n1[df_n1["Mois"] == mois]["Jour"].max()
-    if pd.isna(max_jour_n1) or max_jour_n >= max_jour_n1:
-        return df
-    # Tronquer N-1 au meme nombre de jours que N
-    mask_n1 = (df["Annee"] == annee - 1) & (df["Mois"] == mois) & (df["Jour"] > max_jour_n)
-    return df[~mask_n1]
-
 
 def analyse(annee: int, mois: int, with_ai: bool = True, with_email: bool = True, api_key: str | None = None):
     """Point d'entree principal."""
@@ -1164,9 +1293,9 @@ def analyse(annee: int, mois: int, with_ai: bool = True, with_email: bool = True
         print("  ❌ Aucune donnee chargee. Abandon.")
         return
 
-    # ── Troncature date-à-date : si N a 7 jours, N-1 n'est compare que sur 7 jours ──
-    df_vc_d2d = _truncate_n1_date_to_date(df_vc, annee, mois)
-    df_edc_d2d = _truncate_n1_date_to_date(df_edc, annee, mois)
+    # ── Troncature date-à-date (SOURCE UNIQUE: metrics.kpi.truncate_n1_date_to_date) ──
+    df_vc_d2d = truncate_n1_date_to_date(df_vc, annee, annee_n1, mois_sel=[mois])
+    df_edc_d2d = truncate_n1_date_to_date(df_edc, annee, annee_n1, mois_sel=[mois])
 
     # 2. Calcul KPIs
     print("\n  Calcul des indicateurs...")
@@ -1252,19 +1381,33 @@ def analyse(annee: int, mois: int, with_ai: bool = True, with_email: bool = True
         else:
             print("  ⚠️  Analyse IA non disponible (pas de cle API)")
 
+    # 3b. Resume executif (IA)
+    exec_summary = None
+    if with_ai and api_key:
+        print("\n  Resume executif...")
+        exec_summary = _generate_executive_summary(data, api_key=api_key)
+        if exec_summary:
+            print("  ✓ Resume executif genere")
+        else:
+            print("  ⚠️  Resume executif indisponible")
+
     # 4. Generation rapport
     print("\n  Generation du rapport...")
-    html = generer_html(data, analyse_ia)
+    html = generer_html(data, analyse_ia, exec_summary)
     texte = generer_texte(data, analyse_ia)
 
-    # 5. Sauvegarde
-    fichier = SORTIE / f"rapport_mensuel_{annee}_{mois:02d}.html"
+    # 5. Sauvegarde (timestamped + archive)
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    fichier = SORTIE / f"rapport_mensuel_{annee}_{mois:02d}_{ts}.html"
     fichier.write_text(html, encoding="utf-8")
     print(f"  ✓ Rapport sauvegarde: {fichier}")
 
-    fichier_txt = SORTIE / f"rapport_mensuel_{annee}_{mois:02d}.txt"
+    fichier_txt = SORTIE / f"rapport_mensuel_{annee}_{mois:02d}_{ts}.txt"
     fichier_txt.write_text(texte, encoding="utf-8")
     print(f"  ✓ Version texte: {fichier_txt}")
+
+    # Archive metadata
+    _append_to_archive(data, fichier.name, exec_summary)
 
     # 6. Presse-papiers
     print("\n  Copie dans le presse-papiers...")

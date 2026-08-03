@@ -44,6 +44,32 @@ def compare_years(df: pd.DataFrame, annee_n: int, annee_n1: int) -> pd.DataFrame
     return comp
 
 
+def truncate_n1_date_to_date(
+    df: pd.DataFrame, annee_n: int, annee_n1: int, mois_sel: list = None
+) -> pd.DataFrame:
+    """
+    SOURCE UNIQUE de troncature date-à-date : retire de N-1 les jours où N
+    n'a AUCUNE transaction (comparaison équitable jour pour jour).
+    Ex: si Juillet 2026 n'a pas de ventes les 5/12/26, on retire ces mêmes
+    jours de Juillet 2025. Si mois_sel est fourni, ne tronque que ces mois.
+    Les autres lignes (autres mois/années) sont conservées (tendances 3m).
+    """
+    if df.empty or "Jour" not in df.columns or "Année" not in df.columns:
+        return df
+    out = df.copy()
+    if mois_sel is not None and len(mois_sel) > 0:
+        mois_list = list(mois_sel)
+    else:
+        mois_list = sorted(df[df["Année"] == annee_n]["Mois"].dropna().unique())
+    for mois in mois_list:
+        jours_n = set(df[(df["Année"] == annee_n) & (df["Mois"] == mois)]["Jour"].dropna())
+        if not jours_n:
+            continue
+        mask_n1 = (out["Année"] == annee_n1) & (out["Mois"] == mois) & (~out["Jour"].isin(jours_n))
+        out = out[~mask_n1]
+    return out
+
+
 def compare_years_date_to_date(
     df: pd.DataFrame, annee_n: int, annee_n1: int, mois_sel: list = None
 ) -> pd.DataFrame:
@@ -56,15 +82,16 @@ def compare_years_date_to_date(
     if mois_sel is not None and len(mois_sel) > 0:
         df_filtered = df_filtered[df_filtered["Mois"].isin(mois_sel)]
     df_n = df_filtered[df_filtered["Année"] == annee_n].copy()
-    df_n1 = df_filtered[df_filtered["Année"] == annee_n1].copy()
     if "Mois" not in df_n.columns or "Jour" not in df_n.columns or df_n.empty:
         return compare_years(df_filtered, annee_n, annee_n1)
+    df_n1 = truncate_n1_date_to_date(df_filtered, annee_n, annee_n1, mois_sel)
+    df_n1 = df_n1[df_n1["Année"] == annee_n1]
     jours_par_mois = df_n.groupby("Mois")["Jour"].apply(set).to_dict()
     result_rows = []
     for mois in sorted(jours_par_mois.keys()):
         jours_n = jours_par_mois[mois]
         ca_n = df_n[df_n["Mois"] == mois]["Montant TTC"].sum()
-        ca_n1 = df_n1[(df_n1["Mois"] == mois) & (df_n1["Jour"].isin(jours_n))]["Montant TTC"].sum()
+        ca_n1 = df_n1[df_n1["Mois"] == mois]["Montant TTC"].sum()
         var_pct = ((ca_n - ca_n1) / ca_n1 * 100) if ca_n1 > 0 else (100 if ca_n > 0 else 0)
         result_rows.append({
             "Mois": mois,
@@ -111,14 +138,7 @@ def convention_risk_matrix(df_vc: pd.DataFrame, annee_n: int, annee_n1: int = No
         annee_n1 = annee_n - 1
     if df_vc.empty or "Nom" not in df_vc.columns:
         return pd.DataFrame()
-    df = df_vc.copy()
-    if "Jour" in df.columns:
-        df_n = df[df["Année"] == annee_n]
-        if not df_n.empty:
-            jours_par_mois = df_n.groupby("Mois")["Jour"].apply(set).to_dict()
-            for mois, jours_n in jours_par_mois.items():
-                mask = (df["Année"] == annee_n1) & (df["Mois"] == mois) & (~df["Jour"].isin(jours_n))
-                df = df[~mask]
+    df = truncate_n1_date_to_date(df_vc, annee_n, annee_n1)
     ca_n = df[df["Année"] == annee_n].groupby("Nom")["Montant TTC"].sum().rename("CA N")
     ca_n1 = df[df["Année"] == annee_n1].groupby("Nom")["Montant TTC"].sum().rename("CA N-1")
     mat = pd.concat([ca_n, ca_n1], axis=1).fillna(0).reset_index()
