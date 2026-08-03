@@ -1,0 +1,62 @@
+{
+  "timestamp": "2026-08-03T15:23:18",
+  "demande": "Défends le dossier groupe.md (scénario 06 Groupe multi-sociétés) avant verrouillage. Justifie la viabilité, la couverture des garanties et le verrou du framework.",
+  "intention": "defense",
+  "cible": "groupe.md",
+  "mode": "dg",
+  "duree_s": 606.8,
+  "modele": "deepseek-r1:7b",
+  "provider": "ollama",
+  "tokens": {
+    "prompt_tokens": 1550,
+    "completion_tokens": 852,
+    "total_tokens": 2402
+  },
+  "sources_utilisees": [
+    "data\\dossiers\\groupe.md",
+    "data\\dossiers\\meditech.md",
+    "KNOWLEDGE\\procedures\\politique_risque.md",
+    "KNOWLEDGE\\reference\\framework_conventions_smg.md",
+    "KNOWLEDGE\\reference\\framework_conventions_smg.md",
+    "data\\dossiers\\groupe.md",
+    "KNOWLEDGE\\conventions\\convention_modele_rtt.md",
+    "KNOWLEDGE\\procedures\\politique_risque.md",
+    "document concerné",
+    "document concerné (section garanties)"
+  ],
+  "sources_ignorees": [],
+  "contraintes": [],
+  "inconnues": [],
+  "coverage": {
+    "intention": "defense",
+    "required_sources": 3,
+    "available_sources": 3,
+    "required_kpis": 0,
+    "available_kpis": 0,
+    "memory_chunks": 8,
+    "average_relevance": 0.376,
+    "missing": []
+  },
+  "assessment": {
+    "confidence": 95,
+    "rationale": [
+      "Tous les éléments du dossier sont conformes aux normes du régime classique de risque.",
+      "La cession sur salaire est bien formalisée et respecte les procédés légaux.",
+      "Les guarantees sont évalués au niveau 1, ce qui signifie faible risque.",
+      "Le template contractuel respecte les plafonds et les modalités de paiement spécifiés.",
+      "Le dossier est complet avec toutes les documentation nécessaires"
+    ],
+    "unanswered": []
+  },
+  "reponse": [
+    "[F1] Le dossier de convention pour le groupe multi-sociétés (scénario 06) suit les étapes du processus SMG v2.0, avec la défense du dossier au étape 4 et la décision au étape 5. Les documents clés incluent le template contractuel et les contraintes spécifiques du scénario",
+    "[F3] Le régime classique de risque est appliqué, avec une mise en demeure de 3 jours pour un salarié non régularisé et activation immédiate de la caution solidaire si nécessaire",
+    "[F4] Le dossier est construit avec les éléments essentiels : CIN, fiche de paie, RIB et carte Amicale (si applicable)",
+    "[F5] L'acte de cession sur salaire est léalisé au Tribunal Cantonal",
+    "[F6] Les garanties du dossier sont évaluées au niveau 1, conformément à la politique de risque",
+    "[F7] Le template contractuel respecte les plafonds et les modalités de paiement spécifiés",
+    "[F8] Les coûts liés aux cessions sont correctement traités",
+    "[F9] Le dossier est complet et respecte toutes les contraintes du framework SMG v2.0",
+    "[F10] La couverture du contexte est parfaite avec 3 sources de documentation existantes"
+  ]
+}
