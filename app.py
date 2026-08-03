@@ -31,6 +31,7 @@ from charts.factory import (
 )
 from ui.components import inject_css, hero, section, badge, rank_card
 from utils.github import push_csv_to_github
+import business.conventions as conv
 
 st.set_page_config(
     page_title="Pilotage B2B — SMG",
@@ -1672,21 +1673,16 @@ with tabs[5]:
                 ca, cb = st.columns([1, 3])
                 with ca:
                     if st.button("Sauvegarder les modifications"):
-                        changes = False
+                        modifs = 0
                         for _, row in edited.iterrows():
                             oidx = int(row["_idx"])
                             if oidx in df_sig.index:
-                                new_note = str(row.get("Notes",""))
-                                new_stat = str(row.get("Statut","")).strip()
-                                old_note = str(df_sig.at[oidx, "notes"])
-                                old_stat = str(df_sig.at[oidx, "statut"]).strip()
-                                if new_note != old_note or new_stat != old_stat:
-                                    df_sig.at[oidx, "notes"] = new_note
-                                    df_sig.at[oidx, "statut"] = new_stat
-                                    df_sig.at[oidx, "nb_modifications"] = int(df_sig.at[oidx, "nb_modifications"]) + 1
-                                    changes = True
-                        if changes:
-                            df_sig.to_csv(csv_path, sep=";", index=False, encoding="utf-8")
+                                code = str(df_sig.at[oidx, "code"]).strip()
+                                if conv.update_convention(
+                                        code, statut=str(row.get("Statut", "")).strip(),
+                                        notes=str(row.get("Notes", ""))):
+                                    modifs += 1
+                        if modifs:
                             push_csv_to_github("data/conventions_signees.csv", "update(data): modifications conventions [auto]")
                             st.success("Modifications sauvegardees et synchronisees sur GitHub !")
                             st.rerun()
@@ -1700,8 +1696,8 @@ with tabs[5]:
                         if st.button("Confirmer l'archivage"):
                             for idx in to_arch:
                                 if idx in df_sig.index:
-                                    df_sig.at[idx, "statut"] = "Archive"
-                            df_sig.to_csv(csv_path, sep=";", index=False, encoding="utf-8")
+                                    conv.update_convention(
+                                        str(df_sig.at[idx, "code"]).strip(), statut="Archive")
                             push_csv_to_github("data/conventions_signees.csv", "update(data): archivage convention [auto]")
                             st.success(f"{len(to_arch)} projet(s) archive(s) et synchronise(s) sur GitHub !")
                             st.rerun()
@@ -1730,15 +1726,9 @@ with tabs[5]:
                         nd = st.date_input("Debut prospection", value=today)
                         nv = st.text_input("Scenario", "01-Prive avec Amicale")
                     if st.form_submit_button("Ajouter"):
-                        import csv
                         new_code = nc.upper().replace(" ","_")[:20] if nc else "NOUVEAU"
-                        fn = ["code","client","scenario","garantie","statut","date_debut_prospection","date_signature","nb_modifications","notes"]
-                        nr = {"code":new_code,"client":nc,"scenario":nv,"garantie":"",
-                              "statut":ns,"date_debut_prospection":str(nd),
-                              "date_signature":"","nb_modifications":0,"notes":""}
-                        with open(csv_path, "a", newline="", encoding="utf-8") as f:
-                            w = csv.DictWriter(f, fieldnames=fn, delimiter=";")
-                            w.writerow(nr)
+                        conv.register_convention(new_code, nc, scenario=nv, garantie="", statut=ns,
+                                                 date_debut_prospection=str(nd))
                         push_csv_to_github("data/conventions_signees.csv", "update(data): nouvelle convention [auto]")
                         st.success(f"Ajoute : {nc}")
                         st.rerun()
