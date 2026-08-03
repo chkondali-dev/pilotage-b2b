@@ -153,13 +153,25 @@ def context_builder(demande: str, intention: str, cible: str) -> dict:
 
 # ── Brain Query (mémoire + Ollama optionnel) ─────────────────────
 
-def brain_query(demande: str, top_k: int = 4) -> list[dict]:
+def brain_query(demande: str, top_k: int = 8) -> list[dict]:
     """Interroge la mémoire (store SQLite convention_ai).
 
     Ollama est optionnel ici : embeddings all-minilm s'il tourne,
     sinon repli mots-clés (déjà géré par MemoryStore.recall).
+
+    Diversification : au plus 2 chunks par source documentaire — sinon un
+    seul fichier (ex. politique_risque) accapare le contexte et les chunks
+    du framework / dossier client n'arrivent jamais dans le top_k.
     """
-    return MemoryStore("convention_ai").recall(demande, top_k=top_k)
+    hits = MemoryStore("convention_ai").recall(demande, top_k=top_k * 3)
+    par_source: dict[str, list[dict]] = {}
+    for h in hits:
+        par_source.setdefault(h.get("source", "?"), []).append(h)
+    diversifies: list[dict] = []
+    for hs in par_source.values():
+        diversifies.extend(hs[:2])
+    diversifies.sort(key=lambda h: h.get("score", 0), reverse=True)
+    return diversifies[:top_k]
 
 
 # ── Phase B : ContextCoverage (calculé par le système, objectif) ──
@@ -201,6 +213,20 @@ def structurer_pack(ctx: dict) -> ReasoningDossier:
     if ctx.get("document"):
         dossier.facts.append(Fact(text=ctx["document"][:2000], kind="document",
                                   confidence=0.8, source="document concerné"))
+        # Fait pivot : niveau de sûreté DÉCLARÉ par le dossier → risque
+        # (politique de risque §2/§3). Déterministe — le modèle ne déduit plus
+        # lui-même (deepseek-r1:7b a tendance à classer la cession en niveau 2
+        # alors que le dossier dit niveau 1).
+        m = re.search(r"niveau\s+(\d)", _sans_accents(ctx["document"]))
+        if m:
+            niveau = int(m.group(1))
+            risque = {1: "faible", 2: "moyen", 3: "modéré", 4: "élevé"}.get(niveau)
+            if risque:
+                dossier.facts.append(Fact(
+                    text=f"Niveau de sûreté déclaré par le dossier : {niveau} "
+                         f"(politique de risque §2/§3) → risque {risque}.",
+                    kind="regle", confidence=0.9,
+                    source="document concerné (section garanties)"))
     if ctx.get("registre"):
         dossier.facts.append(Fact(text=ctx["registre"], kind="registre",
                                   confidence=0.9, source="registre CSV"))
@@ -264,6 +290,30 @@ def _prompt_raisonnement(ctx: dict, dossier: ReasoningDossier, cov: dict) -> str
     )
 
 
+def _reparer_analyse(texte: str) -> str:
+    """deepseek-r1:7b sort parfois « analyse » comme un tableau de lignes NON
+    quotées (JSON invalide : `"analyse": [ [F1] texte ... ]`). On quote chaque
+    ligne pour rendre l'objet parsable. Ne touche à rien si rien à réparer."""
+    m = re.search(r'"analyse"\s*:\s*\[', texte)
+    if not m:
+        return texte
+    start = m.end()
+    fin_m = re.search(r'\]\s*,\s*"', texte[start:])
+    if not fin_m:
+        return texte
+    corps = texte[start:start + fin_m.start()]
+    lignes = [l.strip().rstrip(",") for l in corps.split("\n") if l.strip()]
+    if not lignes or all(l.startswith('"') for l in lignes):
+        return texte
+    quotees = []
+    for l in lignes:
+        if l.startswith('"') and l.endswith('"'):
+            quotees.append(l)
+        else:
+            quotees.append('"' + l.replace("\\", "\\\\").replace('"', '\\"') + '"')
+    return texte[:start] + ", ".join(quotees) + texte[start + fin_m.start():]
+
+
 def _parse_json(texte: str | None) -> dict | None:
     """Extrait le premier objet JSON de la réponse du modèle (tolérant)."""
     if not texte:
@@ -276,7 +326,12 @@ def _parse_json(texte: str | None) -> dict | None:
     try:
         return json.loads(m.group(0))
     except Exception:
-        return None
+        # deepseek-r1:7b : analyse sort parfois en tableau non quoté → réparer
+        repare = _reparer_analyse(m.group(0))
+        try:
+            return json.loads(repare)
+        except Exception:
+            return None
 
 
 # ── Phase C/D : Decision Renderer (même raisonnement, rendus variés) ─
@@ -449,4 +504,14 @@ if __name__ == "__main__":
         it, cb = intent_planner(ex)
         print(f"  {it:<15} (cible={cb or '-'})  ← {ex[:60]}")
         assert it == attendu, f"{ex} → {it} (attendu {attendu})"
+    # fait pivot : niveau de sûreté déclaré injecté (déterministe, sans LLM)
+    d = structurer_pack({
+        "demande": "Défends le dossier meditech.md",
+        "intention": "defense",
+        "document": "Garanties : cession sur salaire + caution solidaire — niveau 1 de sûretés (sécurité maximale).",
+        "memoire": [], "etat_sources": {},
+    })
+    pivots = [f.text for f in d.facts if f.kind == "regle" and "Niveau de sûreté" in f.text]
+    assert pivots and "risque faible" in pivots[0], pivots
+    print("  structurer_pack → fait pivot « niveau 1 → risque faible » : OK")
     print("Self-check OK")

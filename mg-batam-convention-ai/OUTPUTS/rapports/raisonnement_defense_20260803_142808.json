@@ -1,0 +1,43 @@
+{
+  "timestamp": "2026-08-03T14:28:08",
+  "demande": "Défends le dossier meditech.md (scénario 01 MEDITECH amicale) avant verrouillage. Justifie la viabilité, la couverture des garanties et le verrou du framework.",
+  "intention": "defense",
+  "cible": "meditech.md",
+  "mode": "dg",
+  "duree_s": 687.3,
+  "modele": "deepseek-r1:7b",
+  "provider": "ollama",
+  "tokens": {
+    "prompt_tokens": 1532,
+    "completion_tokens": 753,
+    "total_tokens": 2285
+  },
+  "sources_utilisees": [
+    "data\\dossiers\\meditech.md",
+    "data\\dossiers\\meditech.md",
+    "KNOWLEDGE\\reference\\framework_conventions_smg.md",
+    "KNOWLEDGE\\procedures\\politique_risque.md",
+    "KNOWLEDGE\\reference\\framework_conventions_smg.md",
+    "KNOWLEDGE\\reference\\faq_conventions.md",
+    "KNOWLEDGE\\procedures\\politique_risque.md",
+    "KNOWLEDGE\\conventions\\contrat_cession_salaire.md",
+    "document concerné"
+  ],
+  "sources_ignorees": [],
+  "contraintes": [],
+  "inconnues": [
+    "﻿# CONVENTION DE CESSION SUR SALAIRE\n\n**Entre les soussignés :**\n\n**La Société :** _______________________________, représentée par _______________________________, ci-après dénommée \"Le Cessionnaire\""
+  ],
+  "coverage": {
+    "intention": "defense",
+    "required_sources": 3,
+    "available_sources": 3,
+    "required_kpis": 0,
+    "available_kpis": 0,
+    "memory_chunks": 8,
+    "average_relevance": 0.369,
+    "missing": []
+  },
+  "assessment": null,
+  "reponse": "{\n  \"analyse\": [\n    [F1] La cession sur salaire a été opérée par l'employeur MEDITECH, conformément à l'acte signé et confirmé au Tribunal Cantonal. Le plafond légal de 30% du salaire net a été respecté.\n    [F2] L'opération est légale, confirmée par le document signé par l'employeur et le tribunal cantonal.\n    [F3] Les étapes du processus sont respectées : dossier créé (CIN + fiche de paie + RIB + carte Amicale), signature du DA par RH et validation par SMG.\n    [F5] Le risque est dans le régime classique, sans complains, donc sans transition à PLUS. La maintenance régulière a été respectée.\n    [F6] Scénario classique avec suspension immédiate des ventes et remboursement possible.\n    [F7] Aucune irregularité ou absence de garanties faibles, donc risque trivial (niveau 1).\n    [F8] Le contrat est correctement signé par les deux parties concernées : la société cessionnaire et themselves.\n  ],\n  \"verdict\": \"🟢\",\n  \"recommandation\": \"Le dossier Meditech Amicale est solide, respecte toutes les procédures légales et risques sont triviaux.\",\n  \"questions_ouvertes\": [],\n  \"assessment\": {\n    \"confidence\": 100,\n    \"rationale\": [\"Tous les étapes du processus sont respectées\", \"L'opération est confirmée par des documents légaux validés\", \"Aucune irregularité ou absence de risque identifiée\"],\n    \"unanswered\": []\n  }\n}"
+}

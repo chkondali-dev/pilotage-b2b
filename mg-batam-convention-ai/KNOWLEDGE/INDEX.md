@@ -10,7 +10,7 @@ manuellement par l'expert métier (ou via workflow dédié).
 | Contrat de cession sur salaire (modèle) | `conventions/contrat_cession_salaire.md` | ✅ prêt — référence principale |
 | Contrat de cession sur salaire (.docx) | `docs/contrat_cession_salaire.docx` (repo racine) | ✅ prêt |
 | 5 scénarios de conventions type + matrice garanties | `conventions/conventions_type_scenarios.md` | 🔁 SUPERSEDED — historique produit (design 2026-06-10), remplacé par le framework v2.0 |
-| Convention modèle RTT | `conventions/convention_modele_rtt.md` | 🟡 placeholder — contenu à déposer |
+| Convention modèle type (crédit B2B, 16 articles + annexes) | `conventions/convention_modele_rtt.md` | ✅ prêt — modèle déposé conforme framework v2.0 |
 | Conditions générales | `conventions/conditions_generales.md` | ⬜ à déposer |
 
 ## Procédures

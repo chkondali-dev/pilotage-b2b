@@ -1,0 +1,60 @@
+{
+  "timestamp": "2026-08-03T15:06:22",
+  "demande": "Défends le dossier meditech.md (scénario 01 MEDITECH amicale) avant verrouillage. Justifie la viabilité, la couverture des garanties et le verrou du framework.",
+  "intention": "defense",
+  "cible": "meditech.md",
+  "mode": "dg",
+  "duree_s": 378.0,
+  "modele": "deepseek-r1:7b",
+  "provider": "ollama",
+  "tokens": {
+    "prompt_tokens": 1547,
+    "completion_tokens": 1039,
+    "total_tokens": 2586
+  },
+  "sources_utilisees": [
+    "data\\dossiers\\meditech.md",
+    "data\\dossiers\\meditech.md",
+    "KNOWLEDGE\\reference\\framework_conventions_smg.md",
+    "KNOWLEDGE\\procedures\\politique_risque.md",
+    "KNOWLEDGE\\reference\\framework_conventions_smg.md",
+    "KNOWLEDGE\\reference\\faq_conventions.md",
+    "KNOWLEDGE\\procedures\\politique_risque.md",
+    "KNOWLEDGE\\conventions\\contrat_cession_salaire.md",
+    "document concerné",
+    "document concerné (section garanties)"
+  ],
+  "sources_ignorees": [],
+  "contraintes": [],
+  "inconnues": [
+    "﻿# CONVENTION DE CESSION SUR SALAIRE\n\n**Entre les soussignés :**\n\n**La Société :** _______________________________, représentée par _______________________________, ci-après dénommée \"Le Cessionnaire\""
+  ],
+  "coverage": {
+    "intention": "defense",
+    "required_sources": 3,
+    "available_sources": 3,
+    "required_kpis": 0,
+    "available_kpis": 0,
+    "memory_chunks": 8,
+    "average_relevance": 0.369,
+    "missing": []
+  },
+  "assessment": {
+    "confidence": 85,
+    "rationale": [
+      "La cession est légalement justifiée et suit le processus correct.",
+      "Le risque est faible mais la suspendance des ventes pourrait affecter les finances de MEDITECH.",
+      "L'ajout de garanties supplémentaires est recommandé pour minimiser ce risque."
+    ],
+    "unanswered": [
+      "Est-ce que les garanties supplémentaires sont nécessaires pour raffronter le risque potential ?"
+    ]
+  },
+  "reponse": [
+    "[F2] L' employeur MEDITECH a signé et confirmé au Tribunal Cantonal l'acte de cession sur salaire, ce qui garantit la légalité du processus.",
+    "[F3] Le dossier est conçu conformément à la procédure légale, comprenant les éléments suivants : CIN, fiche de paie, RIB et, si applicable, la carte Amicale.",
+    "[F4] L' employeur a suivi les étapes du processus de cession sur salaire, conformément à la réglementation SMG, avec un risque estimé faible (niveau 1) en raison de la stabilité des flux financiers et de l'absence de tendance irrégulière.",
+    "[F6] Selon les scénarios, une cession sur salaire peut entraîner une suspendance immédiate des ventes en cas d'impariabilité, ce qui soulève un risque éventuel pour MEDITECH.",
+    "[F7] Le risque est minoré par l'absence de problèmes de tendance et de natures juridiques, mais la cession sans garanties supplémentaires pourrait renforcer le risque."
+  ]
+}

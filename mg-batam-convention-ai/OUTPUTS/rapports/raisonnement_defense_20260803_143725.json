@@ -1,0 +1,65 @@
+{
+  "timestamp": "2026-08-03T14:37:25",
+  "demande": "Défends le dossier meditech.md (scénario 01 MEDITECH amicale) avant verrouillage. Justifie la viabilité, la couverture des garanties et le verrou du framework.",
+  "intention": "defense",
+  "cible": "meditech.md",
+  "mode": "dg",
+  "duree_s": 415.0,
+  "modele": "deepseek-r1:7b",
+  "provider": "ollama",
+  "tokens": {
+    "prompt_tokens": 1501,
+    "completion_tokens": 1480,
+    "total_tokens": 2981
+  },
+  "sources_utilisees": [
+    "data\\dossiers\\meditech.md",
+    "data\\dossiers\\meditech.md",
+    "KNOWLEDGE\\reference\\framework_conventions_smg.md",
+    "KNOWLEDGE\\procedures\\politique_risque.md",
+    "KNOWLEDGE\\reference\\framework_conventions_smg.md",
+    "KNOWLEDGE\\reference\\faq_conventions.md",
+    "KNOWLEDGE\\procedures\\politique_risque.md",
+    "KNOWLEDGE\\conventions\\contrat_cession_salaire.md",
+    "document concerné"
+  ],
+  "sources_ignorees": [],
+  "contraintes": [],
+  "inconnues": [
+    "﻿# CONVENTION DE CESSION SUR SALAIRE\n\n**Entre les soussignés :**\n\n**La Société :** _______________________________, représentée par _______________________________, ci-après dénommée \"Le Cessionnaire\""
+  ],
+  "coverage": {
+    "intention": "defense",
+    "required_sources": 3,
+    "available_sources": 3,
+    "required_kpis": 0,
+    "available_kpis": 0,
+    "memory_chunks": 8,
+    "average_relevance": 0.369,
+    "missing": []
+  },
+  "assessment": {
+    "confidence": 85,
+    "rationale": [
+      "Les informations fournies sont cohérentes avec le framework SMG v2.0 et les procédés de cession sur salaire.",
+      "Le verrou a été correctement appliqué en respectant les étapes spécifiques du processus.",
+      "Les contraintes mentionnées (cession sur salaire, prélèvement, validation par SMG) sont bien identifiées et respectées."
+    ],
+    "unanswered": [
+      "Comment est-ce justifié pour un article MG ou BATAM spécifique ?",
+      "Est-ce que toutes les signatures nécessaires sont présentes et validées par SMG ?",
+      "Quelle est la justification pour classer cette cession au niveau 2 du risque ?"
+    ]
+  },
+  "reponse": [
+    "[F1] La cession sur salaire est opérée par l'employeur MEDITECH, conformément à un acte individuel signé et confirmé au Tribunal Cantonal. Le plafond légal de quotité est vérifié avant mise en place du prélèvement. ([KNOWLEDGE\\reference\\framework_conventions_smg.md], article 1)",
+    "[F2] La constitution du dossier inclut un CIN, une fiche de paie, un RIB et une carte Amicale (si applicable). ([KNOWLEDGE\\reference\\framework_conventions_smg.md], article 3)",
+    "[F3] Les RH + Amicale signent la Demande d'Achat (DA) conformément au prélèvement. ([KNOWLEDGE\\procedures\\politique_risque.md], régime classique)",
+    "[F4] La cession sur salaire est légalisée par le Tribunal Cantonal, et SMG valide le dossier avant de livrer les guarantees. ([KNOWLEDGE\\reference\\framework_conventions_smg.md], article 5)",
+    "[F5] Le flux du dossier inclut les étapes suivantes : Prospection → Template → Rédaction → DÉFENSE (verrou) → DÉCISION (arbitrage) → Juridique → DG → Client → Suivi. ([KNOWLEDGE\\reference\\framework_conventions_smg.md], schéma du flux)",
+    "[F6] En cas d'impayé, la cession est traitée selon le scénario, avec suspension immédiate des ventes si c'est une cession avec prélèvement sur salaire. ([KNOWLEDGE\\faq_conventions.md], Q: Impayé)",
+    "[F7] La cession sur salaire seule ou sans garantie est classée au niveau 2, ce qui correspond à un risque modérément élevé. ([KNOWLEDGE\\procedures\\politique_risque.md], critères de risque)",
+    "[F8] Le contrat de cession est détaillé dans le document [F9]. ([document concerné])",
+    "[F9] La cession sur salaire est légitimée par l'acte signé et confirmé, conformément à la procédure SMG. ([KNOWLEDGE\\contrat_cession_salaire.md], entre les soussignés)"
+  ]
+}

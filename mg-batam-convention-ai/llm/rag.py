@@ -2,6 +2,7 @@
 RAG léger — retrieval sur KNOWLEDGE/ via embeddings all-minilm (Ollama).
 Store SQLite local autonome : llm/store.py (base data/convention_ai.sqlite).
 """
+import hashlib
 import re
 from pathlib import Path
 from llm import config
@@ -24,24 +25,55 @@ def _chunks(text: str, size: int = 1500) -> list[str]:
 
 
 def indexer(knowledge_dir: Path | None = None) -> int:
-    """Indexe les .md/.txt de KNOWLEDGE/ dans la mémoire (idempotent par hash).
+    """Indexe les .md/.txt de KNOWLEDGE/ (et data/dossiers/) dans la mémoire
+    (idempotent par hash).
+
+    Les dossiers client (data/dossiers/) sont indexés avec le tag
+    « dossier » : le brain les retrouve par requête sémantique, pas
+    seulement par nom de fichier cible.
 
     Les documents marqués SUPERSEDED (bandeau « ⚠️ **SUPERSEDED** » en tête) ne
     sont PAS indexés : ils sont obsolètes et pollueraient la pertinence.
     """
     store = MemoryStore("convention_ai")
     n = 0
-    for f in (knowledge_dir or config.KNOWLEDGE_DIR).rglob("*"):
-        if f.suffix.lower() not in (".md", ".txt"):
-            continue
-        tete = f.read_text(encoding="utf-8", errors="ignore")[:200]
-        if "superseded" in tete.lower():
-            continue
-        for chunk in _chunks(f.read_text(encoding="utf-8", errors="ignore")):
-            mid = store.remember(chunk, tags=["convention_ai", f.stem],
-                                 source=str(f.relative_to(config.ROOT)))
-            if mid != -1:
-                n += 1
+    purges = 0
+
+    # dossiers client en premier : requis par les intentions defense/comex
+    dossiers_dir = config.DATA_DIR / "dossiers"
+    bases = []
+    if dossiers_dir.is_dir():
+        bases.append(dossiers_dir)
+    bases.append(knowledge_dir or config.KNOWLEDGE_DIR)
+
+    # hash des chunks actuels par source → purge des chunks périmés ensuite
+    actuels: dict[str, set] = {}
+    hasher = hashlib.sha256
+
+    for base in bases:
+        for f in base.rglob("*"):
+            if f.suffix.lower() not in (".md", ".txt"):
+                continue
+            texte = f.read_text(encoding="utf-8", errors="ignore")
+            tete = texte[:200]
+            if "superseded" in tete.lower():
+                continue
+            source = str(f.relative_to(config.ROOT))
+            tags = ["dossier", f.stem] if base == dossiers_dir \
+                else ["convention_ai", f.stem]
+            chunks = _chunks(texte)
+            for chunk in chunks:
+                mid = store.remember(chunk, tags=tags, source=source)
+                if mid != -1:
+                    n += 1
+            hashes = {hasher(chunk.strip().encode()).hexdigest() for chunk in chunks}
+            actuels[source] = hashes
+
+    # purge : chunks dont la source a changé de contenu (ex. placeholder → modèle)
+    for source, keeps in actuels.items():
+        purges += store.purge_source(source, keeps)
+    if purges:
+        print(f"  ↳ {purges} chunk(s) périmé(s) purgé(s) de la mémoire")
     return n
 
 

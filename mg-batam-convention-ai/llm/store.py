@@ -89,6 +89,19 @@ class MemoryStore:
             c = conn.execute("DELETE FROM memories WHERE id = ?", (memory_id,))
             return c.rowcount > 0
 
+    def purge_source(self, source: str, keep_hashes: set) -> int:
+        """Supprime les chunks d'une source dont le hash n'est plus dans
+        keep_hashes — garde la mémoire synchronisée avec les fichiers."""
+        with sqlite3.connect(str(self.db_path)) as conn:
+            rows = conn.execute(
+                "SELECT id, content_hash FROM memories WHERE source = ?",
+                (source,)).fetchall()
+            ids = [r[0] for r in rows if r[1] not in keep_hashes]
+            if ids:
+                conn.executemany("DELETE FROM memories WHERE id = ?",
+                                 [(i,) for i in ids])
+            return len(ids)
+
     # ── Read ───────────────────────────────────────────────
 
     def recall(self, query: str, top_k: int = 10, min_score: float = 0.0) -> list[dict]:

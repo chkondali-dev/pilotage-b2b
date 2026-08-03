@@ -1,0 +1,36 @@
+{
+  "timestamp": "2026-08-03T12:35:08",
+  "demande": "Défends le dossier de convention scénario 01 MEDITECH amicale. Justifie la viabilité du dossier, la couverture des garanties et le verrou du framework.",
+  "intention": "defense",
+  "cible": "",
+  "mode": "dg",
+  "duree_s": 498.8,
+  "modele": "deepseek-r1:7b",
+  "provider": "ollama",
+  "tokens": {
+    "prompt_tokens": 927,
+    "completion_tokens": 786,
+    "total_tokens": 1713
+  },
+  "sources_utilisees": [
+    "KNOWLEDGE\\conventions\\convention_modele_rtt.md",
+    "KNOWLEDGE\\procedures\\politique_risque.md",
+    "KNOWLEDGE\\conventions\\contrat_cession_salaire.md",
+    "KNOWLEDGE\\reference\\framework_conventions_smg.md"
+  ],
+  "sources_ignorees": [],
+  "contraintes": [],
+  "inconnues": [],
+  "coverage": {
+    "intention": "defense",
+    "required_sources": 3,
+    "available_sources": 3,
+    "required_kpis": 0,
+    "available_kpis": 0,
+    "memory_chunks": 4,
+    "average_relevance": 0.413,
+    "missing": []
+  },
+  "assessment": null,
+  "reponse": "{\n  \"analyse\": [\n    [F1]: Le modèle de convention RTT ou autre contrat type n'a pas encore été déposé par l'expert métier. ([KNOWLEDGE\\conventions\\convention_modele_rtt.md])\n    [F2]: Le régime PLUS n'a pas tout à fait été décris, notamment en absence de recours contre la structure. ([KNOWLEDGE\\procedures\\politique_risque.md])\n    [F3]: La durée de cession est d'un an et le risque de résiliation est possible avec préavis de trois mois. ([KNOWLEDGE\\conventions\\contrat_cession_salaire.md])\n    [F4]: Le flux du framework inclut les étapes 1 à 9, mais aucun contexte spécifique n'est fourni pour la scénario 01 MEDITECH amicale. ([KNOWLEDGE\\reference\\framework_conventions_smg.md])\n  ],\n  \"verdict\": \"🔴 Non suffisant d'informations pour évaluer la viabilité et la couverture.\",\n  \"recommandation\": \"Veuillez fournir les détails manquants sur le modèle de convention, le régime PLUS et les couvertures spécifiques de la scénario 01 MEDITECH amicale.\",\n  \"questions_ouvertes\": [\"Confirmez le modèle de convention utilisé [F1].\", \"Détails complets du régime PLUS [F2].\", \"Couverture spécifiée pour chaque étape du flux [F4].\"],\n  \"assessment\": {\n    \"confidence\": 50,\n    \"rationale\": [\"Lacking specific details on key aspects of the scenario makes it difficult to assess its viability and coverage.\"],\n    \"unanswered\": [\"Expert confirmation for [F1] model contract.\", \"Complete details on [F2] régime PLUS implementation.\", \"Specific coverage percentages for [F4] framework steps.\"]\n  }\n}"
+}

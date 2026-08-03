@@ -1,0 +1,53 @@
+{
+  "timestamp": "2026-08-03T14:08:07",
+  "demande": "Défends le dossier meditech.md (scénario 01 MEDITECH amicale) avant verrouillage. Justifie la viabilité, la couverture des garanties et le verrou du framework.",
+  "intention": "defense",
+  "cible": "meditech.md",
+  "mode": "dg",
+  "duree_s": 363.9,
+  "modele": "deepseek-r1:7b",
+  "provider": "ollama",
+  "tokens": {
+    "prompt_tokens": 1020,
+    "completion_tokens": 1123,
+    "total_tokens": 2143
+  },
+  "sources_utilisees": [
+    "KNOWLEDGE\\procedures\\politique_risque.md",
+    "KNOWLEDGE\\reference\\framework_conventions_smg.md",
+    "KNOWLEDGE\\reference\\faq_conventions.md",
+    "KNOWLEDGE\\procedures\\politique_risque.md",
+    "document concerné"
+  ],
+  "sources_ignorees": [],
+  "contraintes": [],
+  "inconnues": [],
+  "coverage": {
+    "intention": "defense",
+    "required_sources": 3,
+    "available_sources": 3,
+    "required_kpis": 0,
+    "available_kpis": 0,
+    "memory_chunks": 4,
+    "average_relevance": 0.35,
+    "missing": []
+  },
+  "assessment": {
+    "confidence": 90,
+    "rationale": [
+      "Les faits sources [F1], [F3] et [F5] montrent une logique de vérification complète et rigoureuse.",
+      "Le risque modéré (niveau 2) est correctement établi en fonction des termes de cession.",
+      "La couverture des garanties est bien documentée dans le dossier, confirmant son admissibilité.",
+      "L'impaiement est correctement traité selon les normes légales relatives aux conventions amicales."
+    ],
+    "unanswered": []
+  },
+  "reponse": [
+    "[F1] Régime Classique : La scénario Meditech Amicale utilise le régime classique avec une mise en demeure de 3 jours pour un salarié non-régularisé. L'information de l'employeur est fournie immédiatement et la caution solidaire est activée pour le remboursement.",
+    "[F2] Schéma du flux : Le flux du processus de vérification inclut les étapes 1 à 9, avec une particularité marquante au moment de la défense (étape 4) et de la décision arbitrage (étape 5).",
+    "[F3] Q : Qu faire en cas d'impayé sur une cession ? R : Selon le scénario, la suspension immédiate des ventes est imposée en cas d'impaiement sur une cession amicale ou publique.",
+    "[F4] Cession sur salaire : La cession Meditech Amicale est classifiée comme niveau 2 (seule cession sur salaire) avec un risque modéré (niveau 2).",
+    "[F5] Dossier de convention : Le dossier de Meditech Amicale inclut toutes les vérifications nécessaires pour établir la viabilité, la couverture des garanties et le verrou du framework SMG.",
+    "[F1] Régime Classique : En cas d'impaiement, le remboursement est mandatory selon les termes de cession amicale ou publique."
+  ]
+}
