@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+venv/
+env/
+
+# Streamlit
+.streamlit/secrets.toml
+
+# OpenCode / IDE
+.omo/
+node_modules/
+.pytest_cache/
+
+# Caches / bases locales (ne pas versionner)
+.cache_monthly/
+*.sqlite
+*.sqlite3
+
+# Data / export (ne pas versionner les fichiers générés)
+*.xlsx
+*.xlsm
+*.html
+*.txt
+*.csv
+*.docx
+!docs/**/*.docx
+
+# Backup / temp
+*_backup_*.py
+app_backup_*.py

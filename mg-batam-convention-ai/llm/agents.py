@@ -57,6 +57,11 @@ Ne valide jamais un document sans avoir trouvé au moins un point d'amélioratio
     return client.chat(prompt, role="analyse", system=_system_prompt("contradicteur"))
 
 
+def _grille_risque() -> str:
+    """Grille de risque SMG — source unique dans KNOWLEDGE (pas de valeurs en dur)."""
+    return (config.KNOWLEDGE_DIR / "procedures" / "politique_risque.md").read_text(encoding="utf-8")
+
+
 def analyse_risque(document: str, chemin: str = "") -> str | None:
     """Analyse le risque selon la grille SMG. Retourne le rapport."""
     prompt = f"""Analyse le risque de cette convention selon la grille SMG, au format de PROMPTS/analyse_risque.md.
@@ -65,10 +70,8 @@ Document : {chemin or "(fourni ci-dessous)"}
 
 {document}
 
-Grille de risque SMG :
-- Cession sur salaire + bonne tendance → faible
-- Garantie solidaire seule ou tendance irrégulière → moyen
-- Baisse continue 2+ mois OU lettre de change seule → élevé
+Grille de risque SMG (source : KNOWLEDGE/procedures/politique_risque.md) :
+{_grille_risque()}
 
 Points à vérifier en priorité :
 - Cession confirmée par le Tribunal Cantonal ?

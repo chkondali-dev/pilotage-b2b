@@ -2,26 +2,55 @@
 import os, requests, json, re, sys
 from datetime import datetime
 
-LLM_API_KEY = os.getenv("LLM_API_KEY","")
-LLM_MODEL = os.getenv("LLM_MODEL","llama-3.3-70b-versatile")
-LLM_ENDPOINT = os.getenv("LLM_ENDPOINT","https://api.groq.com/openai/v1/chat/completions")
+# ── LLM : détection auto Ollama > Groq ────────────────────────
 
-def call_llm(prompt, api_key=None):
-    key = api_key or LLM_API_KEY
-    if not key:
-        print("Pas de cle API LLM")
-        return None
-    hdrs = {"Authorization":f"Bearer {key}","Content-Type":"application/json"}
-    payload = {"model":LLM_MODEL,"messages":[{"role":"system","content":"Tu es un analyste commercial senior. Reponds en JSON."},{"role":"user","content":prompt}],"temperature":0.3,"max_tokens":8000,"response_format":{"type":"json_object"}}
+OLLAMA_ENDPOINT = "http://localhost:11434"
+
+def _detect_ollama() -> bool:
     try:
-        r = requests.post(LLM_ENDPOINT,headers=hdrs,json=payload,timeout=120)
+        r = requests.get(f"{OLLAMA_ENDPOINT}/api/tags", timeout=2)
+        return r.status_code == 200
+    except Exception:
+        return False
+
+_IS_OLLAMA = _detect_ollama()
+_GROQ_KEY = os.getenv("LLM_API_KEY", "")
+
+if _IS_OLLAMA:
+    LLM_MODEL = os.getenv("LLM_MODEL", "qwen2.5-coder:1.5b")
+    LLM_ENDPOINT = f"{OLLAMA_ENDPOINT}/v1/chat/completions"
+else:
+    LLM_MODEL = os.getenv("LLM_MODEL", "llama-3.3-70b-versatile")
+    LLM_ENDPOINT = os.getenv("LLM_ENDPOINT", "https://api.groq.com/openai/v1/chat/completions")
+
+def call_llm(prompt):
+    headers = {"Content-Type": "application/json"}
+    if not _IS_OLLAMA:
+        key = _GROQ_KEY
+        if not key:
+            print("  ⚠️  Pas de LLM dispo (Ollama offline, pas de cle)")
+            return None
+        headers["Authorization"] = f"Bearer {key}"
+
+    payload = {"model": LLM_MODEL, "messages": [
+        {"role": "system", "content": "Tu es un analyste commercial senior. Reponds en JSON."},
+        {"role": "user", "content": prompt},
+    ], "temperature": 0.3, "max_tokens": 8000}
+
+    if not _IS_OLLAMA:
+        payload["response_format"] = {"type": "json_object"}
+
+    try:
+        provider = "Ollama" if _IS_OLLAMA else "Groq"
+        print(f"  Appel LLM ({LLM_MODEL}) via {provider}...")
+        r = requests.post(LLM_ENDPOINT, headers=headers, json=payload, timeout=120)
         r.raise_for_status()
         c = r.json()["choices"][0]["message"]["content"]
         c = re.sub(r"^```(?:json)?\s*","",c.strip())
         c = re.sub(r"\s*```$","",c)
         return c
     except Exception as e:
-        print(f"LLM: {e}")
+        print(f"  ⚠️  LLM: {e}")
         return None
 
 def generate_regression_analysis(alerts):

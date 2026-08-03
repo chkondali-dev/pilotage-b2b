@@ -10,8 +10,9 @@ ROOT = Path(__file__).resolve().parent.parent          # mg-batam-convention-ai/
 KNOWLEDGE_DIR = ROOT / "KNOWLEDGE"
 OUTPUTS_DIR = ROOT / "OUTPUTS"
 AGENTS_DIR = ROOT / "AGENTS"
+DATA_DIR = ROOT / "data"                               # registre CSV + base SQLite locale
 
-for _d in (OUTPUTS_DIR / "rapports", OUTPUTS_DIR / "contrats", OUTPUTS_DIR / "syntheses"):
+for _d in (OUTPUTS_DIR / "rapports", OUTPUTS_DIR / "contrats", OUTPUTS_DIR / "syntheses", DATA_DIR):
     _d.mkdir(parents=True, exist_ok=True)
 
 # ── Endpoints ────────────────────────────────────────────────
@@ -20,12 +21,13 @@ OLLAMA_ENDPOINT = "http://localhost:11434"
 # ── Modèles par rôle ─────────────────────────────────────────
 # Rôles "analyse" tournent en local (8B, confortable sur CPU 16GB).
 # Rôle "redaction" passe par Groq/API (qualité française) — fallback local si pas de clé.
-# Le modèle d'embeddings (RAG) vit dans memory/memory_store.py — ne pas le dupliquer ici.
+# Le modèle d'embeddings (RAG) est défini dans llm/store.py — store local autonome.
 MODELS = {
     "analyse":  os.getenv("CAI_ANALYSE_MODEL",  "qwen2.5:7b"),        # audit, risque, comparaison
     "negociation": os.getenv("CAI_NEGO_MODEL",  "qwen2.5:7b"),        # stratégie
     "redaction": os.getenv("CAI_REDACTION_MODEL", "llama-3.3-70b-versatile"),  # Groq
     "comex":    os.getenv("CAI_COMEX_MODEL",    "qwen2.5:7b"),        # décision
+    "brain":    os.getenv("CAI_BRAIN_MODEL",    "deepseek-r1:7b"),    # raisonnement final (Ollama)
 }
 
 # ── Fallback API (Groq, OpenAI-compatible) ───────────────────

@@ -1,0 +1,1 @@
+⚠️ Le modèle n'a pas produit de JSON structuré. Voir le journal.

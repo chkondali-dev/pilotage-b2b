@@ -1,0 +1,54 @@
+{
+  "timestamp": "2026-08-01T13:01:19",
+  "demande": "Défends le dossier de convention pour le scénario 01 MEDITECH amicale, avec tous les éléments de la politique de risque et du framework. Justifie la viabilité, la couverture des garanties et le verrou risque.",
+  "intention": "risque",
+  "cible": "",
+  "mode": "dg",
+  "duree_s": 497.5,
+  "modele": "deepseek-r1:7b",
+  "provider": "ollama",
+  "tokens": {
+    "prompt_tokens": 962,
+    "completion_tokens": 1109,
+    "total_tokens": 2071
+  },
+  "sources_utilisees": [
+    "KNOWLEDGE\\reference\\faq_conventions.md",
+    "KNOWLEDGE\\procedures\\politique_risque.md",
+    "KNOWLEDGE\\conventions\\convention_modele_rtt.md",
+    "KNOWLEDGE\\conventions\\contrat_cession_salaire.md"
+  ],
+  "sources_ignorees": [
+    "document (absent)"
+  ],
+  "contraintes": [
+    "Source requise indisponible : document (absent)"
+  ],
+  "inconnues": [
+    "﻿# CONVENTION DE CESSION SUR SALAIRE\n\n**Entre les soussignés :**\n\n**La Société :** _______________________________, représentée par _______________________________, ci-après dénommée \"Le Cessionnaire\""
+  ],
+  "coverage": {
+    "intention": "risque",
+    "required_sources": 4,
+    "available_sources": 3,
+    "required_kpis": 0,
+    "available_kpis": 0,
+    "memory_chunks": 4,
+    "average_relevance": 0.428,
+    "missing": [
+      "document (absent)"
+    ]
+  },
+  "assessment": {
+    "confidence": 80,
+    "rationale": [
+      "L'absence du document manquant (cf. [F4]) create un risque de non-compliance avec les procédés spécifiques du scénario, ce qui put conduire à des dommages à la solidarité et à la suspension des ventes.",
+      "Les questions ouvertes concernent l'adéquation des échanges entre le salarié et l'employeur, ce qui est essentiel pour éviter les perte de confiance et les problèmes logistiques.",
+      "Le verdict est gravement critiqué par la non-complétude des informations et les dommages potentiels à la solidarité."
+    ],
+    "unanswered": [
+      "Documentation manquante dans le contexte des conventions cession sur salaire"
+    ]
+  },
+  "reponse": "[F1] Selon le scénario, dans le cas d'un impayé sur une cession dans un contexte de prélèvement sur salaire (comme pour l'amicale ou la publique), les mesures à prendre incluent une suspension immédiate des ventes et une demande de paiement. ([F1])"
+}

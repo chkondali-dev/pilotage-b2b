@@ -1,0 +1,78 @@
+{
+  "version": "1.0.0",
+  "total": 6,
+  "results": [
+    {
+      "question_id": "GEN-004",
+      "category": "GENERAL",
+      "exactitude": 0.5,
+      "pertinence": 0.6792,
+      "couverture_fichiers": 0.0,
+      "tokens_consommes": 150,
+      "temps_reponse": 1.2,
+      "fichiers_references": [],
+      "score_global": 0.5198,
+      "erreur": ""
+    },
+    {
+      "question_id": "ARC-008",
+      "category": "ARCH",
+      "exactitude": 0.1429,
+      "pertinence": 0.7148,
+      "couverture_fichiers": 0.0,
+      "tokens_consommes": 169,
+      "temps_reponse": 1.2,
+      "fichiers_references": [],
+      "score_global": 0.3858,
+      "erreur": ""
+    },
+    {
+      "question_id": "EXP-010",
+      "category": "EXPLORE",
+      "exactitude": 0.3333,
+      "pertinence": 0.7667,
+      "couverture_fichiers": 0.0,
+      "tokens_consommes": 169,
+      "temps_reponse": 1.2,
+      "fichiers_references": [],
+      "score_global": 0.475,
+      "erreur": ""
+    },
+    {
+      "question_id": "DBG-010",
+      "category": "DEBUG",
+      "exactitude": 0.2857,
+      "pertinence": 0.7136,
+      "couverture_fichiers": 0.0,
+      "tokens_consommes": 169,
+      "temps_reponse": 1.2,
+      "fichiers_references": [],
+      "score_global": 0.4427,
+      "erreur": ""
+    },
+    {
+      "question_id": "RPT-001",
+      "category": "REPORT",
+      "exactitude": 0.4,
+      "pertinence": 0.7083,
+      "couverture_fichiers": 1.0,
+      "tokens_consommes": 141,
+      "temps_reponse": 1.2,
+      "fichiers_references": [],
+      "score_global": 0.6871,
+      "erreur": ""
+    },
+    {
+      "question_id": "REF-002",
+      "category": "REFACTOR",
+      "exactitude": 0.0,
+      "pertinence": 0.748,
+      "couverture_fichiers": 0.0,
+      "tokens_consommes": 169,
+      "temps_reponse": 1.2,
+      "fichiers_references": [],
+      "score_global": 0.337,
+      "erreur": ""
+    }
+  ]
+}

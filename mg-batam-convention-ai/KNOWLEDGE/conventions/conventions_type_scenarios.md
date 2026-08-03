@@ -1,5 +1,10 @@
 # Conventions type — 5 scénarios commerciaux SMG
 
+> ⚠️ **SUPERSEDED** — Ce document (5 scénarios commerciaux, design 2026-06-10) est OBSOLÈTE
+> pour la partie contractuelle. Référentiel canonique : **`reference/framework_conventions_smg.md`
+> (FRAMEWORK_CONVENTIONS_SMG.md v2.0 — 7 scénarios 01-07, Groupe = 06).** Conservé pour
+> l'historique produit (matrice de garanties et plan de rédaction 16 articles).
+
 > Source : design spec validé `docs/superpowers/specs/2026-06-10-conventions-type-scenarios-design.md`
 > Base : convention existante SMG / Amicale ETT (corrigée et améliorée)
 

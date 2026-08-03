@@ -1,0 +1,14 @@
+{
+  "objective": "### B3. Rédaction et Validation Juridique",
+  "verdict": [],
+  "facts": [],
+  "constraints": [],
+  "actions": [],
+  "missing": [],
+  "passes_run": [
+    "extract.objective",
+    "extract.facts",
+    "detect.missing",
+    "validate.dossier"
+  ]
+}

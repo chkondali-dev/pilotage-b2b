@@ -1,0 +1,48 @@
+{
+  "timestamp": "2026-08-01T08:09:53",
+  "demande": "Quel est le plafond d'exposition BATAM ?",
+  "intention": "question",
+  "cible": "",
+  "mode": "audit",
+  "duree_s": 264.9,
+  "modele": "deepseek-r1:7b",
+  "provider": "ollama",
+  "tokens": {
+    "prompt_tokens": 894,
+    "completion_tokens": 609,
+    "total_tokens": 1503
+  },
+  "sources_utilisees": [
+    "KNOWLEDGE\\reference\\faq_conventions.md",
+    "KNOWLEDGE\\reference\\faq_conventions.md",
+    "KNOWLEDGE\\procedures\\politique_risque.md",
+    "KNOWLEDGE\\conventions\\contrat_cession_salaire.md"
+  ],
+  "sources_ignorees": [],
+  "contraintes": [],
+  "inconnues": [
+    "# FAQ Conventions\n\n> Complétée au fil de l'eau avec les questions récurrentes de l'expert métier.\n> Chaque réponse validée devient une référence pour les agents.\n> Les réponses marquées « à confirmer "
+  ],
+  "coverage": {
+    "intention": "question",
+    "required_sources": 2,
+    "available_sources": 2,
+    "required_kpis": 0,
+    "available_kpis": 0,
+    "memory_chunks": 4,
+    "average_relevance": 0.5,
+    "missing": []
+  },
+  "assessment": {
+    "confidence": 70,
+    "rationale": [
+      "L'information fournie concerne les scénarios et les contrats liés à la cession avec des prélèvements sur le salaire.",
+      "Les plafonds d'exposition sont mentionnés dans le contexte du risque et du respect des tiers saisissables.",
+      "Il manque des détails concrets sur les sources et les scénarios pour établir une confiance totale."
+    ],
+    "unanswered": [
+      "Sources 1 et 2 manquantes pour plus de précision"
+    ]
+  },
+  "reponse": "L'ceil de Batam dépend des types de garanties et des plafonds légaux respectés par l'Amicale selon le scénario de cession. Les contrats mentionnent la respectation des tiers saisissables, ce qui indique une structure existante pour les limites exposées."
+}

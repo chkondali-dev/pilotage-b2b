@@ -1,15 +1,11 @@
 """
 RAG léger — retrieval sur KNOWLEDGE/ via embeddings all-minilm (Ollama).
-Réutilise le moteur memory/memory_store.py du repo (déjà en production).
+Store SQLite local autonome : llm/store.py (base data/convention_ai.sqlite).
 """
 import re
 from pathlib import Path
 from llm import config
-
-try:
-    from memory.memory_store import MemoryStore  # repo racine
-except ImportError:
-    MemoryStore = None
+from llm.store import MemoryStore
 
 
 def _chunks(text: str, size: int = 1500) -> list[str]:
@@ -28,14 +24,18 @@ def _chunks(text: str, size: int = 1500) -> list[str]:
 
 
 def indexer(knowledge_dir: Path | None = None) -> int:
-    """Indexe les .md/.txt de KNOWLEDGE/ dans la mémoire (idempotent par hash)."""
-    if MemoryStore is None:
-        print("  ⚠️  memory.memory_store indisponible — RAG désactivé")
-        return 0
+    """Indexe les .md/.txt de KNOWLEDGE/ dans la mémoire (idempotent par hash).
+
+    Les documents marqués SUPERSEDED (bandeau « ⚠️ **SUPERSEDED** » en tête) ne
+    sont PAS indexés : ils sont obsolètes et pollueraient la pertinence.
+    """
     store = MemoryStore("convention_ai")
     n = 0
     for f in (knowledge_dir or config.KNOWLEDGE_DIR).rglob("*"):
         if f.suffix.lower() not in (".md", ".txt"):
+            continue
+        tete = f.read_text(encoding="utf-8", errors="ignore")[:200]
+        if "superseded" in tete.lower():
             continue
         for chunk in _chunks(f.read_text(encoding="utf-8", errors="ignore")):
             mid = store.remember(chunk, tags=["convention_ai", f.stem],
@@ -47,8 +47,6 @@ def indexer(knowledge_dir: Path | None = None) -> int:
 
 def chercher(question: str, top_k: int = 4) -> list[dict]:
     """Retourne les chunks KNOWLEDGE les plus pertinents pour une question."""
-    if MemoryStore is None:
-        return []
     store = MemoryStore("convention_ai")
     results = store.recall(question, top_k=top_k)
     out = []

@@ -9,35 +9,39 @@ from llm import config
 
 
 @functools.lru_cache(maxsize=64)
-def _ollama_available() -> bool:
-    """Vérifie si Ollama tourne sur localhost (caché)."""
+def _ollama_has_model(model: str) -> bool:
+    """Vrai si Ollama tourne ET a le modèle demandé installé (caché)."""
     try:
         r = requests.get(f"{config.OLLAMA_ENDPOINT}/api/tags", timeout=2)
-        return r.status_code == 200
+        if r.status_code != 200:
+            return False
+        tags = [t.get("name", "") for t in r.json().get("models", [])]
+        return any(t == model or t.startswith(model + ":") for t in tags)
     except Exception:
         return False
 
 
-def provider() -> str:
-    """'ollama' si dispo, 'groq' si clé API, sinon ''."""
-    if _ollama_available():
+def provider(model: str) -> str:
+    """'ollama' si le modèle y est installé, 'groq' si clé API, sinon ''."""
+    if _ollama_has_model(model):
         return "ollama"
     if config.GROQ_API_KEY:
         return "groq"
     return ""
 
 
-def chat(prompt: str, role: str = "analyse", system: str | None = None) -> str | None:
-    """Appelle le LLM. role ∈ MODELS (analyse, negociation, redaction, comex).
+def chat(prompt: str, role: str = "analyse", system: str | None = None,
+         meta: bool = False) -> str | None | tuple:
+    """Appelle le LLM. role ∈ MODELS (analyse, negociation, redaction, comex, brain).
 
     Retourne le texte de la réponse, ou None si aucun LLM dispo.
+    meta=True → retourne (texte, meta) avec meta = {modele, provider, duree_s, usage}.
     """
-    prov = provider()
-    if not prov:
-        print("  ⚠️  Aucun LLM disponible (Ollama offline, pas de clé API)")
-        return None
-
     model = config.MODELS.get(role, config.MODELS["analyse"])
+    prov = provider(model)
+    if not prov:
+        print("  ⚠️  Aucun LLM disponible (modèle absent d'Ollama, pas de clé API)")
+        return (None, {}) if meta else None
     headers = {"Content-Type": "application/json"}
     endpoint = f"{config.OLLAMA_ENDPOINT}/v1/chat/completions"
 
@@ -55,15 +59,23 @@ def chat(prompt: str, role: str = "analyse", system: str | None = None) -> str |
         "max_tokens": config.MAX_TOKENS,
     }
 
+    import time
+    t_debut = time.perf_counter()
     try:
         print(f"  [LLM] {model} via {prov}...")
         r = requests.post(endpoint, headers=headers, json=payload, timeout=900)  # ponytail: 7B sur CPU = lent
         r.raise_for_status()
-        content = r.json()["choices"][0]["message"]["content"]
+        data = r.json()
+        content = data["choices"][0]["message"]["content"]
         # Nettoyer le markdown parasite autour du JSON
         content = re.sub(r"^```(?:json)?\s*", "", content.strip())
         content = re.sub(r"\s*```$", "", content)
+        duree = time.perf_counter() - t_debut
+        print(f"  [LLM] {model} via {prov} — {duree:.1f}s")
+        if meta:
+            return content, {"modele": model, "provider": prov,
+                             "duree_s": round(duree, 1), "usage": data.get("usage")}
         return content
     except Exception as e:
         print(f"  ⚠️  Erreur LLM: {e}")
-        return None
+        return (None, {}) if meta else None

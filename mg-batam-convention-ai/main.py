@@ -13,7 +13,7 @@ Usage :
     python main.py indexer            # indexe KNOWLEDGE/ dans la mémoire
     python main.py question "texte"   # question avec contexte KNOWLEDGE (RAG)
     python main.py register CODE "Client" --scenario "04-Amicale seule" --garantie "Cession"
-                                     # ajoute/met à jour le suivi conventions_signees.csv (dashboard)
+                                     # ajoute/met à jour le suivi conventions_signees.csv (local)
 """
 import argparse
 import sys
@@ -21,9 +21,8 @@ from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # ponytail: console Windows + emojis
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # pour memory/
 
-from llm import agents, client, rag
+from llm import agents, brain, client, rag
 import workflows
 
 
@@ -60,10 +59,15 @@ def main() -> None:
 
     sub.add_parser("indexer", help="Indexer KNOWLEDGE/ (RAG)")
 
+    sp = sub.add_parser("brain", help="Pipeline de raisonnement : Intent Planner → Context Pack → DeepSeek")
+    sp.add_argument("demande", help="Demande en langage naturel")
+    sp.add_argument("--mode", choices=["expert", "dg", "technique", "commercial", "audit"],
+                    default="expert", help="Rendu du Decision Renderer (défaut : expert)")
+
     sp = sub.add_parser("question", help="Question avec RAG sur KNOWLEDGE/")
     sp.add_argument("texte")
 
-    sp = sub.add_parser("register", help="Ajouter/met à jour une convention dans le suivi (CSV dashboard)")
+    sp = sub.add_parser("register", help="Ajouter/met à jour une convention dans le suivi (CSV local)")
     sp.add_argument("code")
     sp.add_argument("client")
     sp.add_argument("--scenario", default="")
@@ -104,6 +108,8 @@ def main() -> None:
     elif args.cmd == "indexer":
         n = rag.indexer()
         print(f"✅ {n} chunks indexés depuis KNOWLEDGE/")
+    elif args.cmd == "brain":
+        print(brain.raisonner(args.demande, mode=args.mode) or "❌ Échec LLM")
     elif args.cmd == "question":
         prompt = rag.enrichir_prompt(args.texte, args.texte)
         system = "Tu es un expert des conventions B2B SMG (MG, BATAM, cession sur salaire). Réponds en français, factuel, cité si possible."
