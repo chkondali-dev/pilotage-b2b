@@ -92,6 +92,43 @@ st.markdown("""
   .suite-card.rose  .suite-title, .suite-card.rose .suite-arrow { color:#fff; }
   .suite-card.rose::after { background:#fca5a5; }
   .suite-foot { margin-top:2.4rem; text-align:center; color:#94a3b8; font-size:0.8rem; }
+
+  /* st.page_link transformé en carte module — navigation même onglet (SPA) */
+  [data-testid="stPageLink"] a {
+    display:flex !important; flex-direction:column !important;
+    align-items:flex-start !important; justify-content:flex-start !important;
+    gap:0.5rem !important;
+    border-radius:20px !important; padding:2.6rem 2rem !important;
+    height:100% !important; min-height:190px; position:relative; overflow:hidden;
+    text-decoration:none !important;
+    box-shadow:0 8px 28px rgba(15,23,42,0.07);
+    transition:transform .15s, box-shadow .2s;
+  }
+  [data-testid="stPageLink"] a:hover {
+    transform:translateY(-4px); box-shadow:0 20px 48px rgba(15,23,42,0.16);
+  }
+  [data-testid="stPageLink"] a::before {
+    content:"📊"; display:inline-flex; align-items:center; justify-content:center;
+    width:92px; height:92px; border-radius:24px; font-size:4.2rem; line-height:1;
+    background:rgba(255,255,255,0.16); box-shadow:inset 0 0 0 1px rgba(255,255,255,0.25);
+  }
+  [data-testid="stPageLink"] a::after {
+    content:""; position:absolute; width:240px; height:240px; border-radius:50%;
+    top:-110px; right:-90px; opacity:0.14; pointer-events:none;
+  }
+  [data-testid="stPageLink"] a[href*="dashboard"] { background:linear-gradient(135deg,#1e3a8a 0%,#2563eb 70%,#3b82f6 100%); }
+  [data-testid="stPageLink"] a[href*="dashboard"]::after { background:#93c5fd; }
+  [data-testid="stPageLink"] a[href*="dashboard"]::before { content:"📊"; }
+  [data-testid="stPageLink"] a[href*="contrat_lab"] { background:linear-gradient(135deg,#7f1d1d 0%,#dc2626 70%,#ef4444 100%); }
+  [data-testid="stPageLink"] a[href*="contrat_lab"]::after { background:#fca5a5; }
+  [data-testid="stPageLink"] a[href*="contrat_lab"]::before { content:"🔬"; }
+  [data-testid="stPageLink"] a span {
+    white-space:normal !important; overflow:visible !important; display:block !important;
+    color:#fff !important; font-weight:800; font-size:1.05rem;
+  }
+  [data-testid="stPageLink"] a span strong {
+    font-size:3rem; font-weight:900; letter-spacing:-0.02em; line-height:1.05;
+  }
 </style>
 """, unsafe_allow_html=True)
 
@@ -108,26 +145,18 @@ st.markdown("""
 c1, c2 = st.columns(2)
 
 with c1:
-    st.markdown("""
-    <a class="suite-card-link" href="dashboard" aria-label="Ouvrir le Dashboard">
-      <div class="suite-card blue">
-        <div class="suite-illustration">📊</div>
-        <div class="suite-title">Dashboard</div>
-        <div class="suite-arrow">Ouvrir →</div>
-      </div>
-    </a>
-    """, unsafe_allow_html=True)
+    st.page_link(
+        "pages/dashboard.py",
+        label="**Dashboard**  \nOuvrir →",
+        use_container_width=True,
+    )
 
 with c2:
-    st.markdown("""
-    <a class="suite-card-link" href="contrat_lab" aria-label="Ouvrir le Contrat Lab">
-      <div class="suite-card rose">
-        <div class="suite-illustration">🔬</div>
-        <div class="suite-title">Contrat Lab</div>
-        <div class="suite-arrow">Ouvrir →</div>
-      </div>
-    </a>
-    """, unsafe_allow_html=True)
+    st.page_link(
+        "pages/contrat_lab.py",
+        label="**Contrat Lab**  \nOuvrir →",
+        use_container_width=True,
+    )
 
 st.markdown(
     '<div class="suite-foot">MG Convention Suite v0 — portail des conventions SMG · '
