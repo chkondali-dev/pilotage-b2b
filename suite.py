@@ -47,32 +47,43 @@ st.markdown("""
   }
   .suite-hero h1 { font-size:2.1rem; font-weight:800; margin:0; }
   .suite-hero p  { font-size:0.95rem; color:rgba(255,255,255,0.75); margin:0.55rem 0 0; max-width:640px; }
+
+  /* Cartes modules — clic sur toute la carte */
+  a.suite-card-link {
+    display:block; text-decoration:none; border-radius: 20px; height: 100%;
+  }
   .suite-card {
-    background: rgba(255,255,255,0.95); border: 1px solid #e2e8f0; border-radius: 20px;
-    padding: 1.8rem 1.8rem 1.4rem; height: 100%;
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 20px;
+    padding: 2.6rem 2rem; height: 100%;
     box-shadow: 0 8px 28px rgba(15,23,42,0.07);
-    transition: transform .15s, box-shadow .2s;
+    transition: transform .15s, box-shadow .2s, border-color .2s;
+    position: relative; overflow: hidden;
   }
-  .suite-card:hover { transform: translateY(-3px); box-shadow: 0 16px 40px rgba(15,23,42,0.12); }
-  .suite-icon {
-    width:52px; height:52px; border-radius:14px; display:flex; align-items:center;
-    justify-content:center; font-size:1.6rem; margin-bottom:1rem;
+  .suite-card::after {
+    content:""; position:absolute; width:240px; height:240px; border-radius:50%;
+    top:-110px; right:-90px; opacity:0.14; pointer-events:none;
   }
-  .suite-card h3 { font-size:1.15rem; font-weight:800; margin:0 0 0.3rem; color:#0f172a; }
-  .suite-card .suite-desc { font-size:0.86rem; color:#64748b; line-height:1.55; margin-bottom:0.9rem; }
-  .suite-chips { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:1.2rem; }
-  .suite-chip {
-    padding:3px 10px; border-radius:99px; font-size:0.72rem; font-weight:700;
-    background:#f1f5f9; border:1px solid #e2e8f0; color:#475569;
+  a.suite-card-link:hover .suite-card {
+    transform: translateY(-4px); box-shadow: 0 20px 48px rgba(15,23,42,0.16);
   }
-  .suite-card .stLinkButton button {
-    width:100%; border-radius:12px; font-weight:700; padding:0.65rem 1rem;
-    border: 2px solid #dc2626; color: #dc2626; background: white;
-    transition: all .15s;
+  a.suite-card-link:focus-visible .suite-card {
+    outline: 3px solid #2563eb; outline-offset: 3px;
   }
-  .suite-card .stLinkButton button:hover {
-    background:#dc2626; color:white; border-color:#dc2626;
+  .suite-card .suite-title {
+    font-size: 3rem; font-weight: 900; letter-spacing: -0.02em;
+    line-height: 1.05; margin: 0.4rem 0 0.2rem;
   }
+  .suite-card .suite-arrow {
+    display:inline-flex; align-items:center; gap:8px;
+    font-size:0.95rem; font-weight:800; margin-top:1.6rem;
+    text-transform:uppercase; letter-spacing:0.12em;
+  }
+  .suite-card.blue  { background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 70%, #3b82f6 100%); }
+  .suite-card.blue  .suite-title, .suite-card.blue .suite-arrow { color:#fff; }
+  .suite-card.blue::after { background:#93c5fd; }
+  .suite-card.rose  { background: linear-gradient(135deg, #7f1d1d 0%, #dc2626 70%, #ef4444 100%); }
+  .suite-card.rose  .suite-title, .suite-card.rose .suite-arrow { color:#fff; }
+  .suite-card.rose::after { background:#fca5a5; }
   .suite-foot { margin-top:2.4rem; text-align:center; color:#94a3b8; font-size:0.8rem; }
 </style>
 """, unsafe_allow_html=True)
@@ -91,37 +102,23 @@ c1, c2 = st.columns(2)
 
 with c1:
     st.markdown("""
-    <div class="suite-card">
-      <div class="suite-icon" style="background:#eff6ff;">📊</div>
-      <h3>Dashboard</h3>
-      <div class="suite-desc">Pilotage commercial : CA MG & BATAM, tendances,
-      conventions encours, magasins, EDC, risque et alertes — l'outil de
-      décision direction habituel.</div>
-      <div class="suite-chips">
-        <span class="suite-chip">CA &amp; tendances</span>
-        <span class="suite-chip">Conventions</span>
-        <span class="suite-chip">Risque</span>
+    <a class="suite-card-link" href="dashboard" aria-label="Ouvrir le Dashboard">
+      <div class="suite-card blue">
+        <div class="suite-title">Dashboard</div>
+        <div class="suite-arrow">Ouvrir →</div>
       </div>
-    </div>
+    </a>
     """, unsafe_allow_html=True)
-    st.page_link("pages/dashboard.py", label="📊 Ouvrir le Dashboard")
 
 with c2:
     st.markdown("""
-    <div class="suite-card">
-      <div class="suite-icon" style="background:#fef2f2;">🧪</div>
-      <h3>Contrat Lab</h3>
-      <div class="suite-desc">Laboratoire de conventions : simulateur de
-      scénario client (fiche réflexion 5 étapes), template recommandé,
-      garanties et niveau de risque avant rédaction.</div>
-      <div class="suite-chips">
-        <span class="suite-chip">Simulateur</span>
-        <span class="suite-chip">7 scénarios</span>
-        <span class="suite-chip">Risque</span>
+    <a class="suite-card-link" href="contrat_lab" aria-label="Ouvrir le Contrat Lab">
+      <div class="suite-card rose">
+        <div class="suite-title">Contrat Lab</div>
+        <div class="suite-arrow">Ouvrir →</div>
       </div>
-    </div>
+    </a>
     """, unsafe_allow_html=True)
-    st.page_link("pages/contrat_lab.py", label="🧪 Ouvrir le Contrat Lab")
 
 st.markdown(
     '<div class="suite-foot">MG Convention Suite v0 — portail des conventions SMG · '
