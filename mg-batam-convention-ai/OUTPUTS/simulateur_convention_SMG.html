@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fiche réflexion client — SMG Convention</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --rouge: #DE0B2D;
+    --rouge-hover: #b80925;
+    --rouge-light: #fef2f3;
+    --dark: #1a1a2e;
+    --gray: #6b7280;
+    --gray-light: #f3f4f6;
+    --border: #e5e7eb;
+    --green: #059669;
+    --amber: #d97706;
+    --white: #ffffff;
+    --shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
+    --shadow-lg: 0 10px 25px rgba(0,0,0,.06), 0 4px 10px rgba(0,0,0,.04);
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', -apple-system, system-ui, sans-serif;
+    background: var(--gray-light);
+    color: var(--dark);
+    line-height: 1.6;
+    padding: 2rem;
+  }
+  .container { max-width: 1000px; margin: 0 auto; }
+
+  .header { background: var(--white); border-radius: 16px; padding: 2rem 2.5rem; margin-bottom: 2rem; box-shadow: var(--shadow); border-top: 4px solid var(--rouge); }
+  .header h1 { font-size: 1.75rem; font-weight: 800; }
+  .header h1 span { color: var(--rouge); }
+  .header p { color: var(--gray); font-size: .95rem; margin-top: .25rem; }
+
+  .card { background: var(--white); border-radius: 12px; padding: 1.75rem 2rem; margin-bottom: 1.5rem; box-shadow: var(--shadow); }
+  .card h2 { font-size: 1.15rem; font-weight: 700; margin-bottom: 1rem; display: flex; align-items: center; gap: .5rem; }
+
+  /* Steps */
+  .step { display: none; }
+  .step.active { display: block; animation: fadeIn .3s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* Questions */
+  .question { margin-bottom: 1.25rem; }
+  .question label { display: block; font-weight: 600; font-size: .95rem; margin-bottom: .5rem; }
+  .question .desc { font-size: .85rem; color: var(--gray); margin-bottom: .75rem; }
+  .options { display: flex; gap: .5rem; flex-wrap: wrap; }
+  .option-btn {
+    padding: .65rem 1.25rem; border: 2px solid var(--border); border-radius: 10px; background: var(--white);
+    font-size: .9rem; font-weight: 500; cursor: pointer; transition: all .15s; font-family: inherit;
+  }
+  .option-btn:hover { border-color: var(--rouge); background: var(--rouge-light); }
+  .option-btn.selected { border-color: var(--rouge); background: var(--rouge); color: var(--white); }
+
+  /* Nav */
+  .nav { display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid var(--border); }
+  .btn { padding: .65rem 1.5rem; border: none; border-radius: 8px; font-weight: 600; font-size: .9rem; cursor: pointer; transition: all .15s; font-family: inherit; }
+  .btn-primary { background: var(--rouge); color: var(--white); }
+  .btn-primary:hover { background: var(--rouge-hover); }
+  .btn-secondary { background: var(--gray-light); color: var(--dark); }
+  .btn-secondary:hover { background: var(--border); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .step-indicator { color: var(--gray); font-size: .85rem; font-weight: 500; }
+
+  /* Result */
+  .result-card { display: none; background: var(--white); border-radius: 12px; padding: 2rem; box-shadow: var(--shadow-lg); border-top: 4px solid var(--rouge); }
+  .result-card.active { display: block; animation: fadeIn .4s ease; }
+  .result-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; flex-wrap: wrap; gap: .75rem; }
+  .result-header h2 { font-size: 1.4rem; font-weight: 800; margin: 0; }
+  .risk-badge { padding: .3rem .8rem; border-radius: 6px; font-weight: 700; font-size: .85rem; }
+  .risk-faible { background: #d1fae5; color: #065f46; }
+  .risk-moyen { background: #fef3c7; color: #92400e; }
+  .risk-eleve { background: #fee2e2; color: #991b1b; }
+  .risk-max { background: #fce7f3; color: #9d174d; border: 1px solid #ec4899; }
+
+  .params { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: .75rem; margin: 1rem 0; }
+  .param { background: var(--gray-light); border-radius: 8px; padding: .75rem 1rem; }
+  .param-label { font-size: .75rem; color: var(--gray); text-transform: uppercase; letter-spacing: .03em; font-weight: 600; }
+  .param-value { font-size: 1rem; font-weight: 700; color: var(--dark); margin-top: .15rem; }
+
+  .result-section { margin: 1.25rem 0; }
+  .result-section h3 { font-size: .95rem; font-weight: 700; margin-bottom: .5rem; color: var(--rouge); }
+  .result-section ul { list-style: none; padding: 0; }
+  .result-section ul li { padding: .3rem 0; padding-left: 1.2rem; position: relative; font-size: .88rem; }
+  .result-section ul li::before { content: ''; position: absolute; left: 0; top: .55rem; width: 6px; height: 6px; border-radius: 50%; background: var(--rouge); }
+  .flow { display: flex; align-items: center; gap: .3rem; flex-wrap: wrap; padding: .5rem 0; }
+  .flow-step { background: var(--rouge-light); border: 1px solid var(--rouge); border-radius: 6px; padding: .3rem .7rem; font-weight: 600; font-size: .82rem; color: var(--rouge); }
+  .flow-arrow { color: var(--gray); font-size: 1rem; }
+
+  .tag { display: inline-block; background: var(--dark); color: var(--white); padding: .15rem .6rem; border-radius: 4px; font-size: .8rem; font-weight: 600; }
+
+  .btn-print { background: none; border: 2px solid var(--border); color: var(--gray); font-weight: 600; }
+  .btn-print:hover { border-color: var(--dark); color: var(--dark); }
+  .btn-restart { background: var(--dark); color: var(--white); }
+  .btn-restart:hover { background: #2d2d4a; }
+
+  .footer { text-align: center; font-size: .82rem; color: var(--gray); padding: 2rem 0; }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.5); z-index: 1000;
+    display: flex; align-items: center; justify-content: center;
+    animation: fadeIn 0.25s ease;
+  }
+  .modal-box {
+    background: #fff; max-width: 480px; width: 90%; padding: 2rem;
+    text-align: center;
+  }
+  .modal-box .m-label { font-size: .8rem; color: var(--rouge); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; margin-bottom: .5rem; }
+  .modal-box .m-title { font-size: 1.35rem; font-weight: 800; color: var(--dark); margin-bottom: .25rem; }
+  .modal-box .m-file { font-size: .85rem; font-family: monospace; color: var(--rouge); background: var(--rouge-light); padding: .4rem .9rem; display: inline-block; margin-bottom: .5rem; text-decoration: none; }
+  .modal-box .m-file:hover { text-decoration: underline; }
+  .modal-box .m-detail { font-size: .82rem; color: var(--gray); margin-bottom: .15rem; }
+  .modal-box .m-params { margin: 1rem 0; padding: .75rem; background: var(--gray-light); border-radius: 8px; font-size: .82rem; color: var(--dark); text-align: left; }
+  .modal-box .m-params strong { color: var(--rouge); }
+  .modal-btn { background: var(--rouge); color: #fff; border: none; padding: .65rem 1.75rem; font-size: .85rem; font-weight: 700; cursor: pointer; font-family: inherit; margin-top: .75rem; transition: background .15s; }
+  .modal-btn:hover { background: var(--rouge-hover); }
+
+  @media print {
+    body { background: var(--white); padding: 0; }
+    .header, .card { box-shadow: none; border: 1px solid var(--border); }
+    .btn, .nav { display: none; }
+    .result-card { display: block !important; box-shadow: none; border: 1px solid var(--border); page-break-inside: avoid; }
+    .step, .card:not(.result-card) { display: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <h1>Fiche réflexion <span>client</span></h1>
+    <p>Questionnaire interactif — Déterminez le template et les clauses adaptés à chaque prospect</p>
+  </div>
+
+  <!-- Steps -->
+  <div class="card" id="quiz">
+    <!-- Step 1 -->
+    <div class="step active" data-step="1">
+      <h2>1. Structure juridique du client</h2>
+      <div class="question">
+        <label>Quel est le type d'entité ?</label>
+        <div class="desc">La nature juridique détermine les garanties possibles et le template de base.</div>
+        <div class="options" data-question="type">
+          <button class="option-btn" data-value="prive">Société privée (SA/SARL)</button>
+          <button class="option-btn" data-value="admin">Administration publique</button>
+          <button class="option-btn" data-value="ordre">Ordre professionnel</button>
+          <button class="option-btn" data-value="asso">Association / ONG / Syndicat</button>
+          <button class="option-btn" data-value="groupe">Groupe multi-sociétés</button>
+          <button class="option-btn" data-value="mutuelle">Coopérative / Mutuelle</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2 -->
+    <div class="step" data-step="2">
+      <h2>2. Amicale présente ?</h2>
+      <div class="question">
+        <label>Le client a-t-il une Amicale / association de personnel ?</label>
+        <div class="options" data-question="amicale">
+          <button class="option-btn" data-value="oui-avec">Oui, avec caution employeur (Scénario A)</button>
+          <button class="option-btn" data-value="oui-sans">Oui, mais employeur refuse caution (Scénario B)</button>
+          <button class="option-btn" data-value="non">Non, pas d'Amicale</button>
+          <button class="option-btn" data-value="seule">Amicale seule (sans employeur)</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3 -->
+    <div class="step" data-step="3">
+      <h2>3. Taille et périmètre</h2>
+      <div class="question">
+        <label>Quelle est la taille approximative ?</label>
+        <div class="options" data-question="taille">
+          <button class="option-btn" data-value="pme">PME (&lt;20 employés)</button>
+          <button class="option-btn" data-value="standard">Standard (20-500 employés)</button>
+          <button class="option-btn" data-value="grand">Grand compte (&gt;500 employés)</button>
+        </div>
+      </div>
+      <div class="question">
+        <label>Le client est-il international ?</label>
+        <div class="desc">Filiale étrangère, maison mère à l'étranger, ou employés non-déclarés en Tunisie.</div>
+        <div class="options" data-question="international">
+          <button class="option-btn" data-value="oui">Oui — partenaire international / filiale étrangère</button>
+          <button class="option-btn" data-value="non">Non — entreprise tunisienne</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 4 -->
+    <div class="step" data-step="4">
+      <h2>4. Tribunal Cantonal — Accepté ?</h2>
+      <div class="desc">La cession sur salaire (Art. 142 CT) nécessite le Tribunal Cantonal pour les entreprises privées. Certaines refusent pour raisons commerciales.</div>
+      <div class="question">
+        <label>Le client accepte-t-il le Tribunal Cantonal ?</label>
+        <div class="options" data-question="tc">
+          <button class="option-btn" data-value="oui">Oui — cession sur salaire standard</button>
+          <button class="option-btn" data-value="non">Non — préfère une alternative</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 5 -->
+    <div class="step" data-step="5">
+      <h2>5. Volume et RFA</h2>
+      <div class="question">
+        <label>Volume annuel estimé des achats à crédit</label>
+        <div class="options" data-question="volume">
+          <button class="option-btn" data-value="faible">&lt;100 000 TND</button>
+          <button class="option-btn" data-value="moyen">100 000 – 500 000 TND</button>
+          <button class="option-btn" data-value="eleve">&gt;500 000 TND</button>
+        </div>
+      </div>
+      <div class="question">
+        <label>Le client demande-t-il une RFA ?</label>
+        <div class="desc">La RFA est un levier de fin de négociation, jamais proposée en premier.</div>
+        <div class="options" data-question="rfa">
+          <button class="option-btn" data-value="non">Non — pas de RFA (gain SMG)</button>
+          <button class="option-btn" data-value="levier">Client bloque — RFA comme levier</button>
+          <button class="option-btn" data-value="exige">Client exige une RFA</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation -->
+    <div class="nav">
+      <button class="btn btn-secondary" id="prevBtn" onclick="prevStep()">← Précédent</button>
+      <span class="step-indicator" id="stepIndicator">Étape 1 / 5</span>
+      <button class="btn btn-primary" id="nextBtn" onclick="nextStep()">Suivant →</button>
+    </div>
+  </div>
+
+  <!-- Result -->
+  <div class="result-card" id="result">
+    <div class="result-header">
+      <h2>Résultat — <span id="rTemplate">Template XX</span></h2>
+      <span class="risk-badge" id="rRisk">Risque</span>
+    </div>
+
+    <div class="params">
+      <div class="param"><div class="param-label">Scénario</div><div class="param-value" id="rScenario">—</div></div>
+      <div class="param"><div class="param-label">Type</div><div class="param-value" id="rType">—</div></div>
+      <div class="param"><div class="param-label">Caution</div><div class="param-value" id="rCaution">—</div></div>
+      <div class="param"><div class="param-label">Garantie principale</div><div class="param-value" id="rGarantie">—</div></div>
+      <div class="param"><div class="param-label">Taux</div><div class="param-value" id="rTaux">—</div></div>
+      <div class="param"><div class="param-label">Plafond</div><div class="param-value" id="rPlafond">—</div></div>
+      <div class="param"><div class="param-label">Durée max</div><div class="param-value" id="rDuree">—</div></div>
+      <div class="param"><div class="param-label">RFA</div><div class="param-value" id="rRFA">—</div></div>
+      <div class="param"><div class="param-label">Amicale</div><div class="param-value" id="rAmicale">—</div></div>
+    </div>
+
+    <div class="result-section">
+      <h3>📄 Clauses obligatoires</h3>
+      <ul id="rClauses"></ul>
+    </div>
+
+    <div class="result-section">
+      <h3>⚠️ Pièges à éviter</h3>
+      <ul id="rPieges"></ul>
+    </div>
+
+    <div class="result-section">
+      <h3>⟳ Circuit paiement</h3>
+      <div class="flow" id="rFlow"></div>
+    </div>
+
+    <div class="nav" style="border-top-color:transparent;padding-top:0">
+      <button class="btn btn-print" onclick="window.print()">🖨️ Imprimer</button>
+      <button class="btn btn-restart" onclick="restart()">Recommencer</button>
+    </div>
+  </div>
+
+  <div class="footer">SMG — Fiche réflexion client • Matrice des formules actualisée</div>
+</div>
+
+<script>
+const state = { step: 1, answers: {} };
+
+const data = {
+  templates: {
+    'prive-oui-avec': { id:'01', name:'Privé avec Amicale A', type:'Classique', caution:'Employeur (caution solidaire)', garantie:'Cession sur salaire TC', taux:'0,75%/mois', plafond:'300 – 3 000 TND', duree:'18 mois', rfa:'Si levier (1%, conditions)', amicale:'A — Employeur garant', risk:'Faible', riskClass:'risk-faible',
+      clauses:['Caution solidaire de l\'employeur','Acte de cession sur salaire légalisé TC','Double signature : Président Amicale + DRH','Révision du taux selon TMM','Suspension immédiate des ventes si impayé','Résiliation 30 jours après mise en demeure','Décès/départ : notification 5j, solde 30j'],
+      pieges:['Signer uniquement avec l\'Amicale sans caution société','Accepter une reconnaissance de dette simple sans légalisation','Pas de clause de révision du taux'],
+      flow:['Employé','Employeur','Amicale','SMG'] },
+    'prive-oui-sans': { id:'01', name:'Privé avec Amicale B', type:'Classique', caution:'Aucune (employeur refuse)', garantie:'Traite de garantie obligatoire', taux:'0,75%/mois', plafond:'300 – 3 000 TND', duree:'18 mois', rfa:'Non', amicale:'B — Non garanti', risk:'Élevé', riskClass:'risk-eleve',
+      clauses:['Traite de garantie obligatoire (compense absence caution)','Validation Dir. Service Clients obligatoire','Acte de cession sur salaire (si employeur accepte TC)','Double signature : Président Amicale + DRH','Suspension immédiate des ventes si impayé'],
+      pieges:['Scénario B sans traite = risque maximum','Oublier la validation DSC','Employeur non engagé = aucun recours'],
+      flow:['Employé','Employeur','Amicale','SMG'] },
+    'prive-non-standard-prive': { id:'02', name:'Privé sans Amicale', type:'Classique', caution:'Employeur (caution solidaire)', garantie:'Cession sur salaire TC', taux:'0,75%/mois', plafond:'300 – 3 000 TND', duree:'18 mois', rfa:'Si levier (1%, conditions)', amicale:'Pas d\'Amicale', risk:'Faible', riskClass:'risk-faible',
+      clauses:['Caution solidaire de l\'employeur','Acte de cession sur salaire légalisé TC','Signature unique DRH','Spécimen de signature DRH + suppléant','Résiliation 30 jours après mise en demeure'],
+      pieges:['Pas d\'intermédiaire pour filtrer les demandes','Turn-over RH = risque de désorganisation'],
+      flow:['Employé','Employeur','SMG'] },
+    'prive-non-pme-prive': { id:'02A', name:'PME <20 employés', type:'Classique', caution:'Dirigeant (caution personnelle)', garantie:'Cession sur salaire TC', taux:'0,75%/mois', plafond:'Fixé selon analyse', duree:'18 mois', rfa:'Si levier (1%, conditions)', amicale:'Pas d\'Amicale', risk:'Moyen', riskClass:'risk-moyen',
+      clauses:['Caution personnelle solidaire du dirigeant','Acte de cession sur salaire légalisé TC','Résiliation accélérée : 15 jours','Convention simplifiée (10 articles)'],
+      pieges:['Alourdir avec clauses d\'une convention 500 personnes','Accepter sans caution personnelle du dirigeant'],
+      flow:['Employé','Dirigeant','SMG'] },
+    'prive-non-standard-inter': { id:'02B', name:'International', type:'Classique', caution:'Filiale tunisienne', garantie:'Cession + Traite', taux:'0,75%/mois', plafond:'300 – 3 000 TND', duree:'18 mois', rfa:'Si levier (1%, conditions)', amicale:'Variable', risk:'Moyen', riskClass:'risk-moyen',
+      clauses:['Élection de domicile en Tunisie','Droit tunisien exclusif','Caution : filiale tunisienne ou représentant légal','RIB sur banque tunisienne','Tous montants en TND'],
+      pieges:['Maison mère étrangère sans élection de domicile','Caution de la maison mère irrecevable sans domicile en Tunisie','Paiement en devise étrangère'],
+      flow:['Employé','Filiale Tunisie','SMG'] },
+    'admin': { id:'03', name:'Administration publique', type:'Classique', caution:'Aucune (pas de caution possible)', garantie:'Cession sur salaire TC + Traite garantie', taux:'0,75%/mois', plafond:'300 – 3 000 TND', duree:'12 mois', rfa:'Si levier (1%, conditions)', amicale:'Pas d\'Amicale', risk:'Moyen', riskClass:'risk-moyen',
+      clauses:['Tribunal Cantonal obligatoire (cession sur salaire Art. 142 CT)','Traite de garantie en renfort','Reconduction tacite autorisée par contrôleur financier','Délai de virement : 15e jour du mois','Résiliation 30 jours'],
+      pieges:['Demander une caution solidaire (impossible)','Clause de non-sollicitation (incompatible fonction publique)','Pénalités de retard (non applicables personnes publiques)'],
+      flow:['Agent','Admin RH','SMG'] },
+    'amicale-seule': { id:'04', name:'Amicale seule', type:'Classique', caution:'Amicale elle-même (risque + élevé)', garantie:'Traite garantie obligatoire', taux:'0,75%/mois', plafond:'300 – 3 000 TND', duree:'18 mois', rfa:'Si TC obtenu (1%, conditions)', amicale:'Amicale seule (sans employeur)', risk:'Élevé', riskClass:'risk-eleve',
+      clauses:['Traite de garantie obligatoire','Caution solidaire de l\'Amicale','Reconnaissance de dette légalisée Municipalité','Vérifier patrimoine et capacité financière Amicale','Changement bureau : notification sous 15 jours'],
+      pieges:['Signer sans caution ni traite','Accepter un bureau en fin de mandat','Ne pas vérifier la capacité financière de l\'Amicale'],
+      flow:['Employé','Amicale','SMG'] },
+    'ordre': { id:'05A', name:'Ordre professionnel', type:'PLUS', caution:'Caution personnelle du professionnel', garantie:'Prélèvement bancaire + Traite', taux:'0,90%/mois (majoré)', plafond:'500 – 3 000 TND', duree:'12 mois', rfa:'Non (risque élevé)', amicale:'Pas d\'Amicale', risk:'Élevé', riskClass:'risk-eleve',
+      clauses:['Mandat de prélèvement automatique','Caution personnelle du professionnel','Traite de garantie obligatoire','Clause résolutoire express 15 jours','Vérification revenus sur 12 mois minimum'],
+      pieges:['Prêter sans vérification des revenus sur 12 mois','Prêter à un professionnel en début d\'activité (<2 ans)','S\'appuyer sur la réputation de l\'Ordre','Oublier la traite (cession impossible)'],
+      flow:['Professionnel','Banque (prélèvement)','SMG'] },
+    'asso': { id:'05B', name:'Association/ONG', type:'PLUS', caution:'Dirigeants (caution personnelle)', garantie:'Cession (si salariés) / Traite', taux:'0,75%/mois', plafond:'300 – 2 000 TND', duree:'12 mois', rfa:'Non (risque élevé)', amicale:'Variable', risk:'Élevé', riskClass:'risk-eleve',
+      clauses:['Caution personnelle Président + Trésorier','Acte de cession sur salaire (si salariés)','Reconnaissance de dette (si non salariés)','Résiliation automatique en cas de dissolution'],
+      pieges:['Se contenter de la garantie de l\'association','Signer avec un bureau en fin de mandat','Oublier la traite de garantie'],
+      flow:['Employé/Adhérent','Association','SMG'] },
+    'groupe': { id:'06', name:'Groupe multi-sociétés', type:'Classique', caution:'Holding (caution solidaire)', garantie:'TC par filiale', taux:'0,75%/mois', plafond:'500 – 3 000 TND/filiale', duree:'18 mois', rfa:'Progressive (0,5% à 2%)', amicale:'Variable par filiale', risk:'Faible', riskClass:'risk-faible',
+      clauses:['Caution solidaire de la holding pour toutes les filiales','Annexe par filiale avec ses spécificités','Actualisation annuelle de la liste des filiales','En cas de vente : filiale cédée reste tenue des encours'],
+      pieges:['Caution de la holding insuffisante','Filiale cédée sans clause de maintien des encours','Mélanger les conditions entre filiales'],
+      flow:['Employé','Filiale','Holding','SMG'] },
+    'mutuelle': { id:'07', name:'Coopérative/Mutuelle', type:'PLUS', caution:'Mutuelle (engagement solidaire)', garantie:'Traite (une par adhérent) + Cession salariés', taux:'0,75%/mois', plafond:'300 – 3 000 TND', duree:'18 mois', rfa:'Si levier (1%, conditions)', amicale:'Pas d\'Amicale', risk:'Moyen', riskClass:'risk-moyen',
+      clauses:['Double régime : salariés (cession) / sociétaires (nantissement)','Traite de garantie par adhérent sociétaire','Nantissement de parts sociales pour sociétaires','Notification de toute modification des statuts'],
+      pieges:['Mélanger employés et sociétaires dans les mêmes conditions','Accepter des engagements sans décision du CA'],
+      flow:['Employé/Sociétaire','Mutuelle','SMG'] }
+  }
+};
+
+function getTemplateId() {
+  const a = state.answers;
+  if (a.type === 'prive') {
+    if (a.amicale === 'oui-avec') return 'prive-oui-avec';
+    if (a.amicale === 'oui-sans') return 'prive-oui-sans';
+    if (a.amicale === 'seule') return 'amicale-seule';
+    if (a.international === 'oui') return 'prive-non-standard-inter';
+    if (a.taille === 'pme') return 'prive-non-pme-prive';
+    return 'prive-non-standard-prive';
+  }
+  if (a.type === 'admin') return 'admin';
+  if (a.type === 'ordre') return 'ordre';
+  if (a.type === 'asso') return 'asso';
+  if (a.type === 'groupe') return 'groupe';
+  if (a.type === 'mutuelle') return 'mutuelle';
+  return 'prive-non-standard-prive';
+}
+
+function showResult() {
+  const tpl = data.templates[getTemplateId()];
+  if (!tpl) return;
+
+  document.getElementById('quiz').style.display = 'none';
+  const r = document.getElementById('result');
+  r.classList.add('active');
+
+  document.getElementById('rTemplate').textContent = tpl.name;
+  const riskEl = document.getElementById('rRisk');
+  riskEl.textContent = 'Risque : ' + tpl.risk;
+  riskEl.className = 'risk-badge ' + tpl.riskClass;
+
+  document.getElementById('rScenario').textContent = '#' + tpl.id + ' — ' + tpl.name;
+  document.getElementById('rType').textContent = tpl.type || 'Classique';
+  document.getElementById('rCaution').textContent = tpl.caution;
+  document.getElementById('rGarantie').textContent = tpl.garantie;
+  document.getElementById('rTaux').textContent = tpl.taux;
+  document.getElementById('rPlafond').textContent = tpl.plafond;
+  document.getElementById('rDuree').textContent = tpl.duree;
+  document.getElementById('rRFA').textContent = tpl.rfa;
+  document.getElementById('rAmicale').textContent = tpl.amicale;
+
+  document.getElementById('rClauses').innerHTML = tpl.clauses.map(c => '<li>🔴 ' + c + '</li>').join('');
+  document.getElementById('rPieges').innerHTML = tpl.pieges.map(p => '<li>❌ ' + p + '</li>').join('');
+  document.getElementById('rFlow').innerHTML = tpl.flow.map((f, i) => {
+    let html = '<span class="flow-step">' + f + '</span>';
+    if (i < tpl.flow.length - 1) html += '<span class="flow-arrow">→</span>';
+    return html;
+  }).join('');
+
+  showModal(tpl);
+}
+
+function showModal(tpl) {
+  var overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+  var filename = tpl.id + '-' + tpl.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '') + '.md';
+  overlay.innerHTML = '<div class="modal-box">' +
+    '<div class="m-label">Template recommand\u00e9</div>' +
+    '<div class="m-title">' + tpl.name + '</div>' +
+    '<div class="m-type" style="font-size:.8rem;color:#6b7280;margin-bottom:.5rem;text-align:center">Convention <strong>' + (tpl.type || 'Classique') + '</strong></div>' +
+    '<a href="../KNOWLEDGE/reference/contrats/' + filename + '" class="m-file">' + filename + '</a>' +
+    '<div class="m-detail">\u00c0 adapter dans <strong>KNOWLEDGE/reference/contrats/</strong></div>' +
+    '<div class="m-params">' +
+      '<strong>Caution :</strong> ' + tpl.caution + '<br>' +
+      '<strong>Garantie :</strong> ' + tpl.garantie + '<br>' +
+      '<strong>Taux :</strong> ' + tpl.taux + ' | <strong>Plafond :</strong> ' + tpl.plafond + ' | <strong>Dur\u00e9e :</strong> ' + tpl.duree +
+    '</div>' +
+    '<button class="modal-btn" onclick="this.closest(\'.modal-overlay\').remove()">OK</button>' +
+  '</div>';
+  document.body.appendChild(overlay);
+}
+
+function nextStep() {
+  const current = document.querySelector('.step.active');
+  const q = current.querySelector('.options[data-question]');
+  if (q) {
+    const selected = q.querySelector('.option-btn.selected');
+    if (!selected) return;
+    state.answers[q.dataset.question] = selected.dataset.value;
+  }
+  if (state.step === 5) {
+    showResult();
+    return;
+  }
+  state.step++;
+  document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+  document.querySelector('[data-step="' + state.step + '"]').classList.add('active');
+  document.getElementById('stepIndicator').textContent = 'Étape ' + state.step + ' / 5';
+  document.getElementById('prevBtn').style.display = state.step > 1 ? 'inline-block' : 'none';
+}
+
+function prevStep() {
+  if (state.step <= 1) return;
+  state.step--;
+  document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+  document.querySelector('[data-step="' + state.step + '"]').classList.add('active');
+  document.getElementById('stepIndicator').textContent = 'Étape ' + state.step + ' / 5';
+  document.getElementById('prevBtn').style.display = state.step > 1 ? 'inline-block' : 'none';
+}
+
+function restart() {
+  state.step = 1;
+  state.answers = {};
+  document.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+  document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+  document.querySelector('[data-step="1"]').classList.add('active');
+  document.getElementById('result').classList.remove('active');
+  document.getElementById('quiz').style.display = 'block';
+  document.getElementById('stepIndicator').textContent = 'Étape 1 / 5';
+  document.getElementById('prevBtn').style.display = 'none';
+}
+
+document.querySelectorAll('.option-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const group = this.closest('.options');
+    group.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+    this.classList.add('selected');
+  });
+});
+</script>
+</body>
+</html>
