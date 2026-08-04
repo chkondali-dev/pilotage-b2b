@@ -73,6 +73,13 @@ st.markdown("""
     font-size: 3rem; font-weight: 900; letter-spacing: -0.02em;
     line-height: 1.05; margin: 0.4rem 0 0.2rem;
   }
+  .suite-card .suite-illustration {
+    font-size: 4.2rem; line-height: 1; margin-bottom: 0.8rem;
+    display:inline-flex; align-items:center; justify-content:center;
+    width:92px; height:92px; border-radius:24px;
+    background: rgba(255,255,255,0.16);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.25);
+  }
   .suite-card .suite-arrow {
     display:inline-flex; align-items:center; gap:8px;
     font-size:0.95rem; font-weight:800; margin-top:1.6rem;
@@ -104,6 +111,7 @@ with c1:
     st.markdown("""
     <a class="suite-card-link" href="dashboard" aria-label="Ouvrir le Dashboard">
       <div class="suite-card blue">
+        <div class="suite-illustration">📊</div>
         <div class="suite-title">Dashboard</div>
         <div class="suite-arrow">Ouvrir →</div>
       </div>
@@ -114,6 +122,7 @@ with c2:
     st.markdown("""
     <a class="suite-card-link" href="contrat_lab" aria-label="Ouvrir le Contrat Lab">
       <div class="suite-card rose">
+        <div class="suite-illustration">🔬</div>
         <div class="suite-title">Contrat Lab</div>
         <div class="suite-arrow">Ouvrir →</div>
       </div>
