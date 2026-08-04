@@ -25,7 +25,7 @@ pilotage_b2b/
 ## Conventions
 - **Palette sémantique** : `C["green"]` = croissance, `C["red"]` = déclin/alerte, `C["blue"]` = année N, `C["slate"]` = année N-1
 - **Cache Streamlit** : `@st.cache_data` sur toutes les fonctions de chargement (TTL=3600) + préparations lourdes
-- **Comparaisons date-à-date** : N-1 tronqué aux mêmes jours exacts que N — SOURCE UNIQUE `truncate_n1_date_to_date` dans `metrics/kpi.py` (utilisée par `compare_years_date_to_date`, `convention_risk_matrix` et `monthly_report.py`). Ne JAMAIS réimplémenter cette troncature ailleurs (dérive des chiffres garantie)
+- **Comparaisons date-à-date** : N-1 borné au jour max atteint dans N (tous les jours 1..max conservés, même sans CA dans N — les jours creux ne doivent PAS retirer le CA de N-1, sinon totaux faussés en fin de mois). SOURCE UNIQUE `truncate_n1_date_to_date` dans `metrics/kpi.py` (utilisée par `compare_years_date_to_date`, `convention_risk_matrix` et `monthly_report.py`). Ne JAMAIS réimplémenter cette troncature ailleurs (dérive des chiffres garantie)
 - **Noms individuels** : 4 entrées filtrées des vues Convention via `NOMS_INDIVIDUELS` dans `data/config.py`
 - **Seuil d'inactivité** : 60j défaut, réglable via slider sidebar (15-180j)
 

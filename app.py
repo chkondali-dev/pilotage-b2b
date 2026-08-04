@@ -23,6 +23,7 @@ from data.loader import load_all_data
 from data.transforms import prepare_data
 from metrics.kpi import (
     compare_years, compare_years_date_to_date, ca_sum_date_to_date,
+    truncate_n1_date_to_date,
     evol_pct, convention_risk_matrix, inactive_conventions, get_rolling_3m,
 )
 from charts.factory import (
@@ -215,7 +216,7 @@ if conv_sel != "Tous":
 @st.cache_data(show_spinner=False)
 def _cached_precalcs(df, annee, seuil, mois_tuple, _df_conv_ref):
     """Tous les calculs lourds qui tournaient à chaque interaction."""
-    comp = compare_years(df, annee, annee - 1)
+    comp = compare_years_date_to_date(df, annee, annee - 1, list(mois_tuple) if mois_tuple else None)
     rm   = convention_risk_matrix(df, annee)
     inac = inactive_conventions(df, seuil)
     r3m  = get_rolling_3m(df)
@@ -867,12 +868,8 @@ with tabs[2]:
 
         with col_cv2:
             _df_fn  = df_cv[df_cv["Année"] == annee_sel]
-            _df_fn1 = df_cv[df_cv["Année"] == annee_sel - 1]
-            if "Jour" in _df_fn.columns and not _df_fn.empty:
-                jours_par_mois = _df_fn.groupby("Mois")["Jour"].apply(set).to_dict()
-                for mois, jours_n in jours_par_mois.items():
-                    mask = (_df_fn1["Mois"] == mois) & (~_df_fn1["Jour"].isin(jours_n))
-                    _df_fn1 = _df_fn1[~mask]
+            _df_fn1 = truncate_n1_date_to_date(df_cv, annee_sel, annee_sel - 1, mois_sel)
+            _df_fn1 = _df_fn1[_df_fn1["Année"] == annee_sel - 1]
             _cn  = _df_fn.groupby("Mois")["Montant TTC"].sum().reset_index()
             _cn1 = _df_fn1.groupby("Mois")["Montant TTC"].sum().reset_index()
             _cn["CA Cum N"]    = _cn["Montant TTC"].cumsum()
@@ -1522,7 +1519,7 @@ with tabs[4]:
                 st.plotly_chart(fig_pie_e, use_container_width=True)
 
         section("Tendance mensuelle EDC")
-        df_edc_comp = compare_years(df_edc, edc_yr, edc_yr - 1)
+        df_edc_comp = compare_years_date_to_date(df_edc, edc_yr, edc_yr - 1)
         if not df_edc_comp.empty:
             fig_edc_t = chart_grouped_bar(
                 df_edc_comp, "Mois Nom", "CA N", "CA N-1",
@@ -1818,7 +1815,7 @@ with tabs[7]:
                     _df_ytd_n = _df_ytd_n[_df_ytd_n["Mois"].isin(mois_sel)]
                     _df_ytd_n1 = _df_ytd_n1[_df_ytd_n1["Mois"].isin(mois_sel)]
                 if "Jour" in _df_ytd_n.columns and not _df_ytd_n.empty:
-                    _conv_jours = _df_ytd_n.groupby(["Nom", "Mois"])["Jour"].apply(set).to_dict()
+                    _conv_jours = _df_ytd_n.groupby(["Nom", "Mois"])["Jour"].apply(max).to_dict()
                 else:
                     _conv_jours = {}
                 _ytd_index = {}
@@ -1840,8 +1837,8 @@ with tabs[7]:
                         continue
                     ca_n = float(dn["Montant TTC"].sum())
                     ca_n1 = 0.0
-                    for m, jours_n in _ytd_index[nom].items():
-                        ca_n1 += float(dn1[(dn1["Mois"] == m) & (dn1["Jour"].isin(jours_n))]["Montant TTC"].sum())
+                    for m, max_jour in _ytd_index[nom].items():
+                        ca_n1 += float(dn1[(dn1["Mois"] == m) & (dn1["Jour"] <= int(max_jour))]["Montant TTC"].sum())
                     evo = round((ca_n - ca_n1) / ca_n1 * 100, 1) if ca_n1 > 0 else (100.0 if ca_n > 0 else 0.0)
                     a["metrics"]["ytd_change_pct"] = evo
             render_alert_panel(alerts)

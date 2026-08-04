@@ -193,9 +193,10 @@ class TrendAnalyzer:
             mois_range = self._mois_sel if self._mois_sel else range(1, self._current_month + 1)
             for m in mois_range:
                 ytd_current += self._ca_for_period(edf, self._current_year, m)
-                jours_n = set(edf[(edf["Annee"] == self._current_year) & (edf["Mois"] == m)]["Jour"].dropna().unique())
-                if jours_n:
-                    sub_n1 = edf[(edf["Annee"] == self._current_year - 1) & (edf["Mois"] == m) & (edf["Jour"].isin(jours_n))]
+                jours_n = edf[(edf["Annee"] == self._current_year) & (edf["Mois"] == m)]["Jour"].dropna()
+                if not jours_n.empty:
+                    max_jour = int(jours_n.max())
+                    sub_n1 = edf[(edf["Annee"] == self._current_year - 1) & (edf["Mois"] == m) & (edf["Jour"] <= max_jour)]
                     ytd_n1 += float(sub_n1["Montant TTC"].sum())
             ytd_pct = 0.0
             if ytd_n1 > 0:

@@ -48,10 +48,11 @@ def truncate_n1_date_to_date(
     df: pd.DataFrame, annee_n: int, annee_n1: int, mois_sel: list = None
 ) -> pd.DataFrame:
     """
-    SOURCE UNIQUE de troncature date-à-date : retire de N-1 les jours où N
-    n'a AUCUNE transaction (comparaison équitable jour pour jour).
-    Ex: si Juillet 2026 n'a pas de ventes les 5/12/26, on retire ces mêmes
-    jours de Juillet 2025. Si mois_sel est fourni, ne tronque que ces mois.
+    SOURCE UNIQUE de troncature date-à-date : borne N-1 au dernier jour
+    ÉCOULÉ de N (jour max atteint par mois). Tous les jours 1..max de N-1
+    sont conservés, y compris ceux où N n'a pas de transaction (CA nul) —
+    une journée sans facture ne doit PAS retirer le CA de N-1 (faussait les
+    totaux en fin de mois). Si mois_sel est fourni, ne tronque que ces mois.
     Les autres lignes (autres mois/années) sont conservées (tendances 3m).
     """
     if df.empty or "Jour" not in df.columns or "Année" not in df.columns:
@@ -62,10 +63,11 @@ def truncate_n1_date_to_date(
     else:
         mois_list = sorted(df[df["Année"] == annee_n]["Mois"].dropna().unique())
     for mois in mois_list:
-        jours_n = set(df[(df["Année"] == annee_n) & (df["Mois"] == mois)]["Jour"].dropna())
-        if not jours_n:
+        jours_n = df[(df["Année"] == annee_n) & (df["Mois"] == mois)]["Jour"].dropna()
+        if jours_n.empty:
             continue
-        mask_n1 = (out["Année"] == annee_n1) & (out["Mois"] == mois) & (~out["Jour"].isin(jours_n))
+        max_jour = int(jours_n.max())
+        mask_n1 = (out["Année"] == annee_n1) & (out["Mois"] == mois) & (out["Jour"] > max_jour)
         out = out[~mask_n1]
     return out
 
@@ -86,10 +88,10 @@ def compare_years_date_to_date(
         return compare_years(df_filtered, annee_n, annee_n1)
     df_n1 = truncate_n1_date_to_date(df_filtered, annee_n, annee_n1, mois_sel)
     df_n1 = df_n1[df_n1["Année"] == annee_n1]
-    jours_par_mois = df_n.groupby("Mois")["Jour"].apply(set).to_dict()
+    jours_par_mois = df_n.groupby("Mois")["Jour"].apply(max).to_dict()
     result_rows = []
     for mois in sorted(jours_par_mois.keys()):
-        jours_n = jours_par_mois[mois]
+        max_jour = int(jours_par_mois[mois])
         ca_n = df_n[df_n["Mois"] == mois]["Montant TTC"].sum()
         ca_n1 = df_n1[df_n1["Mois"] == mois]["Montant TTC"].sum()
         var_pct = ((ca_n - ca_n1) / ca_n1 * 100) if ca_n1 > 0 else (100 if ca_n > 0 else 0)
@@ -99,7 +101,7 @@ def compare_years_date_to_date(
             "CA N-1": ca_n1,
             "Variation %": round(var_pct, 1),
             "Mois Nom": MOIS.get(mois, str(mois)),
-            "Jours comparés": len(jours_n),
+            "Jours comparés": max_jour,
         })
     return pd.DataFrame(result_rows)
 

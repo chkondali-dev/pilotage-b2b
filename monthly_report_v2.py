@@ -29,18 +29,15 @@ def evol(n: float, n1: float) -> float:
     return 100 if n > 0 else 0
 
 def tronquer(df: pd.DataFrame, annee: int, mois: int) -> pd.DataFrame:
-    """Tronque N-1 aux mêmes JOURS EXACTS que N (date-à-date)."""
+    """Tronque N-1 au jour MAX atteint dans N (jours 1..max conservés,
+    même sans CA dans N — les jours creux ne retirent pas le CA de N-1)."""
     if df.empty or "Jour" not in df.columns:
         return df
-    jours_n = df[(df["Annee"]==annee) & (df["Mois"]==mois)]["Jour"].unique()
+    jours_n = df[(df["Annee"]==annee) & (df["Mois"]==mois)]["Jour"].dropna()
     if len(jours_n) == 0:
         return df
-    jours_n1 = df[(df["Annee"]==annee-1) & (df["Mois"]==mois)]["Jour"].unique()
-    if len(jours_n1) == 0:
-        return df
-    # Garder dans N-1 uniquement les jours qui existent dans N
-    jours_a_garder = set(jours_n)
-    mask = (df["Annee"]==annee-1) & (df["Mois"]==mois) & (~df["Jour"].isin(jours_a_garder))
+    max_jour = int(jours_n.max())
+    mask = (df["Annee"]==annee-1) & (df["Mois"]==mois) & (df["Jour"] > max_jour)
     return df[~mask]
 
 def grouper_ca(df: pd.DataFrame, annee: int, mois: int, colonne: str = "Nom") -> pd.DataFrame:
