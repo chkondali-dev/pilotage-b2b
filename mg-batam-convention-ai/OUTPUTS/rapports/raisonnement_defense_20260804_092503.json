@@ -1,0 +1,53 @@
+{
+  "timestamp": "2026-08-04T09:25:03",
+  "demande": "Défends le dossier sarl_batam_services.md avant verrouillage. Justifie la viabilité, la couverture des garanties et le verrou du framework.",
+  "intention": "defense",
+  "cible": "sarl_batam_services.md",
+  "mode": "dg",
+  "duree_s": 237.9,
+  "modele": "qwen2.5:7b",
+  "provider": "ollama",
+  "tokens": {
+    "prompt_tokens": 1583,
+    "completion_tokens": 375,
+    "total_tokens": 1958
+  },
+  "sources_utilisees": [
+    "KNOWLEDGE\\conventions\\conditions_generales.md",
+    "KNOWLEDGE\\reference\\framework_conventions_smg.md",
+    "KNOWLEDGE\\procedures\\procedure_validation.md",
+    "data\\dossiers\\meditech.md",
+    "KNOWLEDGE\\procedures\\politique_risque.md",
+    "data\\dossiers\\groupe.md",
+    "data\\dossiers\\groupe.md",
+    "KNOWLEDGE\\reference\\framework_conventions_smg.md",
+    "document concerné",
+    "document concerné (section garanties)"
+  ],
+  "sources_ignorees": [],
+  "contraintes": [],
+  "inconnues": [
+    "# Dossier de convention — SARL Batam Services\n\n> **Contrat Lab** — généré le 2026-08-04 08:51.\n> Étape 4 du process : défense du dossier (framework SMG v2.0).\n\n## 1. Identification du client\n\n| Élémen"
+  ],
+  "coverage": {
+    "intention": "defense",
+    "required_sources": 3,
+    "available_sources": 3,
+    "required_kpis": 0,
+    "available_kpis": 0,
+    "memory_chunks": 8,
+    "average_relevance": 0.394,
+    "missing": []
+  },
+  "assessment": {
+    "confidence": 85,
+    "rationale": [
+      "Les sources fournissent une couverture suffisante sur la juridiction, le processus de cession et l'étape de verrouillage risque.",
+      "Il n'y a pas d'informations manquantes critiques dans les sources disponibles."
+    ],
+    "unanswered": [
+      "Quels sont exactement les montants des frais d'enregistrement pour SARL Batam Services ?"
+    ]
+  },
+  "reponse": "[F1] Les frais d'enregistrement, timbre et légalisation sont à la charge du client/partenaire. [F2] Le processus de cession sur salaire est légalement validé au Tribunal Cantonal. [F3] Le verrouillage risque est jugé par le Directeur Service Clients et le Directeur Finance & Contentieux. [F4] Le dossier pour SARL Batam Services suit les étapes du Framework SMG v2.0. [F6] La caution solidaire de la holding n'est pas applicable dans ce cas. [F8] Le verrouillage risque est une étape cruciale avant la décision finale."
+}

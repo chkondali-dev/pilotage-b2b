@@ -22,12 +22,14 @@ OLLAMA_ENDPOINT = "http://localhost:11434"
 # Rôles "analyse" tournent en local (8B, confortable sur CPU 16GB).
 # Rôle "redaction" passe par Groq/API (qualité française) — fallback local si pas de clé.
 # Le modèle d'embeddings (RAG) est défini dans llm/store.py — store local autonome.
+# brain : qwen2.5:7b par défaut (≈3× plus rapide que deepseek-r1:7b, qui raisonne ~9 min).
+#        Revenir au raisonneur : CAI_BRAIN_MODEL=deepseek-r1:7b.
 MODELS = {
     "analyse":  os.getenv("CAI_ANALYSE_MODEL",  "qwen2.5:7b"),        # audit, risque, comparaison
     "negociation": os.getenv("CAI_NEGO_MODEL",  "qwen2.5:7b"),        # stratégie
     "redaction": os.getenv("CAI_REDACTION_MODEL", "llama-3.3-70b-versatile"),  # Groq
     "comex":    os.getenv("CAI_COMEX_MODEL",    "qwen2.5:7b"),        # décision
-    "brain":    os.getenv("CAI_BRAIN_MODEL",    "deepseek-r1:7b"),    # raisonnement final (Ollama)
+    "brain":    os.getenv("CAI_BRAIN_MODEL",    "qwen2.5:7b"),    # raisonnement final (Ollama)
 }
 
 # ── Fallback API (Groq, OpenAI-compatible) ───────────────────
