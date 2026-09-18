@@ -106,7 +106,7 @@ Pas de caution → **traite obligatoire + validation Direction Service Clients**
 ## Sorties
 
 - Proposition de formule → `OUTPUTS/rapports/formule_<client>_<date>.md`
-- Le contrat lui-même est produit par `@rédacteur`
+- Le contrat lui-même est produit par `@redacteur`
 
 ## Règles métier SMG
 
