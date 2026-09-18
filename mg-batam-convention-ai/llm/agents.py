@@ -12,6 +12,8 @@ _ROLE_FILE = {
     "contradicteur": "contradicteur.md",
     "comex": "comex.md",
     "redacteur": "redacteur.md",
+    "formulateur": "formulateur.md",
+    "pv_analyste": "pv_analyste.md",
 }
 
 
@@ -147,3 +149,44 @@ def rediger(prompt_user: str) -> str | None:
 Structure attendue : Préambule → Objet → Définitions → Articles (obligations, garanties, durée, résiliation, litiges) → Signatures.
 Règles : jamais de chiffre inventé (champ ________ si inconnu). Mentionner le mécanisme de cession sur salaire (Tribunal Cantonal, Paierie Générale) quand il s'applique."""
     return client.chat(prompt, role="redaction", system=_system_prompt("redacteur"))
+
+
+def analyser_pv(pv: str, chemin: str = "") -> str | None:
+    """Extrait les informations structurées d'un procès-verbal (agent pv_analyste)."""
+    prompt = f"""Analyse ce procès-verbal de réunion et extrais les informations clés, au format de PROMPTS/analyse_pv.md.
+
+Document : {chemin or "(fourni ci-dessous)"}
+
+{pv}
+
+Rappel du format attendu :
+- Identification : client, structure (SA/SARL/Administration/Amicale/Mutuelle/Groupe), présence d'une amicale
+- Éléments de garantie : caution solidaire, cession sur salaire, traite, légalisation Tribunal Cantonal
+- Clauses spécifiques détectées : RFA, RIB adhérent, RTT, mise en demeure / LRAR, délai de paiement
+- Template recommandé (croisé avec la matrice_formules) + confiance
+- Informations manquantes et questions à poser
+
+Règles : ne devine PAS — signale ce qui est absent du PV. Distingue les OBLIGATIONS des OPTIONS.
+Les clauses « bon d'achat » et « force majeure » sont retirées : ne les propose pas."""
+    return client.chat(prompt, role="analyse", system=_system_prompt("pv_analyste"))
+
+
+def proposer_formule(analyse_pv: str, contexte: str = "") -> str | None:
+    """Détermine la formule contractuelle (template + variantes + 4 clauses) — agent formulateur."""
+    prompt = f"""Détermine la formule contractuelle optimale à partir de cette analyse de PV.
+
+{contexte}
+
+Analyse PV :
+{analyse_pv}
+
+Format attendu :
+- Template de base + justification
+- Variante (Standard / Facilitateur / RTT / ONTT / Aucune) + justification
+- Les 4 décisions obligatoires : cession sur salaire vs traite de garantie · caution (qui se porte garant) · RFA (levier de fin, jamais en premier) · amicale (A / B / aucune)
+- Clauses actives et leur source (PV § ou défaut template)
+- Modifications concrètes à appliquer au template
+- Questions à clarifier avec le client
+
+Règles : propose TOUJOURS la formule la plus protectrice pour SMG. Signale chaque clause par défaut appliquée sans mention dans le PV."""
+    return client.chat(prompt, role="analyse", system=_system_prompt("formulateur"))

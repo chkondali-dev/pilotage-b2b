@@ -5,6 +5,8 @@ Usage :
     python main.py audit <fichier>
     python main.py risque <fichier>
     python main.py comparer <version_a> <version_b>
+    python main.py analyser-pv <pv_fichier>     # pv_analyste : structure un PV
+    python main.py formule <analyse_pv.md>      # formulateur : choisit le template
     python main.py negocier <contexte>
     python main.py comex <dossier_ou_texte>
     python main.py workflow revue_complete <fichier> [--negocier]
@@ -44,6 +46,12 @@ def main() -> None:
     sp = sub.add_parser("comparer", help="Comparer deux versions")
     sp.add_argument("version_a")
     sp.add_argument("version_b")
+
+    sp = sub.add_parser("analyser-pv", help="Analyser un PV de réunion (pv_analyste)")
+    sp.add_argument("fichier")
+
+    sp = sub.add_parser("formule", help="Proposer la formule contractuelle (formulateur)")
+    sp.add_argument("fichier", help="Analyse PV (markdown) — produite par analyser-pv")
 
     sp = sub.add_parser("negocier", help="Fiche de négociation")
     sp.add_argument("contexte")
@@ -88,6 +96,10 @@ def main() -> None:
         print(agents.analyse_risque(_read(args.fichier), args.fichier) or "❌ Échec LLM")
     elif args.cmd == "comparer":
         print(agents.comparer(_read(args.version_a), _read(args.version_b)) or "❌ Échec LLM")
+    elif args.cmd == "analyser-pv":
+        print(agents.analyser_pv(_read(args.fichier), args.fichier) or "❌ Échec LLM")
+    elif args.cmd == "formule":
+        print(agents.proposer_formule(_read(args.fichier)) or "❌ Échec LLM")
     elif args.cmd == "negocier":
         print(agents.preparer_negociation(args.contexte) or "❌ Échec LLM")
     elif args.cmd == "comex":
