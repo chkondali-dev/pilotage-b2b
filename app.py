@@ -30,7 +30,7 @@ from charts.factory import (
     chart_bar, chart_grouped_bar, chart_line_compare, chart_variation_bar,
     chart_waterfall, chart_risk_table, chart_gauge, chart_pie,
 )
-from ui.components import inject_css, hero, section, badge, rank_card
+from ui.components import inject_css, hero, section, badge, rank_card, kpi_card
 from utils.github import push_csv_to_github
 import business.conventions as conv
 
@@ -1658,11 +1658,15 @@ with tabs[5]:
         ca_adh_n1 = _safe_div(ca_n1, adh_n1)
 
         k1, k2, k3, k4, k5 = st.columns(5)
-        k1.metric(
-            f"CA {mut_yr}", f"{ca_n:,.0f} TND", _delta(ca_n, ca_n1),
-            delta_color="normal" if ca_n >= ca_n1 else "inverse",
-            help=f"Comparé date à date avec {mut_yr-1} sur les mois sélectionnés.",
-        )
+        with k1:
+            kpi_card(
+                f"CA {mut_yr}", f"{ca_n:,.0f} TND", _delta(ca_n, ca_n1),
+                delta_tone="normal" if ca_n >= ca_n1 else "inverse",
+                ref_label=f"CA {mut_yr-1}",
+                ref_value=f"{ca_n1:,.0f} TND",
+                help=f"Comparé date à date avec {mut_yr-1} sur les mois sélectionnés ; "
+                     f"référence {mut_yr-1} sur la même période : {ca_n1:,.0f} TND.",
+            )
         k2.metric(
             "Adhérents actifs", f"{adh_n:,}", _delta(adh_n, adh_n1),
             delta_color="normal" if adh_n >= adh_n1 else "inverse",

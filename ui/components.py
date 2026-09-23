@@ -163,6 +163,35 @@ def inject_css():
     .rank-top  .rank-val {{ color:#15803d; }}
     .rank-flop .rank-num {{ color:#ea580c; }}
     .rank-flop .rank-val {{ color:#c2410c; }}
+    .kpi-card {{
+        background: rgba(255,255,255,0.92);
+        border: 1px solid {C["border"]};
+        border-radius: 16px;
+        padding: 0.9rem 1.1rem;
+        box-shadow: 0 2px 12px rgba(15,23,42,0.06);
+        transition: box-shadow .2s;
+        height: 100%;
+    }}
+    .kpi-card:hover {{ box-shadow: 0 6px 24px rgba(15,23,42,0.10); }}
+    .kpi-label {{
+        font-size: 0.72rem; font-weight: 700; color: {C["muted"]};
+        text-transform: uppercase; letter-spacing: 0.07em;
+    }}
+    .kpi-value {{
+        font-size: 1.6rem; font-weight: 800; color: {C["ink"]}; line-height: 1.1;
+    }}
+    .kpi-foot {{
+        display: flex; align-items: baseline; justify-content: space-between;
+        gap: 8px; margin-top: 0.35rem;
+    }}
+    .kpi-delta {{ font-size: 0.85rem; font-weight: 700; }}
+    .kpi-up   {{ color: {C["green"]}; }}
+    .kpi-down {{ color: {C["red"]}; }}
+    .kpi-flat {{ color: {C["muted"]}; }}
+    .kpi-ref {{
+        margin-left: auto; font-size: 0.75rem; font-weight: 700;
+        color: {C["muted"]}; white-space: nowrap;
+    }}
     </style>
     """, unsafe_allow_html=True)
 
@@ -188,6 +217,41 @@ def badge(text: str, tone: str = "blue"):
     """Badge coloré (red, amber, green, blue)."""
     cls = {"red": "b-red", "amber": "b-amber", "green": "b-green", "blue": "b-blue"}.get(tone, "b-blue")
     st.markdown(f"<span class='badge {cls}'>{text}</span>", unsafe_allow_html=True)
+
+
+def kpi_card(label: str, value: str, delta: str = None, delta_tone: str = "normal",
+             ref_label: str = None, ref_value: str = None, help: str = None):
+    """
+    Carte KPI au format des tuiles st.metric, avec une valeur de référence
+    optionnelle affichée en bas à droite de la même tuile (ex. CA N-1).
+    delta_tone : "normal" (hausse verte), "inverse" (hausse rouge), "off" (gris).
+    """
+    delta_html = ""
+    if delta:
+        if delta_tone == "off":
+            delta_html = f"<span class='kpi-delta kpi-flat'>{delta}</span>"
+        else:
+            up = not str(delta).strip().startswith("-")
+            if delta_tone == "inverse":
+                up = not up
+            cls = "kpi-up" if up else "kpi-down"
+            arrow = "\u25b2 " if up else "\u25bc "
+            delta_html = f"<span class='kpi-delta {cls}'>{arrow}{delta}</span>"
+
+    ref_html = ""
+    if ref_value:
+        lbl = f"{ref_label} : " if ref_label else ""
+        ref_html = f"<span class='kpi-ref'>{lbl}{ref_value}</span>"
+
+    tip = f" title='{str(help).replace(chr(39), '&#39;')}'" if help else ""
+    st.markdown(
+        f"<div class='kpi-card'{tip}>"
+        f"<div class='kpi-label'>{label}</div>"
+        f"<div class='kpi-value'>{value}</div>"
+        f"<div class='kpi-foot'>{delta_html}{ref_html}</div>"
+        f"</div>",
+        unsafe_allow_html=True,
+    )
 
 
 def rank_card(rank: int, name: str, value: str, variant: str = "top"):
