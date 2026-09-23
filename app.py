@@ -99,6 +99,13 @@ with st.spinner("Chargement des données…"):
 df_vc, df_credit, df_edc, df_conv, code_df, df_credit_part, df_cube_mag, df_prospection, df_crm = prepare_data(_raw)
 _raw_part = _raw.get("credit_particulier", pd.DataFrame())
 
+# Mutuelle Personnel Sûreté Nationale — Prison & Rééducation (extrait du crédit conso)
+df_mutuelle = (
+    df_credit[df_credit["Nom"].str.contains("MUT PERS SURETE NLE PRISON", case=False, na=False)].copy()
+    if not df_credit.empty and "Nom" in df_credit.columns
+    else pd.DataFrame()
+)
+
 if df_vc.empty or "Année" not in df_vc.columns:
     st.error("\u26a0\ufe0f Aucune donnée VC chargée. Vérifiez la connexion GitHub.")
     st.stop()
@@ -267,6 +274,7 @@ tabs = st.tabs([
     "\U0001f4cb Conventions",
     "\U0001f3ea Magasins",
     "\U0001f3eb EDC",
+    "\U0001f6e1\ufe0f Mutuelle Sûreté",
     "\U0001f4cb Conventions encours",
     "\U0001f91d CRM",
     "\U0001f6a8 Alertes Tendances",
@@ -1531,9 +1539,247 @@ with tabs[4]:
 
 
 # ══════════════════════════════════════════════════════════════
-# TAB 5 — CONVENTIONS SMG (suivi, DSO, alertes, GPO)
+# TAB 5 — MUTUELLE SÛRETÉ NATIONALE — PRISON & RÉÉDUCATION
 # ══════════════════════════════════════════════════════════════
 with tabs[5]:
+    st.subheader("\U0001f6e1\ufe0f Mutuelle Personnel Sûreté Nationale — Prison & Rééducation")
+    st.caption("Analyse dédiée extraite du flux Crédit Conso (VC.CONSO.) — client « MUT PERS SURETE NLE PRISON &REEDUC ».")
+
+    if not df_mutuelle.empty and "Année" in df_mutuelle.columns:
+        mut_yr = st.selectbox("Année", [2026, 2025, 2024], key="mut_yr")
+
+        df_mut_n  = df_mutuelle[df_mutuelle["Année"] == mut_yr]
+        df_mut_n1 = df_mutuelle[df_mutuelle["Année"] == mut_yr - 1]
+
+        if mois_sel:
+            df_mut_n  = df_mut_n[df_mut_n["Mois"].isin(mois_sel)]
+            df_mut_n1 = df_mut_n1[df_mut_n1["Mois"].isin(mois_sel)]
+
+        # CA comparable date-à-date (même logique que l'onglet EDC)
+        if len(df_mut_n) > 0 and "Jour" in df_mut_n.columns and len(df_mut_n1) > 0:
+            mut_comp = compare_years_date_to_date(
+                pd.concat([df_mut_n, df_mut_n1]),
+                mut_yr, mut_yr - 1, mois_sel
+            )
+            ca_m_n  = mut_comp["CA N"].sum()   if not mut_comp.empty else 0.0
+            ca_m_n1 = mut_comp["CA N-1"].sum() if not mut_comp.empty else 0.0
+        else:
+            ca_m_n  = float(df_mut_n["Montant TTC"].sum())  if "Montant TTC" in df_mut_n.columns  else 0.0
+            ca_m_n1 = float(df_mut_n1["Montant TTC"].sum()) if "Montant TTC" in df_mut_n1.columns else 0.0
+
+        ev_mut     = evol_pct(ca_m_n, ca_m_n1)
+        nb_f_mut   = len(df_mut_n)
+        panier_mut = ca_m_n / nb_f_mut if nb_f_mut > 0 else 0
+        nb_mag_mut = df_mut_n["Magasin"].nunique() if "Magasin" in df_mut_n.columns else 0
+
+        m1, m2, m3, m4, m5 = st.columns(5)
+        m1.metric(f"CA {mut_yr}", f"{ca_m_n:,.0f} TND", f"{ev_mut:+.1f}%",
+                  delta_color="normal" if ev_mut >= 0 else "inverse")
+        m2.metric(f"CA {mut_yr-1}", f"{ca_m_n1:,.0f} TND")
+        m3.metric("Nb factures", nb_f_mut)
+        m4.metric("Panier moyen", f"{panier_mut:,.0f} TND")
+        m5.metric("Magasins actifs", nb_mag_mut)
+        # ── Top magasins ─────────────────────────────────────
+        section(f"Top Magasins — {mut_yr}")
+
+        mag_mut = (
+            df_mut_n.groupby("Magasin")
+            .agg(CA_N=("Montant TTC", "sum"), Nb=("Montant TTC", "count"))
+            .reset_index()
+            .sort_values("CA_N", ascending=False)
+        )
+        mag_mut["Panier moyen"] = (mag_mut["CA_N"] / mag_mut["Nb"]).round(0)
+        total_mut_n = mag_mut["CA_N"].sum()
+        mag_mut["Poids %"] = (mag_mut["CA_N"] / total_mut_n * 100).round(1) if total_mut_n > 0 else 0.0
+
+        mag_mut_n1 = (
+            df_mut_n1.groupby("Magasin")
+            .agg(CA_N1=("Montant TTC", "sum"))
+            .reset_index()
+        )
+        mag_mut = mag_mut.merge(mag_mut_n1, on="Magasin", how="left").fillna(0)
+        mag_mut["Evolution %"] = np.where(
+            mag_mut["CA_N1"] > 0,
+            ((mag_mut["CA_N"] - mag_mut["CA_N1"]) / mag_mut["CA_N1"] * 100).round(1),
+            0.0
+        )
+
+        c_mu1, c_mu2, c_mu3, c_mu4 = st.columns(4)
+        c_mu1.metric("\U0001f3ea Magasins actifs", len(mag_mut[mag_mut["CA_N"] > 0]))
+        c_mu2.metric("\U0001f4b0 CA Total Mutuelle", f"{total_mut_n:,.0f} TND")
+        c_mu3.metric("\U0001f4c8 En croissance", len(mag_mut[mag_mut["Evolution %"] > 0]))
+        c_mu4.metric("\U0001f4c9 En baisse", len(mag_mut[mag_mut["Evolution %"] < 0]))
+
+        col_mb1, col_mb2 = st.columns([3, 2])
+        with col_mb1:
+            top10m = mag_mut.head(10).sort_values("CA_N")
+            fig_topm = px.bar(
+                top10m, x="CA_N", y="Magasin", orientation="h",
+                title=f"Top 10 Magasins — {mut_yr}",
+                color="CA_N", color_continuous_scale=["#1D4ED8", "#3B82F6", "#60A5FA"],
+                text_auto=".0f"
+            )
+            fig_topm.update_layout(height=400, yaxis=dict(autorange="reversed"))
+            fig_topm.update_traces(textposition="outside")
+            st.plotly_chart(fig_topm, use_container_width=True)
+        with col_mb2:
+            fig_piem = px.pie(
+                mag_mut.head(8), values="CA_N", names="Magasin",
+                title="Répartition du CA Mutuelle", hole=0.42,
+                color_discrete_sequence=px.colors.qualitative.Set3
+            )
+            fig_piem.update_traces(textinfo="percent+label")
+            st.plotly_chart(fig_piem, use_container_width=True)
+
+        with st.expander("\U0001f4cb Tableau complet des magasins"):
+            display_cols = ["Magasin", "CA_N", "Nb", "Panier moyen", "Poids %", "Evolution %"]
+            rename_map = {"CA_N": "CA N", "Nb": "Nb factures", "Evolution %": "Évolution %"}
+            display_df = mag_mut[display_cols].rename(columns=rename_map)
+            st.dataframe(
+                display_df.style.format({
+                    "CA N": "{:,.0f}", "Panier moyen": "{:,.0f}",
+                    "Poids %": "{:.1f}%", "Évolution %": "{:+.1f}%"
+                }, na_rep="—"),
+                use_container_width=True, height=400
+            )
+
+        # ── Répartition par durée d'échéance ─────────────────
+        section("Répartition par durée d'échéance")
+        if "Nbr_Mois_Echance" in df_mut_n.columns and len(df_mut_n) > 0:
+            ech_mut = (
+                df_mut_n.groupby("Nbr_Mois_Echance")
+                .agg(CA=("Montant TTC", "sum"), Nb=("Montant TTC", "count"))
+                .reset_index()
+            )
+            ech_mut["Part %"] = (ech_mut["CA"] / ech_mut["CA"].sum() * 100).round(1)
+            ech_mut["Label"]  = ech_mut["Part %"].apply(lambda p: f"{p}%")
+            ech_mut = ech_mut.sort_values("CA", ascending=False)
+
+            col_em1, col_em2 = st.columns([2, 1])
+            with col_em1:
+                fig_echm = chart_bar(
+                    ech_mut, "Nbr_Mois_Echance", "CA",
+                    f"Répartition par durée d'échéance — {mut_yr}", C["blue"],
+                )
+                fig_echm.update_xaxes(title="Durée (mois)", type="category")
+                fig_echm.update_yaxes(title="CA TTC (TND)")
+                fig_echm.update_traces(text=ech_mut["Label"].tolist(), textposition="outside")
+                st.plotly_chart(fig_echm, use_container_width=True)
+
+            with col_em2:
+                fig_pie_em = chart_pie(
+                    ech_mut["CA"].tolist(),
+                    [f"{m} mois" for m in ech_mut["Nbr_Mois_Echance"]],
+                    "Part par échéance",
+                )
+                st.plotly_chart(fig_pie_em, use_container_width=True)
+        else:
+            st.info("Données d'échéance indisponibles pour cette période.")
+
+        # ── Tendance mensuelle ────────────────────────────────
+        section("Tendance mensuelle Mutuelle")
+        df_mut_comp = compare_years_date_to_date(df_mutuelle, mut_yr, mut_yr - 1)
+        if not df_mut_comp.empty:
+            fig_mut_t = chart_grouped_bar(
+                df_mut_comp, "Mois Nom", "CA N", "CA N-1",
+                f"Mutuelle mensuel — {mut_yr} vs {mut_yr-1}", mut_yr,
+            )
+            st.plotly_chart(fig_mut_t, use_container_width=True)
+        # ── Analyse complète automatique ──────────────────────
+        section("Analyse complète — Synthèse & Recommandations")
+
+        insights = []
+        if ca_m_n1 > 0:
+            sens = "en croissance" if ev_mut >= 0 else "en recul"
+            insights.append(
+                f"**Tendance globale** : CA {sens} de {abs(ev_mut):.1f}% vs {mut_yr-1} "
+                f"({ca_m_n:,.0f} TND vs {ca_m_n1:,.0f} TND à date comparable)."
+            )
+        elif ca_m_n > 0:
+            insights.append(
+                f"**Tendance globale** : activité nouvelle en {mut_yr} "
+                f"({ca_m_n:,.0f} TND) — aucune donnée comparable en {mut_yr-1}."
+            )
+
+        top3_poids = 0.0
+        if len(mag_mut) > 0:
+            top1 = mag_mut.iloc[0]
+            insights.append(
+                f"**Meilleur magasin** : {top1['Magasin']} — {top1['CA_N']:,.0f} TND "
+                f"({top1['Poids %']:.1f}% du CA Mutuelle)."
+            )
+            top3_poids = mag_mut.head(3)["Poids %"].sum()
+            insights.append(
+                f"**Concentration** : le top 3 magasins réalise {top3_poids:.1f}% du CA — "
+                + ("⚠️ forte dépendance, risque de concentration."
+                   if top3_poids > 50 else "répartition relativement équilibrée.")
+            )
+
+        if "Mois" in df_mut_n.columns and len(df_mut_n) > 0:
+            mens_mut = df_mut_n.groupby("Mois")["Montant TTC"].sum()
+            if len(mens_mut) > 0:
+                best_m, worst_m = mens_mut.idxmax(), mens_mut.idxmin()
+                insights.append(
+                    f"**Saisonnalité** : meilleur mois = {MOIS.get(best_m, best_m)} "
+                    f"({mens_mut.max():,.0f} TND), plus faible = {MOIS.get(worst_m, worst_m)} "
+                    f"({mens_mut.min():,.0f} TND)."
+                )
+
+        if "Nbr_Mois_Echance" in df_mut_n.columns and len(df_mut_n) > 0:
+            ech_dom = df_mut_n.groupby("Nbr_Mois_Echance")["Montant TTC"].sum()
+            ca_tot_mut = df_mut_n["Montant TTC"].sum()
+            if len(ech_dom) > 0 and ca_tot_mut > 0:
+                d_dom = ech_dom.idxmax()
+                insights.append(
+                    f"**Échéance dominante** : {d_dom} mois "
+                    f"({ech_dom.max():,.0f} TND, {ech_dom.max() / ca_tot_mut * 100:.1f}% du CA)."
+                )
+
+        encours_mut = 0.0
+        if "Montant ouvert" in df_mut_n.columns and len(df_mut_n) > 0:
+            encours_mut = float(pd.to_numeric(df_mut_n["Montant ouvert"], errors="coerce").fillna(0).sum())
+            insights.append(f"**Encours ouvert** : {encours_mut:,.0f} TND restant à amortir sur la période.")
+
+        non_clot = 0
+        if "Clôturé" in df_mut_n.columns and len(df_mut_n) > 0:
+            non_clot = len(df_mut_n[~df_mut_n["Clôturé"].astype(str).str.lower().isin(["true", "1", "oui"])])
+            if non_clot > 0:
+                insights.append(f"**Clôture** : {non_clot} dossier(s) non clôturé(s) — à suivre en recouvrement.")
+            else:
+                insights.append("**Clôture** : tous les dossiers de la période sont clôturés ✅.")
+
+        recos = []
+        if ev_mut < -10 and ca_m_n1 > 0:
+            recos.append("Relancer commercialement la Mutuelle (rencontre direction, animation réseau magasins).")
+        elif ev_mut > 10:
+            recos.append("Capitaliser sur la croissance : renforcer l'offre et les stocks sur les magasins moteurs.")
+        if top3_poids > 50:
+            recos.append("Déployer l'offre dans davantage de magasins pour réduire la concentration du CA.")
+        if encours_mut > 0:
+            recos.append("Suivre l'encours ouvert mensuellement avec le service recouvrement.")
+        if non_clot > 0:
+            recos.append(f"Régulariser les {non_clot} dossier(s) non clôturé(s).")
+        if not recos:
+            recos.append("Maintenir la dynamique actuelle et sécuriser le renouvellement de la convention.")
+
+        col_an1, col_an2 = st.columns([3, 2])
+        with col_an1:
+            st.markdown("#### \U0001f4ca Constats clés")
+            for ins in insights:
+                st.markdown(f"- {ins}")
+        with col_an2:
+            st.markdown("#### \U0001f3af Recommandations")
+            for rec in recos:
+                st.markdown(f"- {rec}")
+    else:
+        st.warning("\u26a0\ufe0f Aucune donnée Mutuelle Sûreté disponible dans le fichier crédit conso.")
+
+
+
+# ══════════════════════════════════════════════════════════════
+# TAB 6 — CONVENTIONS SMG (suivi, DSO, alertes, GPO)
+# ══════════════════════════════════════════════════════════════
+with tabs[6]:
 
     st.markdown("Conventions encours")
     st.caption("Suivi des projets de convention — de la prospection a la finalisation.")
@@ -1730,7 +1976,7 @@ with tabs[5]:
                         st.success(f"Ajoute : {nc}")
                         st.rerun()
 
-with tabs[6]:
+with tabs[7]:
     if df_crm is not None and len(df_crm) > 0:
         ca_pot_total = df_crm["CA potentiel"].sum()
         ca_real_total = df_crm["CA realise"].sum()
@@ -1801,7 +2047,7 @@ with tabs[6]:
     else:
         st.info("CRM desactive. Verifiez TDC2.xlsx et crm.py")
 
-with tabs[7]:
+with tabs[8]:
     st.markdown("### \U0001f6a8 Alertes Tendances")
     try:
         from trend_analyzer import TrendAnalyzer
@@ -1874,9 +2120,9 @@ with tabs[7]:
         st.caption("Données insuffisantes.")
 
 # ══════════════════════════════════════════════════════════════
-# TAB 8 — ARCHIVE RAPPORTS
+# TAB 9 — ARCHIVE RAPPORTS
 # ══════════════════════════════════════════════════════════════
-with tabs[8]:
+with tabs[9]:
     st.markdown("### \U0001f4c2 Archive des Rapports Mensuels")
     archive_path = Path(__file__).parent / ".cache_monthly" / "report_archive.json"
 

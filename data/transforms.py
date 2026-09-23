@@ -156,6 +156,9 @@ def prepare_data(_raw: dict) -> tuple:
     df_credit = _filter_conventions(
         _map_magasins(_add_date_cols(_raw.get("vc_credit", pd.DataFrame())), code_df)
     )
+    _ech_credit = next((c for c in df_credit.columns if c.startswith("Nbr_Mois_Ech")), None)
+    if _ech_credit and _ech_credit != "Nbr_Mois_Echance":
+        df_credit = df_credit.rename(columns={_ech_credit: "Nbr_Mois_Echance"})
     df_edc = _map_magasins(_add_date_cols(_raw.get("vc_edc", pd.DataFrame())), code_df)
     if "Nbr_Mois_Échance" in df_edc.columns:
         df_edc = df_edc.rename(columns={"Nbr_Mois_Échance": "Nbr_Mois_Echance"})
