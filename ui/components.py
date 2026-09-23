@@ -38,15 +38,26 @@ def inject_css():
         padding: 0.9rem 1.1rem;
         box-shadow: 0 2px 12px rgba(15,23,42,0.06);
         transition: box-shadow .2s;
+        font-family: 'DM Sans', sans-serif;
     }}
     [data-testid="stMetric"]:hover {{ box-shadow: 0 6px 24px rgba(15,23,42,0.10); }}
-    [data-testid="metric-container"] > div:first-child {{
+    /* Typo des tuiles st.metric — memes valeurs que .kpi-label / .kpi-value / .kpi-delta */
+    [data-testid="stMetric"] [data-testid="stMetricLabel"] [data-testid="stMarkdownContainer"] {{
+        font-family: 'DM Sans', sans-serif;
         font-size: 0.72rem; font-weight: 700; color: {C["muted"]};
         text-transform: uppercase; letter-spacing: 0.07em;
     }}
-    [data-testid="metric-container"] > div:nth-child(2) {{
+    [data-testid="stMetric"] [data-testid="stMetricValue"] {{
+        font-family: 'DM Sans', sans-serif;
         font-size: 1.6rem; font-weight: 800; color: {C["ink"]}; line-height: 1.1;
     }}
+    [data-testid="stMetric"] [data-testid="stMetricDelta"] {{
+        font-family: 'DM Sans', sans-serif;
+        background: none; border-radius: 0; padding: 0;
+        font-size: 0.85rem; font-weight: 700;
+    }}
+    [data-testid="stMetric"] [data-testid="stMetricDelta"]:has([data-testid="stMetricDeltaIcon-Up"]) {{ color: {C["green"]}; }}
+    [data-testid="stMetric"] [data-testid="stMetricDelta"]:has([data-testid="stMetricDeltaIcon-Down"]) {{ color: {C["red"]}; }}
     div[data-testid="stPlotlyChart"] {{
         background: rgba(255,255,255,0.88);
         border: 1px solid {C["border"]};
