@@ -171,6 +171,7 @@ def inject_css():
         box-shadow: 0 2px 12px rgba(15,23,42,0.06);
         transition: box-shadow .2s;
         height: 100%;
+        font-family: 'DM Sans', sans-serif;
     }}
     .kpi-card:hover {{ box-shadow: 0 6px 24px rgba(15,23,42,0.10); }}
     .kpi-label {{
