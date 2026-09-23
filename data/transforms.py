@@ -47,7 +47,7 @@ def _map_magasins(df: pd.DataFrame, code_df: pd.DataFrame) -> pd.DataFrame:
     code_df[code_col] = code_df[code_col].astype(str).str.strip()
     mapping_nom = code_df.set_index(code_col)[unite_col].to_dict()
     mapping_ense = code_df.set_index(code_col)["Enseigne"].to_dict()
-    df[code_col_src] = df[code_col_src].astype(str).str.strip()
+    df[code_col_src] = df[code_col_src].astype(str).str.strip().str.replace(r"\.0$", "", regex=True)
     df["Magasin"] = df[code_col_src].map(mapping_nom).fillna(df[code_col_src])
     df["Enseigne"] = df[code_col_src].map(mapping_ense).fillna("MG")
     return df
