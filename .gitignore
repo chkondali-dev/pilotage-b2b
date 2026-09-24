@@ -35,3 +35,6 @@ node_modules/
 # Backup / temp
 *_backup_*.py
 app_backup_*.py
+
+# Exception: manifeste dependances (Streamlit Cloud)
+!requirements.txt
