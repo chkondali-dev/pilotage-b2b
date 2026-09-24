@@ -1397,143 +1397,573 @@ with tabs[3]:
 # ══════════════════════════════════════════════════════════════
 with tabs[4]:
     st.subheader("\U0001f3eb Convention EDC — Ministère de l'Éducation")
+    st.caption(
+        "Convention Ministère de l'Éducation — flux EDC. Lecture en 5 sections : "
+        "situation → dynamique → réseau → échéance → synthèse."
+    )
 
     if not df_edc.empty and "Année" in df_edc.columns:
-        edc_yr = st.selectbox("Année", [2026, 2025, 2024], key="edc_yr")
+        # ── NIVEAU 0 · préparation du périmètre + dates ──────────────
+        edc = df_edc.copy()
+        if "Montant TTC" not in edc.columns:
+            edc["Montant TTC"] = 0.0
+        edc["Montant TTC"] = pd.to_numeric(edc["Montant TTC"], errors="coerce").fillna(0.0)
+        _mag = edc["Magasin"].astype(str).str.strip() if "Magasin" in edc.columns else pd.Series("", index=edc.index)
+        _mag_abs = _mag.str.lower().isin(["", "nan", "none", "<na>"])
+        _mag_digit = (~_mag_abs) & _mag.str.match(r"^\d+(\.0)?$", na=False)
+        edc["Magasin"] = _mag.where(~_mag_abs, "Magasin non renseigné")
+        edc.loc[_mag_digit, "Magasin"] = "Code " + _mag[_mag_digit].str.replace(r"\.0$", "", regex=True) + " (non mappé)"
+        if "Enseigne" not in edc.columns:
+            edc["Enseigne"] = "MG"
+        edc["Enseigne"] = edc["Enseigne"].where(
+            edc["Enseigne"].astype(str).str.strip().str.len() > 0, "MG"
+        )
 
-        df_edc_n  = df_edc[df_edc["Année"] == edc_yr]
-        df_edc_n1 = df_edc[df_edc["Année"] == edc_yr - 1]
+        # ── NIVEAU 1 · filtres du compte ─────────────────────────────
+        annees_dispo = sorted({int(a) for a in edc["Année"].dropna().unique()}, reverse=True)
+        fc1, fc2, fc3 = st.columns([1, 1.3, 2.2])
+        with fc1:
+            edc_yr = st.selectbox("Année de référence", annees_dispo, index=0, key="edc_yr")
+        with fc2:
+            _ens_all = sorted(str(e) for e in edc["Enseigne"].dropna().unique().tolist())
+            ens_sel = st.multiselect("Enseigne", _ens_all, default=[], key="edc_ens")
+        with fc3:
+            _mag_base = edc[edc["Enseigne"].isin(ens_sel)] if ens_sel else edc
+            _mags = sorted(str(m) for m in _mag_base["Magasin"].dropna().unique().tolist())
+            mag_sel = st.multiselect("Établissement", _mags, default=[], key="edc_mag")
+        edc_f = edc
+        if ens_sel:
+            edc_f = edc_f[edc_f["Enseigne"].isin(ens_sel)]
+        if mag_sel:
+            edc_f = edc_f[edc_f["Magasin"].isin(mag_sel)]
 
+        # ── Périodes comparées — UNE SEULE discipline date à date ────
+        df_edc_n = edc_f[edc_f["Année"] == edc_yr]
         if mois_sel:
-            df_edc_n  = df_edc_n[df_edc_n["Mois"].isin(mois_sel)]
+            df_edc_n = df_edc_n[df_edc_n["Mois"].isin(mois_sel)]
+        _trunc_e = truncate_n1_date_to_date(edc_f, edc_yr, edc_yr - 1, mois_sel)
+        df_edc_n1 = _trunc_e[_trunc_e["Année"] == edc_yr - 1]
+        if mois_sel:
             df_edc_n1 = df_edc_n1[df_edc_n1["Mois"].isin(mois_sel)]
-
-        if len(df_edc_n) > 0 and "Jour" in df_edc_n.columns and len(df_edc_n1) > 0:
-            edc_comp = compare_years_date_to_date(
-                pd.concat([df_edc_n, df_edc_n1]),
-                edc_yr, edc_yr - 1, mois_sel
-            )
-            ca_e_n = edc_comp["CA N"].sum() if not edc_comp.empty else 0.0
-            ca_e_n1 = edc_comp["CA N-1"].sum() if not edc_comp.empty else 0.0
+        comp = (
+            compare_years_date_to_date(edc_f, edc_yr, edc_yr - 1, mois_sel)
+            if len(df_edc_n) > 0 and len(df_edc_n1) > 0
+            else pd.DataFrame()
+        )
+        if not comp.empty:
+            ca_e_n = float(comp["CA N"].sum())
+            ca_e_n1 = float(comp["CA N-1"].sum())
         else:
-            ca_e_n    = float(df_edc_n["Montant TTC"].sum())  if "Montant TTC" in df_edc_n.columns  else 0.0
-            ca_e_n1   = float(df_edc_n1["Montant TTC"].sum()) if "Montant TTC" in df_edc_n1.columns else 0.0
+            ca_e_n = float(df_edc_n["Montant TTC"].sum())
+            ca_e_n1 = float(df_edc_n1["Montant TTC"].sum())
 
-        ev_edc    = evol_pct(ca_e_n, ca_e_n1)
-        nb_f_edc  = len(df_edc_n)
-        panier_e  = ca_e_n / nb_f_edc if nb_f_edc > 0 else 0
+        ev_edc = evol_pct(ca_e_n, ca_e_n1)
+        nb_f_edc = len(df_edc_n)
+        nb_f_n1 = len(df_edc_n1)
+        panier_e = ca_e_n / nb_f_edc if nb_f_edc > 0 else 0.0
+        panier_n1 = ca_e_n1 / nb_f_n1 if nb_f_n1 > 0 else 0.0
+        mois_dispo_n = sorted(
+            int(m) for m in edc_f[edc_f["Année"] == edc_yr]["Mois"].dropna().unique()
+        )
+        ca_e_annee = float(edc_f[edc_f["Année"] == edc_yr]["Montant TTC"].sum())
+
+        def _edc_delta(n_val: float, n1_val: float):
+            """Delta % affichable, None sans base N-1 (évite le +0.0% artificiel)."""
+            return f"{evol_pct(n_val, n1_val):+.1f}%" if n1_val > 0 else None
+
+        st.caption(
+            f"Année {edc_yr} — mois disponibles : "
+            f"{', '.join(MOIS.get(m, str(m)) for m in mois_dispo_n) or 'aucun'}"
+            + (f" • Mois analysés : {', '.join(MOIS.get(m, str(m)) for m in sorted(mois_sel))}" if mois_sel else "")
+            + (" • Périmètre : tous les établissements"
+               if not mag_sel else f" • Périmètre : {len(mag_sel)} établissement(s)")
+        )
+
+        # ══ SECTION 1 · SITUATION — indicateurs clés ════════════════
+        section("1 · Situation — indicateurs clés")
 
         e1, e2, e3, e4 = st.columns(4)
-        e1.metric(f"CA {edc_yr}", f"{ca_e_n:,.0f} TND", f"{ev_edc:+.1f}%",
-                  delta_color="normal" if ev_edc >= 0 else "inverse")
-        e2.metric(f"CA {edc_yr-1}", f"{ca_e_n1:,.0f} TND")
-        e3.metric("Nb factures", nb_f_edc)
-        e4.metric("Panier moyen", f"{panier_e:,.0f} TND")
+        with e1:
+            kpi_card(
+                f"CA {edc_yr}",
+                f"{ca_e_n:,.0f} TND",
+                _edc_delta(ca_e_n, ca_e_n1),
+                delta_tone="normal",
+                ref_label=f"CA {edc_yr - 1}",
+                ref_value=f"{ca_e_n1:,.0f} TND",
+                help=f"Comparé date à date avec {edc_yr - 1} : mêmes mois et mêmes jours que {edc_yr}.",
+            )
+        with e2:
+            st.metric(
+                "Nb factures",
+                f"{nb_f_edc:,}",
+                _edc_delta(nb_f_edc, nb_f_n1),
+                delta_color="normal",
+                help=f"Factures de la période, vs {edc_yr - 1} sur la même période (date à date).",
+            )
+        with e3:
+            st.metric(
+                "Panier moyen",
+                f"{panier_e:,.0f} TND",
+                _edc_delta(panier_e, panier_n1),
+                delta_color="normal",
+                help="CA de la période divisé par le nombre de factures de la période.",
+            )
+        with e4:
+            st.metric(
+                "Écart vs N-1",
+                f"{ca_e_n - ca_e_n1:+,.0f} TND",
+                help=f"Écart en valeur du CA vs {edc_yr - 1} sur la période comparée (date à date).",
+            )
 
-        section(f"Top Établissements — {edc_yr}")
-
+        # ── Agrégat établissements — base N-1 tronquée, cohérente des tuiles ──
         etab = (
             df_edc_n.groupby("Magasin")
             .agg(CA_N=("Montant TTC", "sum"), Nb=("Montant TTC", "count"))
             .reset_index()
-            .sort_values("CA_N", ascending=False)
+            .rename(columns={"CA_N": "CA N"})
         )
-        etab["Panier moyen"] = (etab["CA_N"] / etab["Nb"]).round(0)
-        total_edc_n = etab["CA_N"].sum()
-        etab["Poids %"] = (etab["CA_N"] / total_edc_n * 100).round(1) if total_edc_n > 0 else 0.0
-
-        etab_n1 = (
-            df_edc_n1.groupby("Magasin")
-            .agg(CA_N1=("Montant TTC", "sum"))
-            .reset_index()
+        _et_n1 = (
+            df_edc_n1.groupby("Magasin")["Montant TTC"].sum().rename("CA N-1").reset_index()
         )
-        etab = etab.merge(etab_n1, on="Magasin", how="left").fillna(0)
-        etab["Evolution %"] = np.where(
-            etab["CA_N1"] > 0,
-            ((etab["CA_N"] - etab["CA_N1"]) / etab["CA_N1"] * 100).round(1),
-            0.0
+        etab = etab.merge(_et_n1, on="Magasin", how="outer")
+        etab["CA N"] = etab["CA N"].fillna(0.0)
+        etab["CA N-1"] = etab["CA N-1"].fillna(0.0)
+        etab["Nb"] = etab["Nb"].fillna(0).astype(int)
+        etab["Évolution %"] = np.where(
+            etab["CA N-1"] > 0,
+            ((etab["CA N"] - etab["CA N-1"]) / etab["CA N-1"] * 100).round(1),
+            np.nan,
         )
+        etab["Panier moyen"] = (etab["CA N"] / etab["Nb"].replace(0, np.nan)).fillna(0).round(0)
+        total_edc_n = float(etab["CA N"].sum())
+        etab["Poids %"] = (etab["CA N"] / total_edc_n * 100).round(1) if total_edc_n > 0 else 0.0
+        etab = etab.sort_values("CA N", ascending=False).reset_index(drop=True)
+        etab["Poids cumulé %"] = etab["Poids %"].cumsum().round(1) if total_edc_n > 0 else 0.0
+        etab["Statut"] = np.select(
+            [
+                (etab["CA N"] == 0) & (etab["CA N-1"] == 0),
+                (etab["CA N"] > 0) & (etab["CA N-1"] == 0),
+                (etab["CA N"] == 0) & (etab["CA N-1"] > 0),
+                etab["Évolution %"] <= -20,
+                etab["Évolution %"] < 0,
+            ],
+            [
+                "⚫ Aucun CA",
+                "\U0001f7e2 Nouveau",
+                "\U0001f534 Sorti",
+                "\U0001f534 Déclin fort",
+                "\U0001f7e1 Déclin",
+            ],
+            default="\U0001f7e2 Croissance",
+        )
+        _hors_net = etab["Magasin"].isin(["Magasin non renseigné", "Inconnu"]) | etab[
+            "Magasin"
+        ].str.startswith("Code ", na=False)
+        mag_net = etab[~_hors_net].copy()
+        mag_net_tot = float(mag_net["CA N"].sum())
+        if mag_net_tot > 0:
+            mag_net["Poids net %"] = (mag_net["CA N"] / mag_net_tot * 100).round(1)
+            mag_net["Poids net cumulé %"] = mag_net["Poids net %"].cumsum().round(1)
+        else:
+            mag_net["Poids net %"] = 0.0
+            mag_net["Poids net cumulé %"] = 0.0
+        n_actifs = int((mag_net["CA N"] > 0).sum())
+        n_actifs_n1 = int((mag_net["CA N-1"] > 0).sum())
+        n_nouveaux = int(((mag_net["CA N"] > 0) & (mag_net["CA N-1"] == 0)).sum())
+        n_sortis = int(((mag_net["CA N"] == 0) & (mag_net["CA N-1"] > 0)).sum())
+        n_en_hausse = int((mag_net["Évolution %"] > 0).sum())
+        n_en_baisse = int((mag_net["Évolution %"] < 0).sum())
 
-        c_et1, c_et2, c_et3, c_et4 = st.columns(4)
-        c_et1.metric("\U0001f3ea Établissements actifs", len(etab[etab["CA_N"] > 0]))
-        c_et2.metric("\U0001f4b0 CA Total EDC", f"{total_edc_n:,.0f} TND")
-        c_et3.metric("\U0001f4c8 En croissance", len(etab[etab["Evolution %"] > 0]))
-        c_et4.metric("\U0001f4c9 En baisse", len(etab[etab["Evolution %"] < 0]))
+        c_et1, c_et2, c_et3, c_et4, c_et5 = st.columns(5)
+        with c_et1:
+            st.metric(
+                "Établissements actifs",
+                f"{n_actifs}",
+                _edc_delta(n_actifs, n_actifs_n1),
+                delta_color="normal",
+                help="Établissements avec au moins une facture sur la période (réseau mappé, hors codes non mappés).",
+            )
+        with c_et2:
+            st.metric(
+                "Nouveaux",
+                f"{n_nouveaux}",
+                help=f"Avec CA en {edc_yr} et aucun CA sur la période {edc_yr - 1} correspondante.",
+            )
+        with c_et3:
+            st.metric(
+                "Sortis",
+                f"{n_sortis}",
+                help=f"Sans CA en {edc_yr} alors qu'ils en avaient sur la période {edc_yr - 1}.",
+            )
+        with c_et4:
+            st.metric(
+                "En croissance",
+                f"{n_en_hausse}",
+                help="CA de la période supérieur à la base N-1 tronquée (date à date).",
+            )
+        with c_et5:
+            st.metric(
+                "En baisse",
+                f"{n_en_baisse}",
+                help="CA de la période inférieur à la base N-1 tronquée (date à date).",
+            )
 
-        col_b1, col_b2 = st.columns([3, 2])
-        with col_b1:
-            top10 = etab.head(10).sort_values("CA_N")
+        # ── États contextuels ───────────────────────────────────────
+        if len(df_edc_n) == 0 and len(df_edc_n1) == 0:
+            st.warning(
+                f"Aucune ligne sur le périmètre et les mois sélectionnés — "
+                f"CA {edc_yr} toutes périodes : {ca_e_annee:,.0f} TND. "
+                "Élargissez le filtre « Mois » (barre latérale) ou le périmètre établissement."
+            )
+        elif mois_sel and mois_dispo_n and max(mois_sel) > max(mois_dispo_n):
+            st.info(
+                f"ℹ️ Données {edc_yr} disponibles jusqu'à "
+                f"{MOIS.get(max(mois_dispo_n), str(max(mois_dispo_n)))} — "
+                "les mois suivants ne sont pas encore comptabilisés."
+            )
+
+        # ══ SECTION 2 · DYNAMIQUE & SAISONNALITÉ ═══════════════════
+        section("2 · Dynamique & saisonnalité")
+        if comp.empty:
+            st.info(f"Pas de comparatif {edc_yr - 1} exploitable pour le périmètre sélectionné.")
+        else:
+            st.plotly_chart(
+                chart_grouped_bar(
+                    comp,
+                    "Mois Nom",
+                    "CA N",
+                    "CA N-1",
+                    f"CA mensuel EDC — {edc_yr} vs {edc_yr - 1} (date à date)",
+                    edc_yr,
+                ),
+                use_container_width=True,
+            )
+
+            col_g1, col_g2 = st.columns(2)
+            with col_g1:
+                comp_cum = comp.sort_values("Mois").copy()
+                comp_cum["CA N"] = comp_cum["CA N"].cumsum()
+                comp_cum["CA N-1"] = comp_cum["CA N-1"].cumsum()
+                st.plotly_chart(
+                    chart_line_compare(
+                        comp_cum,
+                        "Mois Nom",
+                        "CA N",
+                        "CA N-1",
+                        f"CA cumulé — {edc_yr} vs {edc_yr - 1}",
+                        edc_yr,
+                    ),
+                    use_container_width=True,
+                )
+            with col_g2:
+                _fn = df_edc_n.groupby("Mois").size().to_dict()
+                _fn1 = df_edc_n1.groupby("Mois").size().to_dict()
+                fact_m = comp[["Mois", "Mois Nom"]].copy()
+                fact_m["Factures N"] = [int(_fn.get(int(m), 0)) for m in fact_m["Mois"]]
+                fact_m["Factures N-1"] = [int(_fn1.get(int(m), 0)) for m in fact_m["Mois"]]
+                fig_fm = px.bar(
+                    fact_m.melt(
+                        id_vars=["Mois", "Mois Nom"],
+                        value_vars=["Factures N-1", "Factures N"],
+                        var_name="Période",
+                        value_name="Factures",
+                    ),
+                    x="Mois Nom",
+                    y="Factures",
+                    color="Période",
+                    barmode="group",
+                    color_discrete_map={"Factures N-1": "#94A3B8", "Factures N": "#1D4ED8"},
+                    title=f"Factures mensuelles — {edc_yr} vs {edc_yr - 1} (date à date)",
+                )
+                fig_fm.update_layout(
+                    height=380,
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5),
+                    margin=dict(l=16, r=16, t=52, b=16),
+                )
+                st.plotly_chart(fig_fm, use_container_width=True)
+
+        # ══ SECTION 3 · RÉSEAU DES ÉTABLISSEMENTS ══════════════════
+        section("3 · Réseau des établissements")
+        col_r1, col_r2 = st.columns([3, 2])
+        with col_r1:
+            top10 = mag_net.head(10).sort_values("CA N")
             fig_top = px.bar(
-                top10, x="CA_N", y="Magasin", orientation="h",
+                top10,
+                x="CA N",
+                y="Magasin",
+                orientation="h",
                 title=f"Top 10 Établissements — {edc_yr}",
-                color="CA_N", color_continuous_scale=["#1D4ED8", "#3B82F6", "#60A5FA"],
-                text_auto=".0f"
+                color="CA N",
+                color_continuous_scale=["#1D4ED8", "#3B82F6", "#60A5FA"],
+                text_auto=".0f",
             )
             fig_top.update_layout(height=400, yaxis=dict(autorange="reversed"))
             fig_top.update_traces(textposition="outside")
             st.plotly_chart(fig_top, use_container_width=True)
-        with col_b2:
-            fig_pie = px.pie(
-                etab.head(8), values="CA_N", names="Magasin",
-                title="Répartition du CA EDC", hole=0.42,
-                color_discrete_sequence=px.colors.qualitative.Set3
+        with col_r2:
+            st.markdown(f"#### Concentration du réseau ({edc_yr})")
+            if n_actifs > 0:
+                _top1_p = float(mag_net["Poids net %"].iloc[0])
+                _top3_p = float(mag_net["Poids net %"].head(3).sum())
+                st.markdown(
+                    f"- **Top 1** : {_top1_p:.1f} % du CA réseau\n"
+                    f"- **Top 3** : {_top3_p:.1f} % du CA réseau\n"
+                    f"- **Établissements actifs** : {n_actifs}\n"
+                    f"- **CA moyen / établissement** : {mag_net_tot / n_actifs:,.0f} TND"
+                )
+                if _top3_p > 50:
+                    st.info("⚠️ Concentration forte : plus de la moitié du CA repose sur 3 établissements.")
+            else:
+                st.markdown("- Aucun établissement actif sur la période sélectionnée.")
+        # Pareto — cumul du CA par établissement (remplace le donut)
+        if mag_net_tot > 0 and len(mag_net) > 0:
+            par = mag_net.head(15)
+            fig_par = go.Figure()
+            fig_par.add_trace(
+                go.Bar(
+                    x=par["Magasin"],
+                    y=par["CA N"],
+                    name="CA",
+                    marker_color=["#1D4ED8" if i < 3 else "#93C5FD" for i in range(len(par))],
+                    text=[f"{v / 1e3:.1f}k" for v in par["CA N"]],
+                    textposition="outside",
+                )
             )
-            fig_pie.update_traces(textinfo="percent+label")
-            st.plotly_chart(fig_pie, use_container_width=True)
+            fig_par.add_trace(
+                go.Scatter(
+                    x=par["Magasin"],
+                    y=par["Poids net cumulé %"],
+                    name="Cumul %",
+                    yaxis="y2",
+                    mode="lines+markers",
+                    line=dict(color="#F59E0B", width=2),
+                    marker=dict(size=8),
+                )
+            )
+            fig_par.update_layout(
+                title=f"Concentration du CA par établissement — top {len(par)} (Pareto)",
+                yaxis=dict(title="CA (TND)"),
+                yaxis2=dict(
+                    title="% cumulé",
+                    overlaying="y",
+                    side="right",
+                    range=[0, 105],
+                    showgrid=False,
+                ),
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5),
+                height=430,
+                template="plotly_white",
+                hovermode="x unified",
+            )
+            st.plotly_chart(fig_par, use_container_width=True)
+        else:
+            st.info("Aucun CA réseau à représenter pour le périmètre sélectionné.")
+
+        # Mouvements N vs N-1 (hausses / baisses en valeur)
+        var_src = mag_net[(mag_net["CA N"] > 0) & (mag_net["CA N-1"] > 0)].copy()
+        if len(var_src) > 0:
+            var_src["Abs"] = var_src["Évolution %"].abs()
+            var_show = pd.concat(
+                [var_src.nlargest(8, "Abs"), var_src.nsmallest(8, "Abs")]
+            ).drop_duplicates(subset="Magasin")
+            st.plotly_chart(
+                chart_variation_bar(
+                    var_show,
+                    "Magasin",
+                    "Évolution %",
+                    f"Mouvements de CA par établissement — {edc_yr} vs {edc_yr - 1} (date à date)",
+                ),
+                use_container_width=True,
+            )
+        else:
+            st.info(
+                f"Pas de base {edc_yr - 1} comparable établissement par établissement "
+                "— voir les nouveaux et sortants ci-dessous."
+            )
 
         with st.expander("\U0001f4cb Tableau complet des établissements"):
-            display_cols = ["Magasin", "CA_N", "Nb", "Panier moyen", "Poids %", "Evolution %"]
-            rename_map = {
-                "Magasin": "Établissement", "CA_N": "CA N", "Nb": "Nb factures",
-                "Poids %": "Poids %", "Evolution %": "Évolution %"
-            }
-            display_df = etab[display_cols].rename(columns=rename_map)
+            display_df = etab.rename(
+                columns={"CA N": f"CA {edc_yr}", "CA N-1": f"CA {edc_yr - 1}", "Nb": "Nb factures"}
+            )
+            display_df = display_df[
+                ["Magasin", "Statut", f"CA {edc_yr}", f"CA {edc_yr - 1}",
+                 "Évolution %", "Nb factures", "Panier moyen", "Poids %", "Poids cumulé %"]
+            ]
             st.dataframe(
-                display_df.style.format({
-                    "CA N": "{:,.0f}", "Panier moyen": "{:,.0f}",
-                    "Poids %": "{:.1f}%", "Évolution %": "{:+.1f}%"
-                }, na_rep="—"),
-                use_container_width=True, height=400
+                display_df.style.format(
+                    {
+                        f"CA {edc_yr}": "{:,.0f}",
+                        f"CA {edc_yr - 1}": "{:,.0f}",
+                        "Évolution %": "{:+.1f}%",
+                        "Panier moyen": "{:,.0f}",
+                        "Poids %": "{:.1f}%",
+                        "Poids cumulé %": "{:.1f}%",
+                    },
+                    na_rep="—",
+                ),
+                use_container_width=True,
+                height=440,
             )
 
-        section("Répartition par durée d'échéance")
-        if "Nbr_Mois_Echance" in df_edc.columns:
+        mvn, mvs = st.columns(2)
+        with mvn:
+            _news = etab[etab["Statut"].str.contains("Nouveau", na=False)]["Magasin"].tolist()
+            st.markdown(f"**\U0001f195 Nouveaux établissements** ({len(_news)})")
+            if _news:
+                st.markdown("\n".join(f"- {m}" for m in _news[:8]))
+                if len(_news) > 8:
+                    st.caption(f"+ {len(_news) - 8} autres — voir tableau complet")
+            else:
+                st.info("Aucun nouvel établissement sur la période.")
+        with mvs:
+            _sors = etab[etab["Statut"].str.contains("Sorti", na=False)]["Magasin"].tolist()
+            st.markdown(f"**\U0001f6aa Sans activité sur la période** ({len(_sors)})")
+            if _sors:
+                st.markdown("\n".join(f"- {m}" for m in _sors[:8]))
+                if len(_sors) > 8:
+                    st.caption(f"+ {len(_sors) - 8} autres — voir tableau complet")
+            else:
+                st.info("Aucun établissement sorti vs la période N-1.")
+
+        # ══ SECTION 4 · DURÉE D'ÉCHÉANCE ════════════════════════════
+        section("4 · Durée d'échéance")
+        ech = pd.DataFrame()
+        if "Nbr_Mois_Echance" in edc.columns and len(df_edc_n) > 0:
             ech = (
                 df_edc_n.groupby("Nbr_Mois_Echance")
                 .agg(CA=("Montant TTC", "sum"), Nb=("Montant TTC", "count"))
                 .reset_index()
             )
+        if len(ech) > 0:
+            ech["Nbr_Mois_Echance"] = (
+                pd.to_numeric(ech["Nbr_Mois_Echance"], errors="coerce").fillna(0).astype(int)
+            )
+            ech = ech.groupby("Nbr_Mois_Echance", as_index=False)[["CA", "Nb"]].sum()
             ech["Part %"] = (ech["CA"] / ech["CA"].sum() * 100).round(1)
-            ech["Label"]  = ech["Part %"].apply(lambda p: f"{p}%")
-            ech = ech.sort_values("CA", ascending=False)
+            ech["Label"] = ech["Part %"].apply(lambda p: f"{p}%")
+            ech = ech.sort_values("Nbr_Mois_Echance")
 
             col_ec1, col_ec2 = st.columns([2, 1])
             with col_ec1:
                 fig_ech = chart_bar(
-                    ech, "Nbr_Mois_Echance", "CA",
-                    f"Répartition par durée d'échéance — {edc_yr}", C["blue"],
+                    ech,
+                    "Nbr_Mois_Echance",
+                    "CA",
+                    f"Répartition par durée d'échéance — {edc_yr}",
+                    C["blue"],
                 )
                 fig_ech.update_xaxes(title="Durée (mois)", type="category")
                 fig_ech.update_yaxes(title="CA TTC (TND)")
                 fig_ech.update_traces(text=ech["Label"].tolist(), textposition="outside")
                 st.plotly_chart(fig_ech, use_container_width=True)
-
             with col_ec2:
-                fig_pie_e = chart_pie(
-                    ech["CA"].tolist(),
-                    [f"{m} mois" for m in ech["Nbr_Mois_Echance"]],
-                    "Part par échéance",
+                st.plotly_chart(
+                    chart_pie(
+                        ech["CA"].tolist(),
+                        [f"{int(m)} mois" for m in ech["Nbr_Mois_Echance"]],
+                        "Part par échéance",
+                    ),
+                    use_container_width=True,
                 )
-                st.plotly_chart(fig_pie_e, use_container_width=True)
+        else:
+            st.info("Aucune donnée de durée d'échéance sur la période sélectionnée (colonne absente ou vide).")
 
-        section("Tendance mensuelle EDC")
-        df_edc_comp = compare_years_date_to_date(df_edc, edc_yr, edc_yr - 1)
-        if not df_edc_comp.empty:
-            fig_edc_t = chart_grouped_bar(
-                df_edc_comp, "Mois Nom", "CA N", "CA N-1",
-                f"EDC mensuel — {edc_yr} vs {edc_yr-1}", edc_yr,
+        # ══ SECTION 5 · SYNTHÈSE & RECOMMANDATIONS ══════════════════
+        section("5 · Synthèse & recommandations")
+        insights, reco = [], []
+
+        if ca_e_n1 > 0:
+            insights.append(
+                f"- **Tendance** : CA {edc_yr} à {ca_e_n:,.0f} TND vs {ca_e_n1:,.0f} TND en {edc_yr - 1} "
+                f"sur la période comparée (**{ev_edc:+.1f} %**)."
             )
-            st.plotly_chart(fig_edc_t, use_container_width=True)
+        elif ca_e_n > 0:
+            insights.append(
+                f"- **Tendance** : activité de {ca_e_n:,.0f} TND sans base comparable en {edc_yr - 1}."
+            )
+        else:
+            insights.append("- **Tendance** : aucun CA sur la période sélectionnée.")
+        insights.append(
+            f"- **Volume** : {nb_f_edc} factures vs {nb_f_n1} en {edc_yr - 1} "
+            f"(panier moyen {panier_e:,.0f} TND vs {panier_n1:,.0f} TND)."
+        )
+        if mag_net_tot > 0 and n_actifs > 0:
+            _lead = mag_net.iloc[0]
+            insights.append(
+                f"- **Réseau** : {n_actifs} établissements actifs, {n_nouveaux} nouveau(x), "
+                f"{n_sortis} sorti(s) ; leader **{_lead['Magasin']}** = {float(_lead['CA N']):,.0f} TND "
+                f"({float(_lead['Poids net %']):.1f} % du CA réseau)."
+            )
+            insights.append(
+                f"- **Concentration** : top 3 = {float(mag_net['Poids net %'].head(3).sum()):.1f} % du CA réseau."
+            )
+        if not comp.empty:
+            _bm = comp.loc[comp["CA N"].idxmax()]
+            insights.append(
+                f"- **Saisonnalité** : meilleur mois {edc_yr} = **{_bm['Mois Nom']}** "
+                f"({float(_bm['CA N']):,.0f} TND)."
+            )
+        if mois_sel and ca_e_annee > ca_e_n + 1:
+            insights.append(
+                f"- **Périmètre** : analyse limitée aux mois sélectionnés — "
+                f"CA {edc_yr} toutes périodes = {ca_e_annee:,.0f} TND."
+            )
+        if len(ech) > 0:
+            _dom = ech.loc[ech["CA"].idxmax()]
+            insights.append(
+                f"- **Échéance** : durée dominante **{int(_dom['Nbr_Mois_Echance'])} mois** "
+                f"({float(_dom['CA']):,.0f} TND, {float(_dom['Part %']):.1f} % du CA période)."
+            )
+
+        if ca_e_n1 > 0 and ev_edc < 0:
+            reco.append(
+                "\U0001f3af **Relancer la performance** : la base comparable est établie — "
+                "cibler les établissements en repli (variation bar ci-dessus)."
+            )
+        elif ca_e_n1 > 0:
+            reco.append(
+                "\U0001f3af **Capitaliser** : la période progresse au-dessus de N-1 — "
+                "sécuriser la montée en charge des établissements leaders."
+            )
+        else:
+            reco.append(
+                "\U0001f3af **Structurer la mesure** : sans base N-1 exploitable sur ce périmètre, "
+                "élargir les mois ou fiabiliser l'historique."
+            )
+        if n_actifs > 0 and float(mag_net["Poids net %"].head(3).sum()) > 50:
+            reco.append(
+                "\U0001f517 **Réduire la concentration** : le top 3 pèse plus de 50 % du CA "
+                "réseau — développer le second cercle d'établissements."
+            )
+        if n_nouveaux == 0 and n_actifs > 0:
+            reco.append(
+                "\U0001f680 **Dynamiser le réseau** : aucun nouvel établissement sur la période — "
+                "relancer les ouvertures / conventions en préparation."
+            )
+        if n_sortis > 0:
+            reco.append(
+                f"\U0001f501 **Auditer les sorties** : {n_sortis} établissement(s) sans activité vs "
+                f"{edc_yr - 1} — comprendre les causes avant clôture."
+            )
+        if n_en_baisse > 0:
+            reco.append(
+                f"\U0001f4c8 **Plan d'action baisses** : accompagner les {n_en_baisse} "
+                "établissements en repli (note mensuelle)."
+            )
+        reco.append(
+            "\U0001f6e5\ufe0f **Prochaine lecture** : rejouer cette page à J+5 du clos de "
+            f"{MOIS.get(mois_dispo_n[-1], '—') if mois_dispo_n else '—'} {edc_yr} pour verrouiller "
+            "l'écart date à date avant diffusion."
+        )
+
+        col_a1, col_a2 = st.columns([3, 2])
+        with col_a1:
+            st.markdown("### Constats clés")
+            st.markdown("\n".join(insights))
+        with col_a2:
+            st.markdown("### Recommandations")
+            st.markdown("\n".join(reco))
     else:
         st.warning("\u26a0\ufe0f Aucune donnée EDC disponible.")
 

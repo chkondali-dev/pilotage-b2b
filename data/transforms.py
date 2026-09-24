@@ -160,8 +160,9 @@ def prepare_data(_raw: dict) -> tuple:
     if _ech_credit and _ech_credit != "Nbr_Mois_Echance":
         df_credit = df_credit.rename(columns={_ech_credit: "Nbr_Mois_Echance"})
     df_edc = _map_magasins(_add_date_cols(_raw.get("vc_edc", pd.DataFrame())), code_df)
-    if "Nbr_Mois_Échance" in df_edc.columns:
-        df_edc = df_edc.rename(columns={"Nbr_Mois_Échance": "Nbr_Mois_Echance"})
+    _ech_edc = next((c for c in df_edc.columns if c.startswith("Nbr_Mois_Ech")), None)
+    if _ech_edc and _ech_edc != "Nbr_Mois_Echance":
+        df_edc = df_edc.rename(columns={_ech_edc: "Nbr_Mois_Echance"})
     df_conv = _raw.get("conventions_signees", pd.DataFrame())
     df_prospection = _raw.get("conventions_en_cours", pd.DataFrame())
     df_credit_part = _map_magasins(
