@@ -1015,8 +1015,9 @@ with tabs[2]:
             fig_coh.update_layout(xaxis_title="", yaxis_title="CA N (TND)", showlegend=False)
             st.plotly_chart(fig_coh, use_container_width=True)
         with _cc2:
+            _coh_disp = _coh.drop(columns=["__detail__"], errors="ignore")
             st.dataframe(
-                _coh.style.format(
+                _coh_disp.style.format(
                     {"CA N": "{:,.0f}", "CA N-1": "{:,.0f}",
                      "Variation %": "{:+.1f}%", "Poids % N": "{:.1f}%"},
                     na_rep="—",
@@ -1024,8 +1025,7 @@ with tabs[2]:
                 use_container_width=True, hide_index=True,
             )
         # ── Drill-down : clic sur un segment → popup avec la liste des conventions
-        _detail = _coh.attrs.get("detail", pd.DataFrame())
-        if _detail is not None and not _detail.empty:
+        if "__detail__" in _coh.columns:
             _seg_labels = _coh["Cohorte"].tolist()
             _seg_choice = st.selectbox(
                 "Voir le détail d'un segment",
@@ -1033,7 +1033,8 @@ with tabs[2]:
                 key="seg_detail_choice",
             )
             if _seg_choice != "— Choisir —":
-                _rows = _detail[_detail["Cohorte"] == _seg_choice].copy()
+                _recs = _coh.loc[_coh["Cohorte"] == _seg_choice, "__detail__"].iloc[0]
+                _rows = pd.DataFrame(_recs, columns=["Nom", "Cohorte", "CA N", "CA N-1"])
                 _rows = _rows.sort_values("CA N", ascending=False)
                 _rows["Évolution %"] = np.where(
                     _rows["CA N-1"] > 0,

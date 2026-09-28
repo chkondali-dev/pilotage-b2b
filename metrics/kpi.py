@@ -456,7 +456,12 @@ def cohortes_conventions(df: pd.DataFrame, annee_n: int, history_years: int = No
     agg["__o"] = agg["Cohorte"].apply(lambda c: order.index(c) if c in order else 9)
     agg = agg.sort_values("__o").drop(columns="__o").reset_index(drop=True)
     # Liste détaillée par convention (pour le drill-down cliquable du dashboard).
-    agg.attrs["detail"] = g[["Nom", "Cohorte", "CA N", "CA N-1"]].copy()
+    # NOTE : stockée dans une colonne cachée plutôt que df.attrs (attrs casse
+    # .style / concat sur certaines versions de pandas — crash Cloud).
+    _det = g[["Nom", "Cohorte", "CA N", "CA N-1"]].copy()
+    agg["__detail__"] = [
+        _det[_det["Cohorte"] == c].to_dict("records") for c in agg["Cohorte"]
+    ]
     return agg
 
 
