@@ -1,6 +1,7 @@
 """
 Usine à graphiques Plotly — composants réutilisables.
 """
+import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from data.config import C
@@ -109,9 +110,14 @@ def chart_variation_bar(df, cat_col: str, var_col: str,
     """Barres horizontales colorées vert/rouge par signe de la variation."""
     if df is None or df.empty:
         return _empty(title, h)
-    df = df.copy().sort_values(var_col)
-    colors = [C["green"] if v >= 0 else C["red"] for v in df[var_col]]
-    labels = [f"{v:+.1f}%" for v in df[var_col]]
+    df = df.copy().sort_values(var_col)  # NaN (sans base N-1) en fin de tri
+
+    def _na(v):
+        return v is None or v != v  # None ou NaN
+
+    colors = [C["muted"] if _na(v) else (C["green"] if v >= 0 else C["red"])
+              for v in df[var_col]]
+    labels = ["—" if _na(v) else f"{v:+.1f}%" for v in df[var_col]]
     fig = go.Figure(go.Bar(
         x=df[var_col], y=df[cat_col], orientation="h",
         marker_color=colors,
@@ -145,6 +151,48 @@ def chart_waterfall(df_years, year_col: str, val_col: str,
     ))
     fig.update_layout(title=title, showlegend=False)
     return _base(fig, h)
+
+def chart_bridge(df_steps, label_col: str, val_col: str,
+                 title: str, h: int = 320) -> go.Figure:
+    """
+    Waterfall décomposition (pont volume×panier) : 1re barre = total initial
+    (absolute), barres intermédiaires = effets (relative), dernière = total
+    final (total). Ignore les lignes à valeur NaN (sans base N-1).
+    """
+    if df_steps is None or df_steps.empty:
+        return _empty(title, h)
+    df = df_steps[[label_col, val_col]].copy()
+    df[val_col] = pd.to_numeric(df[val_col], errors="coerce")
+    labels_all = df[label_col].astype(str).tolist()
+    vals_all = df[val_col].tolist()
+    keep = [i for i, v in enumerate(vals_all) if pd.notna(v)]
+    if len(keep) < 2:
+        return _empty(title, h)
+    labels = [labels_all[i] for i in keep]
+    vals = [vals_all[i] for i in keep]
+    measure = ["absolute"] + ["relative"] * (len(vals) - 2) + ["total"]
+
+    def _fmt(v, signed):
+        a = abs(v)
+        if a >= 1_000_000:
+            return (f"{v/1_000_000:+.2f}M" if signed else f"{v/1_000_000:.2f}M")
+        if a >= 1_000:
+            return (f"{v/1_000:+.0f}k" if signed else f"{v/1_000:.0f}k")
+        return (f"{v:+,.0f}" if signed else f"{v:,.0f}")
+
+    texts = [_fmt(v, i not in (0, len(vals) - 1)) for i, v in enumerate(vals)]
+    fig = go.Figure(go.Waterfall(
+        orientation="v", x=labels, y=vals, measure=measure,
+        connector=dict(line=dict(color=C["muted"], width=1, dash="dot")),
+        increasing=dict(marker_color=C["green"]),
+        decreasing=dict(marker_color=C["red"]),
+        totals=dict(marker_color=C["blue"]),
+        textposition="outside", text=texts,
+    ))
+    fig.update_layout(title=title, showlegend=False)
+    return _base(fig, h)
+
+
 
 
 def chart_risk_table(df, annee_n: int, title: str, h: int = 480) -> go.Figure:
@@ -182,7 +230,8 @@ def chart_risk_table(df, annee_n: int, title: str, h: int = 480) -> go.Figure:
                 df_disp["Nom"].astype(str),
                 df_disp["CA N"].apply(lambda x: f"{x:,.0f}"),
                 df_disp["CA N-1"].apply(lambda x: f"{x:,.0f}"),
-                df_disp["Évolution %"].apply(lambda x: f"{x:+.1f}%"),
+                df_disp["Évolution %"].apply(
+                    lambda x: "—" if x is None or x != x else f"{x:+.1f}%"),
                 df_disp["Statut"],
             ],
             fill_color=[[C["surface"]] * len(df_disp)],

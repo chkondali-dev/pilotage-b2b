@@ -41,7 +41,13 @@ import requests
 from data.config import GITHUB_RAW, FILES
 from data.loader import load_all_data
 from data.transforms import _add_date_cols, _map_magasins
-from metrics.kpi import evol_pct, truncate_n1_date_to_date
+from metrics.kpi import evol_pct as _evol_pct_kpi, truncate_n1_date_to_date
+
+
+def evol_pct(n, n1):
+    """Variation % — sans base N-1 : 0.0 (compat historique du rapport ; le dashboard affiche « — »)."""
+    v = _evol_pct_kpi(n, n1)
+    return 0.0 if pd.isna(v) else v
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 

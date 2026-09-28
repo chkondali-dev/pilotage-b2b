@@ -30,6 +30,16 @@ def _format_k(x):
     return f"{x:,.0f}"
 
 
+def _fmt_pct(v):
+    """Variation NaN-safe pour le panneau : NaN/None → « — », jamais « +nan% »."""
+    try:
+        if v is None or pd.isna(v):
+            return "—"
+        return f"{float(v):+.1f}%"
+    except (TypeError, ValueError):
+        return "—"
+
+
 def render_alert_panel(alerts):
     if not alerts:
         st.info("Aucune donnee alerte. Lancez un scan d abord.")
@@ -81,7 +91,7 @@ def render_alert_panel(alerts):
         top_msg=(r[0]["message_fr"][:70]+"...") if r and len(r[0].get("message_fr",""))>70 else (r[0].get("message_fr","") if r else "")
         yoy=m.get("yoy_change_pct",0)
         ytd_pct=m.get("ytd_change_pct",0)
-        rows.append({"Severite":_severity_badge(a["severity"]),"Entite":a["_name"],"Type":a["_type"],"CA Mois":_format_k(m.get("ca_current_month",0)),"Var.":"{:+.1f}%".format(yoy),"Var. YTD":"{:+.1f}%".format(ytd_pct),"Regle":top_rule,"Detail":top_msg})
+        rows.append({"Severite":_severity_badge(a["severity"]),"Entite":a["_name"],"Type":a["_type"],"CA Mois":_format_k(m.get("ca_current_month",0)),"Var.":_fmt_pct(yoy),"Var. YTD":_fmt_pct(ytd_pct),"Regle":top_rule,"Detail":top_msg})
     limit_val=limit_filter
     display_rows=rows if limit_val=="Toutes" else rows[:int(limit_val)]
     df=pd.DataFrame(display_rows)

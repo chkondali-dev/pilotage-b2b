@@ -38,3 +38,18 @@ MOIS = {
 }
 
 NOMS_INDIVIDUELS = {"AHMED ABIDI", "AMARA MISSAOUI", "BILEL BEN AMMAR", "MED KAIS SMAILI"}
+
+# Seuils métier centralisés — SOURCE UNIQUE (P1).
+# Toute nouvelle règle de pilotage doit y déclarer son seuil ici.
+SEUILS = {
+    "inactivite_jours": 60,   # défaut slider + inactive_conventions()
+    "declin_fort_pct": -20,   # « Déclin fort » (matrice risque, établissements)
+    "alerte_veille_pct": -20,  # alerte rouge veille 7j glissants vs N-1
+    "cohorte_fidele_ans": 2,  # fidélité cohorte : CA sur les N dernières années
+    "objectif_defaut_m": 14.0,  # CA annuel cible par défaut (M TND), éditable (sidebar)
+    "hausse_sig_pct": 20,     # insight : hausse significative vs N-1 (%, base exigée)
+    "baisse_sig_pct": -20,    # insight : baisse significative vs N-1 (%, base exigée)
+    "concentration_top3_pct": 50,  # insight : top 3 > X % du CA → risque concentration
+    "panier_bas_ratio": 0.8,  # insight : panier période < 80 % du panier annuel
+    "ca_tnd_min": 1000,       # insight : ignore les variations sur CA < 1 000 TND (bruit)
+}
