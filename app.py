@@ -628,26 +628,25 @@ with tabs[0]:
 with tabs[1]:
 
     # ══════════════════════════════════════════════════════
-    # SECTION VEILLE — DECISIONNELLE (date sélectionnable)
+    # SECTION VEILLE — CHIFFRE DE LA VEILLE (jour unique)
     # ══════════════════════════════════════════════════════
-    st.markdown("### \U0001f4ca Performance veille — 7 jours glissants")
+    st.markdown("### \U0001f4ca Performance veille — chiffre de la veille")
 
-    # Date de fin sélectionnable (par défaut hier) — fenêtre de 7 jours glissants :
-    # un jour unique est trop bruité (effet jour de semaine, facturation par lot).
+    # Date sélectionnable (par défaut hier) — jour unique comparé au même jour N-1.
     default_date = (datetime.now() - timedelta(days=1)).date()
     hier_date = st.date_input("Choisir une date", value=default_date, key="veille_date")
     annee_hier = hier_date.year
     mois_hier = hier_date.month
 
     _fin_win = hier_date
-    _deb_win = _fin_win - timedelta(days=6)
+    _deb_win = hier_date
     _deb_win_n1 = (pd.Timestamp(_deb_win) - pd.DateOffset(years=1)).date()
     _fin_win_n1 = (pd.Timestamp(_fin_win) - pd.DateOffset(years=1)).date()
 
     df_vc_hier = df_vc[(df_vc["Date"].dt.date >= _deb_win) & (df_vc["Date"].dt.date <= _fin_win)].copy()
     df_vc_n1 = df_vc[(df_vc["Date"].dt.date >= _deb_win_n1) & (df_vc["Date"].dt.date <= _fin_win_n1)].copy()
 
-    # KPI veille (fenêtre 7j vs mêmes dates N-1)
+    # KPI veille (jour unique vs même jour N-1)
     ca_veille = df_vc_hier["Montant TTC"].sum() if len(df_vc_hier) > 0 else 0
     ca_n1_meme_jour = df_vc_n1["Montant TTC"].sum() if len(df_vc_n1) > 0 else 0
     evo_veille = ((ca_veille - ca_n1_meme_jour) / ca_n1_meme_jour * 100) if ca_n1_meme_jour > 0 else float("nan")
@@ -656,10 +655,10 @@ with tabs[1]:
 
     # KPI Cards horizontales
     kp1, kp2, kp3, kp4 = st.columns(4)
-    kp1.metric("CA 7 jours", f"{ca_veille:,.0f} TND")
-    kp2.metric("Évolution vs N-1 (7j)", fmt_pct(evo_veille))
-    kp3.metric("Nb factures (7j)", nb_tickets_veille)
-    kp4.metric("Panier moyen (7j)", f"{panier_veille:,.0f} TND")
+    kp1.metric("CA veille", f"{ca_veille:,.0f} TND")
+    kp2.metric("Évolution vs N-1", fmt_pct(evo_veille))
+    kp3.metric("Nb factures", nb_tickets_veille)
+    kp4.metric("Panier moyen", f"{panier_veille:,.0f} TND")
 
     st.caption(
         f"\U0001f4c5 Fenêtre : {_deb_win.strftime('%d/%m/%Y')} → {_fin_win.strftime('%d/%m/%Y')} — "
@@ -670,7 +669,7 @@ with tabs[1]:
     col_seg1, col_seg2 = st.columns(2)
 
     with col_seg1:
-        st.markdown("**Top 5 Conventions — 7 jours glissants**")
+        st.markdown("**Top 5 Conventions — veille**")
         if not df_vc_hier.empty and "Montant TTC" in df_vc_hier.columns and "Nom" in df_vc_hier.columns:
             top5_conv = df_vc_hier.groupby("Nom")["Montant TTC"].sum().nlargest(5)
             df_top5 = top5_conv.reset_index()
@@ -684,7 +683,7 @@ with tabs[1]:
             st.plotly_chart(fig_top5, use_container_width=True)
 
     with col_seg2:
-        st.markdown("**Top 5 Magasins — 7 jours glissants**")
+        st.markdown("**Top 5 Magasins — veille**")
         if not df_vc_hier.empty and "Montant TTC" in df_vc_hier.columns:
             for code_col_src in ["Code Navision", "Unite Code"]:
                 if code_col_src in df_vc_hier.columns and "Magasin" in df_vc_hier.columns:
@@ -748,16 +747,16 @@ with tabs[1]:
             st.plotly_chart(fig_pie, use_container_width=True)
 
     # Alertes automatiques
-    st.markdown("### \U0001f514 Alertes & Insights — Veille (7j vs N-1)")
+    st.markdown("### \U0001f514 Alertes & Insights — Veille (vs N-1)")
 
     alertes = []
     couleur_alertes = []
 
     if evo_veille < SEUILS["alerte_veille_pct"]:
-        alertes.append(f"\u26a0\ufe0f Baisse significative: {evo_veille:.1f}% vs N-1 (7j glissants)")
+        alertes.append(f"\u26a0\ufe0f Baisse significative: {evo_veille:.1f}% vs N-1 (veille)")
         couleur_alertes.append("inverse")
     elif evo_veille >= 0:
-        alertes.append(f"\u2705 Belle performance: +{evo_veille:.1f}% vs N-1 (7j glissants)")
+        alertes.append(f"\u2705 Belle performance: +{evo_veille:.1f}% vs N-1 (veille)")
         couleur_alertes.append("normal")
 
     if panier_veille < _vol0["Panier N"] * SEUILS["panier_bas_ratio"] and pd.notna(_vol0["Panier N"]):
