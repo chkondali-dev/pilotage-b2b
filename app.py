@@ -1000,7 +1000,7 @@ with tabs[2]:
     # ── 2c. Cohortes par ancienneté (P2) ──────────────────
     _coh = cohortes_conventions(df_vc_filt, annee_sel, mois_sel=mois_sel)
     if not _coh.empty:
-        section("Cohortes — Ancienneté des conventions")
+        section("Segments — Ancienneté des conventions")
         _cc1, _cc2 = st.columns([2, 1])
         with _cc1:
             fig_coh = px.bar(
