@@ -454,7 +454,10 @@ def cohortes_conventions(df: pd.DataFrame, annee_n: int, history_years: int = No
     agg["Poids % N"] = (agg["CA N"] / tot_n * 100).round(1) if tot_n > 0 else 0.0
     order = ["✅ Fidèles", "🆕 Nouvelles", "🔄 Revenantes", "❌ Perdues"]
     agg["__o"] = agg["Cohorte"].apply(lambda c: order.index(c) if c in order else 9)
-    return agg.sort_values("__o").drop(columns="__o").reset_index(drop=True)
+    agg = agg.sort_values("__o").drop(columns="__o").reset_index(drop=True)
+    # Liste détaillée par convention (pour le drill-down cliquable du dashboard).
+    agg.attrs["detail"] = g[["Nom", "Cohorte", "CA N", "CA N-1"]].copy()
+    return agg
 
 
 def _norm_nom(s) -> str:

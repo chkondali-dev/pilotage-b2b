@@ -1023,6 +1023,43 @@ with tabs[2]:
                 ),
                 use_container_width=True, hide_index=True,
             )
+        # ── Drill-down : clic sur un segment → popup avec la liste des conventions
+        _detail = _coh.attrs.get("detail", pd.DataFrame())
+        if _detail is not None and not _detail.empty:
+            _seg_labels = _coh["Cohorte"].tolist()
+            _seg_choice = st.selectbox(
+                "Voir le détail d'un segment",
+                ["— Choisir —"] + _seg_labels,
+                key="seg_detail_choice",
+            )
+            if _seg_choice != "— Choisir —":
+                _rows = _detail[_detail["Cohorte"] == _seg_choice].copy()
+                _rows = _rows.sort_values("CA N", ascending=False)
+                _rows["Évolution %"] = np.where(
+                    _rows["CA N-1"] > 0,
+                    (_rows["CA N"] - _rows["CA N-1"]) / _rows["CA N-1"] * 100,
+                    np.nan,
+                ).round(1)
+
+                @st.dialog(f"{_seg_choice} — {_rows.shape[0]} convention(s)")
+                def _show_seg():
+                    st.dataframe(
+                        _rows[["Nom", "CA N", "CA N-1", "Évolution %"]].style.format(
+                            {"CA N": "{:,.0f}", "CA N-1": "{:,.0f}",
+                             "Évolution %": "{:+.1f}%"},
+                            na_rep="—",
+                        ),
+                        use_container_width=True, hide_index=True,
+                    )
+                    _csv = _rows[["Nom", "CA N", "CA N-1", "Évolution %"]].to_csv(
+                        index=False).encode("utf-8")
+                    st.download_button(
+                        "Télécharger (CSV)", data=_csv,
+                        file_name=f"segment_{_seg_choice}.csv",
+                        mime="text/csv",
+                    )
+
+                _show_seg()
 
     # ── 2b. Top hausses / pertes en TND (P1) ──────────────
     if not _rm.empty and "CA N" in _rm.columns and "CA N-1" in _rm.columns:
