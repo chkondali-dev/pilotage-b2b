@@ -31,6 +31,8 @@ node_modules/
 *.csv
 *.docx
 !docs/**/*.docx
+# Exception : référentiel effectifs (nécessaire au taux de conversion, dash + cloud)
+!data/effectifs_conventions.csv
 
 # Backup / temp
 *_backup_*.py

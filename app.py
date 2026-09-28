@@ -18,17 +18,23 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from trend_alert_panel import render_alert_panel
 
-from data.config import C, MOIS, LOGO_MG_URL, LOGO_BATAM_URL
+from data.config import C, MOIS, LOGO_MG_URL, LOGO_BATAM_URL, SEUILS
 from data.loader import load_all_data
 from data.transforms import prepare_data
 from metrics.kpi import (
     compare_years, compare_years_date_to_date, ca_sum_date_to_date,
     truncate_n1_date_to_date,
     evol_pct, convention_risk_matrix, inactive_conventions, get_rolling_3m,
+    fmt_pct, color_delta,
+    nb_factures, panier_moyen, bridge_volume_panier,
+    run_rate_fin_annee, data_health,
+    objectif_tracking, cohortes_conventions, narratif_executif,
+    ventes_positives, concentration_portefeuille, volumes_panier, business_insights,
+    conversion_conventions, kpi_conversion_globale,
 )
 from charts.factory import (
     chart_bar, chart_grouped_bar, chart_line_compare, chart_variation_bar,
-    chart_waterfall, chart_risk_table, chart_gauge, chart_pie,
+    chart_bridge, chart_risk_table, chart_gauge, chart_pie,
 )
 from ui.components import inject_css, hero, section, badge, rank_card, kpi_card
 from utils.github import push_csv_to_github
@@ -71,14 +77,13 @@ with st.sidebar:
     st.markdown("### \U0001f50d Filtres")
     annee_sel = st.selectbox("Année", [2026, 2025, 2024, 2023], index=0)
 
-    # Filtre mois - default to current month
-    current_month = datetime.now().month
+    # Filtre mois — vide = année complète (comparaison N/N-1 homogène)
     all_mois = list(range(1, 13))
     mois_sel = st.multiselect(
-        "Mois",
+        "Mois (vide = année complète)",
         all_mois,
-        default=[current_month],
-        format_func=lambda x: MOIS.get(x, str(x))
+        default=[],
+        format_func=lambda x: MOIS.get(x, str(x)),
     )
 
     # Filtre Type de vente
@@ -183,6 +188,10 @@ elif type_vente_sel == "Credit particulier":
 else:
     df_vc_filt = df_vc.copy()
 
+# Portée multi-années (même filtre Type de vente, SANS filtre Année/Mois) :
+# waterfall, heatmap de saisonnalité et prévision doivent rester pluriannuels.
+df_vc_scope = df_vc_filt.copy()
+
 if mois_sel:
     df_vc_filt = df_vc_filt[df_vc_filt["Mois"].isin(mois_sel)]
 
@@ -191,13 +200,51 @@ _conv_options = (
     ["Tous"] + sorted(df_vc_filt["Nom"].dropna().unique().tolist())
     if "Nom" in df_vc.columns else ["Tous"]
 )
+
+
+@st.cache_data(show_spinner=False)
+def _cached_scan_all(df_vc_in, df_edc_in, df_conv_in, df_code_in):
+    """Scan tendances TrendAnalyzer — recalculé uniquement si les entrées changent."""
+    from trend_analyzer import TrendAnalyzer
+    ta = TrendAnalyzer(df_vc=df_vc_in, df_edc=df_edc_in,
+                       conventions=df_conv_in, code_magasin=df_code_in)
+    return ta.scan_all()
+
+
+@st.cache_data(show_spinner=False)
+def _cached_data_health(df):
+    """Santé des données — recalculée uniquement si les données changent."""
+    return data_health(df)
+
+
 with st.sidebar:
     conv_sel = st.selectbox("Convention", _conv_options)
     seuil_inactif = st.slider(
         "Seuil d'inactivite (jours)",
-        min_value=15, max_value=180, value=60, step=15,
+        min_value=15, max_value=180, value=SEUILS["inactivite_jours"], step=15,
         help="Conventions sans facture depuis plus de N jours",
     )
+    objectif_m = st.number_input(
+        "Objectif CA annuel (M TND)",
+        min_value=0.0, value=float(SEUILS["objectif_defaut_m"]), step=0.5,
+        help="Cible annuelle — % atteinte, jauge et narratif exécutif",
+    )
+
+    with st.expander("\U0001fa7a Santé des données", expanded=False):
+        _health = _cached_data_health(df_vc)
+        st.markdown(f"### {_health['Statut']} Santé des données")
+        _h1, _h2 = st.columns(2)
+        with _h1:
+            st.metric("Lignes", f"{_health['Lignes']:,}".replace(",", " "))
+            st.metric("Doublons exacts", _health["Doublons exacts"])
+            st.metric("Montants ≤ 0", _health["Montants ≤ 0"])
+        with _h2:
+            st.metric("Dernière facture", _health["Dernière facture"] or "—")
+            st.metric("Retard alimentation",
+                      f"{_health['Retard (j)']} j" if _health["Retard (j)"] is not None else "—")
+            st.metric("Jours sans facture (90j)", _health["Jours sans facture (90j)"])
+        if _health["NaN Date"] > 0 or _health["NaN Montant"] > 0:
+            st.caption(f"⚠️ NaN — Date : {_health['NaN Date']} | Montant : {_health['NaN Montant']}")
 
     st.markdown("---")
     with st.expander("\U0001f4c4 Rapport Mensuel IA", expanded=False):
@@ -281,7 +328,7 @@ def _cached_precalcs(df, annee, seuil, mois_tuple, _df_conv_ref):
     """Tous les calculs lourds qui tournaient à chaque interaction."""
     comp = compare_years_date_to_date(df, annee, annee - 1, list(mois_tuple) if mois_tuple else None)
     rm   = convention_risk_matrix(df, annee)
-    inac = inactive_conventions(df, seuil)
+    inac = inactive_conventions(df, seuil, annee_n=annee)
     r3m  = get_rolling_3m(df)
     ca_n, ca_n1, ev_nn1 = ca_sum_date_to_date(df, annee, annee - 1, list(mois_tuple) if mois_tuple else None)
     ca_n2 = df[df["Année"] == annee - 2]["Montant TTC"].sum()
@@ -294,17 +341,6 @@ df_comp, risk_mat, df_inactive, df_3m, ca_n, ca_n1, ev_nn1, ca_n2, nb_actives, n
     _cached_precalcs(df_vc_filt, annee_sel, seuil_inactif, tuple(mois_sel) if mois_sel else (), df_conv)
 
 ev_n1n2 = evol_pct(ca_n1, ca_n2)
-
-panier_min = df_filt["Montant TTC"].min() if len(df_filt) > 0 else 0
-panier_max = df_filt["Montant TTC"].max() if len(df_filt) > 0 else 0
-panier_moy  = df_filt["Montant TTC"].mean() if len(df_filt) > 0 else 0
-
-_df_mois = df_vc_filt[df_vc_filt["Année"] == annee_sel].copy()
-if mois_sel:
-    _df_mois = _df_mois[_df_mois["Mois"].isin(mois_sel)]
-
-min_mag = _df_mois.loc[_df_mois["Montant TTC"].idxmin(), "Nom"] if len(_df_mois) > 0 and "Nom" in _df_mois.columns else ""
-max_mag = _df_mois.loc[_df_mois["Montant TTC"].idxmax(), "Nom"] if len(_df_mois) > 0 and "Nom" in _df_mois.columns else ""
 
 # ── Compteurs risques ─────────────────────────────────────────
 if not risk_mat.empty:
@@ -341,70 +377,133 @@ tabs = st.tabs([
 # ══════════════════════════════════════════════════════════════
 with tabs[0]:
 
-    # ── KPI strip ─────────────────────────────────────────────
+    # ── KPI strip : 8 KPI utiles, valeur + évolution + contexte ──
     section("Indicateurs clés")
-    k1, k2, k3, k4, k5 = st.columns(5)
+    _vol0 = volumes_panier(df_vc_filt, annee_sel, mois_sel)
+    _conc0 = concentration_portefeuille(df_vc_filt, annee_sel, mois_sel)
+    k1, k2, k3, k4 = st.columns(4)
     k1.metric(
         f"CA {annee_sel}",
         f"{ca_n:,.0f} TND",
-        f"{ev_nn1:+.1f}% vs {annee_sel-1}",
-        delta_color="normal" if ev_nn1 >= 0 else "inverse",
+        f"{fmt_pct(ev_nn1)} vs {annee_sel-1}",
+        delta_color=color_delta(ev_nn1),
     )
     k2.metric(
-        f"CA {annee_sel-1}",
-        f"{ca_n1:,.0f} TND",
-        f"{ev_n1n2:+.1f}% vs {annee_sel-2}",
-        delta_color="normal" if ev_n1n2 >= 0 else "inverse",
+        f"Factures {annee_sel}",
+        f"{_vol0['Nb N']:,}".replace(",", " "),
+        f"{fmt_pct(_vol0['Evo Nb %'])} vs N-1" if pd.notna(_vol0["Evo Nb %"]) else "—",
+        delta_color=color_delta(_vol0["Evo Nb %"]),
     )
-    k3.metric("Conventions actives", nb_actives, f"/ {nb_total} total")
+    k3.metric(
+        "Panier moyen",
+        f"{_vol0['Panier N']:,.0f} TND" if pd.notna(_vol0["Panier N"]) else "—",
+        f"{fmt_pct(_vol0['Evo panier %'])} vs N-1" if pd.notna(_vol0["Evo panier %"]) else "—",
+        delta_color=color_delta(_vol0["Evo panier %"]),
+    )
     k4.metric(
-        "Conventions inactives",
-        nb_inact,
-        f"\u26a0\ufe0f >{seuil_inactif}j sans facture" if nb_inact > 0 else "\u2705 Aucune",
-        delta_color="inverse" if nb_inact > 0 else "off",
+        "Conventions actives",
+        f"{nb_actives}",
+        f"{_conc0['Top3 %']:.1f}% top 3" if pd.notna(_conc0["Top3 %"]) else f"/ {nb_total} total",
     )
-    k5.metric("Panier moyen", f"{panier_moy:,.0f} TND")
 
-    nb_transactions = len(df_filt) if len(df_filt) > 0 else 0
+    # ── CA à risque + inactivité : conventions inactives ─────────
+    if nb_inact > 0 and not df_inactive.empty and "CA N-1" in df_inactive.columns:
+        _ca_risque = float(df_inactive["CA N-1"].sum())
+        if _ca_risque > 0:
+            st.warning(
+                f"\U0001f4b0 À risque : **{_ca_risque:,.0f} TND** de CA {annee_sel - 1} "
+                f"(période sélectionnée) proviennent de **{nb_inact} convention(s)** sans "
+                f"facture depuis plus de {seuil_inactif} jours — à relancer en priorité."
+            )
+    elif nb_inact == 0:
+        st.success("✅ Aucune convention inactive — portefeuille vivant.")
 
-    # ── Statistiques journalières ────────────────────────────
-    section("Statistiques journalières")
-    s1, s2, s3, s4 = st.columns(4)
-    s1.metric("Nb transactions", nb_transactions)
-    s2.metric("Panier min", f"{panier_min:,.0f} TND")
-    s3.metric("Panier max", f"{panier_max:,.0f} TND")
-    s4.metric("Panier moyen", f"{panier_moy:,.0f} TND")
+    # ── À retenir : insights automatiques (max 5, triés par impact) ──
+    _ins0 = business_insights(df_vc_filt, annee_sel, risk_mat, mois_sel)
+    if _ins0:
+        st.markdown("**💡 À retenir**")
+        for _ico, _txt in _ins0:
+            st.markdown(f"{_ico} {_txt}")
+
+    # ── Synthèse exécutive : objectif + narratif (P2) ─────
+    section("Synthèse exécutive")
+    _rr0 = run_rate_fin_annee(df_vc_scope, annee_sel)
+    _obj = objectif_tracking(
+        _rr0["CA YTD"], float(objectif_m) * 1_000_000,
+        _rr0["Jours écoulés"], _rr0["Jours année"],
+    )
+    _oc1, _oc2 = st.columns([1, 2])
+    with _oc1:
+        if pd.notna(_obj["Atteinte %"]):
+            st.plotly_chart(
+                chart_gauge(_obj["CA YTD"], _obj["Objectif"],
+                            f"Atteinte objectif {annee_sel}"), use_container_width=True,
+            )
+        else:
+            st.caption("Définissez un objectif > 0 dans la sidebar.")
+    with _oc2:
+        oc_a, oc_b, oc_c = st.columns(3)
+        oc_a.metric("Objectif", f"{_obj['Objectif']:,.0f} TND")
+        oc_b.metric("Atteinte", fmt_pct(_obj["Atteinte %"]) if pd.notna(_obj["Atteinte %"]) else "—")
+        oc_c.metric("Avance/retard prorata",
+                    f"{_obj['Avance/retard']:+,.0f} TND" if pd.notna(_obj["Avance/retard"]) else "—")
+    _ctx_narr = {
+        "annee": annee_sel, "ca_n": ca_n, "ca_n1": ca_n1, "evo_pct": ev_nn1,
+        "objectif": _obj["Objectif"], "atteinte_pct": _obj["Atteinte %"],
+        "avance_retard": _obj["Avance/retard"], "run_rate": _rr0["Projection"],
+        "ca_risque": float(df_inactive["CA N-1"].sum())
+        if (nb_inact > 0 and not df_inactive.empty and "CA N-1" in df_inactive.columns) else 0.0,
+        "nb_inact": nb_inact,
+    }
+    _br_narr = bridge_volume_panier(df_vc_scope, annee_sel, mois_sel)
+    _ctx_narr["bridge"] = _br_narr.set_index("Étape")["Effet (TND)"].to_dict()
+    if not risk_mat.empty and "CA N" in risk_mat.columns:
+        _rm_narr = risk_mat.copy()
+        _rm_narr["Δ CA (TND)"] = _rm_narr["CA N"] - _rm_narr["CA N-1"]
+        _g = _rm_narr[_rm_narr["Δ CA (TND)"] > 0].nlargest(1, "Δ CA (TND)")
+        _f = _rm_narr[_rm_narr["CA N-1"] > 0].nsmallest(1, "Évolution %")
+        if not _g.empty:
+            _ctx_narr["top_hausse"] = {"nom": _g.iloc[0]["Nom"], "delta": float(_g.iloc[0]["Δ CA (TND)"])}
+        if not _f.empty:
+            _ctx_narr["flop"] = {"nom": _f.iloc[0]["Nom"], "evo": _f.iloc[0]["Évolution %"]}
+    for _ico, _txt in narratif_executif(_ctx_narr):
+        st.markdown(f"{_ico} {_txt}")
 
     mois_label = ", ".join([MOIS.get(m, str(m)) for m in mois_sel]) if mois_sel else f"{annee_sel}"
-    st.caption(f"\U0001f4cc Panier min: {min_mag}  |  Panier max: {max_mag}  ({mois_label})")
 
-    # ── Évolution CA ──────────────────────────────────────────
+    # ── Évolution CA : mensuel N vs N-1 + cumul ──────────────
     section("Évolution du chiffre d'affaires")
     col_a, col_b = st.columns(2)
 
     with col_a:
-        ca_by_year = (
-            df_vc.groupby("Année")["Montant TTC"].sum().reset_index().sort_values("Année")
-        )
-        fig_wf = chart_waterfall(ca_by_year, "Année", "Montant TTC",
-                                  "CA par année — Waterfall évolution")
-        st.plotly_chart(fig_wf, use_container_width=True)
-
-    with col_b:
         fig_gb = chart_grouped_bar(
             df_comp, "Mois Nom", "CA N", "CA N-1",
             f"CA Mensuel — {annee_sel} vs {annee_sel-1}", annee_sel,
         )
         st.plotly_chart(fig_gb, use_container_width=True)
 
-    # ── Portefeuille conventions ───────────────────────────────
+    with col_b:
+        # Cumul N vs N-1 : lecture d'écart qui se creuse / se résorbe
+        _cum = df_comp[["Mois Nom", "CA N", "CA N-1"]].copy() if not df_comp.empty else pd.DataFrame()
+        if not _cum.empty:
+            _cum["Cumul N"] = _cum["CA N"].cumsum()
+            _cum["Cumul N-1"] = _cum["CA N-1"].cumsum()
+            fig_cum = chart_line_compare(
+                _cum, "Mois Nom", "Cumul N", "Cumul N-1",
+                f"CA Cumulé — {annee_sel} vs {annee_sel-1}", annee_sel,
+            )
+            st.plotly_chart(fig_cum, use_container_width=True)
+        else:
+            st.caption("Aucune donnée disponible.")
+
+    # ── Portefeuille conventions : Top 10 + variations ────────
     section("Portefeuille conventions — Performance")
     col_c, col_d = st.columns(2)
 
     with col_c:
-        top10 = df_filt.groupby("Nom")["Montant TTC"].sum().nlargest(10).reset_index()
+        _top10 = ventes_positives(df_filt).groupby("Nom")["Montant TTC"].sum().nlargest(10).reset_index()
         fig_t10 = chart_bar(
-            top10, "Montant TTC", "Nom",
+            _top10, "Montant TTC", "Nom",
             f"Top 10 conventions — {annee_sel}", C["blue"], h=400, orientation="h",
         )
         st.plotly_chart(fig_t10, use_container_width=True)
@@ -416,7 +515,7 @@ with tabs[0]:
         )
         st.plotly_chart(fig_var, use_container_width=True)
 
-    # ── Tableau risque simplifié + Top/Flop ────────────────────
+    # ── Signaux : tableau risque + Top/Flop (mêmes sources) ─────
     section("Signaux décisionnels — Risques & Opportunités")
     col_e, col_f, col_g = st.columns([3, 1, 1])
 
@@ -428,9 +527,8 @@ with tabs[0]:
         st.plotly_chart(fig_sc, use_container_width=True)
 
     if "Nom" in df_filt.columns and len(df_filt) > 0:
-        ca_cli = df_filt.groupby("Nom")["Montant TTC"].sum()
+        ca_cli = ventes_positives(df_filt).groupby("Nom")["Montant TTC"].sum()
         top3   = ca_cli.nlargest(3)
-        flop3  = ca_cli[ca_cli > 0].nsmallest(3) if len(ca_cli[ca_cli > 0]) >= 3 else ca_cli.nsmallest(3)
 
         with col_f:
             st.markdown("**\U0001f3c6 Top 3**")
@@ -438,11 +536,19 @@ with tabs[0]:
                 rank_card(i, nom, f"{ca:,.0f} TND", "top")
 
         with col_g:
-            st.markdown("**\u26a0\ufe0f Flop 3**")
-            for i, (nom, ca) in enumerate(flop3.items(), 1):
-                rank_card(i, nom, f"{ca:,.0f} TND", "flop")
+            # Flop 3 = plus fortes BAISSES N vs N-1 (base N-1 exigée), pas les plus petits CA
+            st.markdown("**\u26a0\ufe0f Flop 3 — Fortes baisses**")
+            if not risk_mat.empty:
+                _flop = risk_mat[risk_mat["CA N-1"] > 0].nsmallest(3, "Évolution %")
+                if not _flop.empty:
+                    for i, (_, _r) in enumerate(_flop.iterrows(), 1):
+                        rank_card(i, _r["Nom"], f"{fmt_pct(_r['Évolution %'])} vs N-1", "flop")
+                else:
+                    st.caption("Aucune baisse mesurable — pas de base N-1.")
+            else:
+                st.caption("Données de risque indisponibles.")
 
-    # ── Dynamique du portefeuille ────────────────────────────
+    # ── Dynamique du portefeuille : actives + nouvelles (tout historique) ──
     section("Dynamique du portefeuille — Entrées / Sorties")
     # Build full dataset for the selected years
     _pieces = [df_vc]
@@ -457,8 +563,9 @@ with tabs[0]:
         _all["Periode"] = _all["Année"].astype(str) + "-" + _all["Mois"].astype(str).str.zfill(2)
         # Active conventions per month
         _act = _all.groupby("Periode")["Nom"].nunique().reset_index(name="Actives")
-        # First invoice date per convention → monthly new conventions
-        _first = _all.groupby("Nom")["Date"].min().reset_index()
+        # First invoice date per convention → SUR TOUT L'HISTORIQUE (pas la fenêtre 2 ans) :
+        # une convention antérieure à la fenêtre n'est pas « nouvelle ».
+        _first = pd.concat(_pieces, ignore_index=True).groupby("Nom")["Date"].min().reset_index()
         _first["Periode"] = _first["Date"].dt.year.astype(str) + "-" + _first["Date"].dt.month.astype(str).str.zfill(2)
         _new = _first["Periode"].value_counts().reset_index()
         _new.columns = ["Periode", "Nouvelles"]
@@ -485,46 +592,31 @@ with tabs[0]:
             _pf_n1 = _pf[_pf["Periode"].str.startswith(str(annee_sel - 1))]
             avg_a = _pf_annee["Actives"].mean()
             avg_n1 = _pf_n1["Actives"].mean()
-            evo_pf = ((avg_a - avg_n1) / avg_n1 * 100) if avg_n1 > 0 else 0
-            st.metric("Moy. actives/mois", f"{avg_a:.0f}", f"{evo_pf:+.1f}% vs N-1")
+            evo_pf = evol_pct(avg_a, avg_n1)
+            st.metric("Moy. actives/mois", f"{avg_a:.0f}",
+                      f"{fmt_pct(evo_pf)} vs N-1" if pd.notna(evo_pf) else "—",
+                      delta_color=color_delta(evo_pf))
             st.metric("Nouvelles YTD", f"{_pf_annee['Nouvelles'].sum():.0f}")
-            # Net growth
-            net = _pf_annee["Nouvelles"].sum() if not _pf_annee.empty else 0
-            st.metric("Variation nette", f"{net:+.0f}")
 
-    # ── Concentration du portefeuille ────────────────────────
+    # ── Concentration : Top 3 + Pareto (ventes positives) ──────
     section("Concentration du portefeuille")
-    _conc = df_filt.groupby("Nom")["Montant TTC"].sum().reset_index()
-    _conc = _conc.sort_values("Montant TTC", ascending=False)
-    _total_ca = _conc["Montant TTC"].sum()
-    if _total_ca > 0:
-        _conc["Share"] = _conc["Montant TTC"] / _total_ca
-        _conc["ShareSq"] = _conc["Share"] ** 2
-        _hhi = int(_conc["ShareSq"].sum() * 10000)
-        _top1 = _conc["Montant TTC"].iloc[0]
-        _top3 = _conc["Montant TTC"].iloc[:3].sum()
-        _top5 = _conc["Montant TTC"].iloc[:5].sum()
-        _top10 = _conc["Montant TTC"].iloc[:10].sum()
-        _hhi_label = "Faible" if _hhi < 1000 else "Modérée" if _hhi < 2500 else "Élevée"
-        _c1, _c2, _c3, _c4, _c5 = st.columns(5)
-        _c1.metric("HHI", f"{_hhi}", f"{_hhi_label}")
-        _c2.metric("Part Top 1", f"{_top1/_total_ca*100:.1f}%")
-        _c3.metric("Part Top 3", f"{_top3/_total_ca*100:.1f}%")
-        _c4.metric("Part Top 5", f"{_top5/_total_ca*100:.1f}%")
-        _c5.metric("Part Top 10", f"{_top10/_total_ca*100:.1f}%")
-        # Concentration chart: cumulative share
-        _conc["Cumul"] = _conc["Share"].cumsum() * 100
-        _conc_top = _conc.head(20)
+    if pd.notna(_conc0["Top3 %"]):
+        _k1, _k2, _k3 = st.columns(3)
+        _k1.metric("Part Top 3", f"{_conc0['Top3 %']:.1f}%")
+        _k2.metric("HHI", f"{_conc0['HHI']}", f"{_conc0['Niveau']}")
+        _k3.metric("Conventions", f"{_conc0['Nb']}")
+        _conc_top = _conc0["courbe"]
         fig_conc = go.Figure()
-        fig_conc.add_trace(go.Bar(x=_conc_top["Nom"].str[:20], y=_conc_top["Montant TTC"],
+        fig_conc.add_trace(go.Bar(x=_conc_top["Nom"], y=_conc_top["CA"],
                                   name="CA", marker_color=C["blue"]))
-        fig_conc.add_trace(go.Scatter(x=_conc_top["Nom"].str[:20], y=_conc_top["Cumul"],
-                                      name="% Cumulé", yaxis="y2",
+        fig_conc.add_trace(go.Scatter(x=_conc_top["Nom"], y=_conc_top["Cumul %"],
+                                      name="% cumulé", yaxis="y2",
                                       line=dict(color=C["red"], width=2),
                                       marker=dict(color=C["red"])))
         fig_conc.update_layout(height=280, margin=dict(l=10, r=10, t=10, b=10),
                                yaxis=dict(title="CA"),
-                               yaxis2=dict(title="% Cumulé", overlaying="y", side="right"))
+                               yaxis2=dict(title="% cumulé", overlaying="y",
+                                           side="right", range=[0, 105]))
         st.plotly_chart(fig_conc, use_container_width=True)
     else:
         st.caption("Aucune donnée disponible.")
@@ -538,38 +630,47 @@ with tabs[1]:
     # ══════════════════════════════════════════════════════
     # SECTION VEILLE — DECISIONNELLE (date sélectionnable)
     # ══════════════════════════════════════════════════════
-    st.markdown("### \U0001f4ca Performance veille")
+    st.markdown("### \U0001f4ca Performance veille — 7 jours glissants")
 
-    # Date sélectionnable (par défaut hier)
+    # Date de fin sélectionnable (par défaut hier) — fenêtre de 7 jours glissants :
+    # un jour unique est trop bruité (effet jour de semaine, facturation par lot).
     default_date = (datetime.now() - timedelta(days=1)).date()
     hier_date = st.date_input("Choisir une date", value=default_date, key="veille_date")
     annee_hier = hier_date.year
     mois_hier = hier_date.month
 
-    df_vc_hier = df_vc[(df_vc["Date"].dt.date == hier_date)].copy()
-    df_vc_n1 = df_vc[(df_vc["Année"] == annee_hier - 1) & (df_vc["Mois"] == mois_hier) & (df_vc["Jour"] == hier_date.day)].copy()
+    _fin_win = hier_date
+    _deb_win = _fin_win - timedelta(days=6)
+    _deb_win_n1 = (pd.Timestamp(_deb_win) - pd.DateOffset(years=1)).date()
+    _fin_win_n1 = (pd.Timestamp(_fin_win) - pd.DateOffset(years=1)).date()
 
-    # KPI veille
+    df_vc_hier = df_vc[(df_vc["Date"].dt.date >= _deb_win) & (df_vc["Date"].dt.date <= _fin_win)].copy()
+    df_vc_n1 = df_vc[(df_vc["Date"].dt.date >= _deb_win_n1) & (df_vc["Date"].dt.date <= _fin_win_n1)].copy()
+
+    # KPI veille (fenêtre 7j vs mêmes dates N-1)
     ca_veille = df_vc_hier["Montant TTC"].sum() if len(df_vc_hier) > 0 else 0
     ca_n1_meme_jour = df_vc_n1["Montant TTC"].sum() if len(df_vc_n1) > 0 else 0
-    evo_veille = ((ca_veille - ca_n1_meme_jour) / ca_n1_meme_jour * 100) if ca_n1_meme_jour > 0 else 0
+    evo_veille = ((ca_veille - ca_n1_meme_jour) / ca_n1_meme_jour * 100) if ca_n1_meme_jour > 0 else float("nan")
     nb_tickets_veille = len(df_vc_hier)
     panier_veille = ca_veille / nb_tickets_veille if nb_tickets_veille > 0 else 0
 
     # KPI Cards horizontales
     kp1, kp2, kp3, kp4 = st.columns(4)
-    kp1.metric("CA Veille", f"{ca_veille:,.0f} TND", delta_color="normal" if evo_veille >= 0 else "inverse")
-    kp2.metric("Evolution vs N-1", f"{evo_veille:+.1f}%", delta_color="normal" if evo_veille >= 0 else "inverse")
-    kp3.metric("Nb Tickets", nb_tickets_veille)
-    kp4.metric("Panier Moyen", f"{panier_veille:,.0f} TND")
+    kp1.metric("CA 7 jours", f"{ca_veille:,.0f} TND")
+    kp2.metric("Évolution vs N-1 (7j)", fmt_pct(evo_veille))
+    kp3.metric("Nb factures (7j)", nb_tickets_veille)
+    kp4.metric("Panier moyen (7j)", f"{panier_veille:,.0f} TND")
 
-    st.caption(f"\U0001f4c5 Date sélectionnée: {hier_date.strftime('%d/%m/%Y')}")
+    st.caption(
+        f"\U0001f4c5 Fenêtre : {_deb_win.strftime('%d/%m/%Y')} → {_fin_win.strftime('%d/%m/%Y')} — "
+        f"comparée à {_deb_win_n1.strftime('%d/%m/%Y')} → {_fin_win_n1.strftime('%d/%m/%Y')} (N-1)"
+    )
 
     # Analyse par segment
     col_seg1, col_seg2 = st.columns(2)
 
     with col_seg1:
-        st.markdown("**Top 5 Conventions — Veille**")
+        st.markdown("**Top 5 Conventions — 7 jours glissants**")
         if not df_vc_hier.empty and "Montant TTC" in df_vc_hier.columns and "Nom" in df_vc_hier.columns:
             top5_conv = df_vc_hier.groupby("Nom")["Montant TTC"].sum().nlargest(5)
             df_top5 = top5_conv.reset_index()
@@ -583,7 +684,7 @@ with tabs[1]:
             st.plotly_chart(fig_top5, use_container_width=True)
 
     with col_seg2:
-        st.markdown("**Top 5 Magasins — Veille**")
+        st.markdown("**Top 5 Magasins — 7 jours glissants**")
         if not df_vc_hier.empty and "Montant TTC" in df_vc_hier.columns:
             for code_col_src in ["Code Navision", "Unite Code"]:
                 if code_col_src in df_vc_hier.columns and "Magasin" in df_vc_hier.columns:
@@ -647,20 +748,20 @@ with tabs[1]:
             st.plotly_chart(fig_pie, use_container_width=True)
 
     # Alertes automatiques
-    st.markdown("### \U0001f514 Alertes & Insights — Veille")
+    st.markdown("### \U0001f514 Alertes & Insights — Veille (7j vs N-1)")
 
     alertes = []
     couleur_alertes = []
 
-    if evo_veille < -20:
-        alertes.append(f"\u26a0\ufe0f Baisse significative: {evo_veille:.1f}% vs N-1")
+    if evo_veille < SEUILS["alerte_veille_pct"]:
+        alertes.append(f"\u26a0\ufe0f Baisse significative: {evo_veille:.1f}% vs N-1 (7j glissants)")
         couleur_alertes.append("inverse")
     elif evo_veille >= 0:
-        alertes.append(f"\u2705 Belle performance: +{evo_veille:.1f}% vs N-1")
+        alertes.append(f"\u2705 Belle performance: +{evo_veille:.1f}% vs N-1 (7j glissants)")
         couleur_alertes.append("normal")
 
-    if panier_veille < panier_moy * 0.8:
-        alertes.append(f"\U0001f4c9 Panier bas: {panier_veille:,.0f} TND (moy: {panier_moy:,.0f})")
+    if panier_veille < _vol0["Panier N"] * SEUILS["panier_bas_ratio"] and pd.notna(_vol0["Panier N"]):
+        alertes.append(f"\U0001f4c9 Panier bas: {panier_veille:,.0f} TND (moy: {_vol0['Panier N']:,.0f})")
         couleur_alertes.append("inverse")
 
     if not df_vc_hier.empty:
@@ -746,14 +847,16 @@ with tabs[1]:
 
     # Données brutes en expander
     with st.expander("\U0001f4c4 Données brutes — CA Journalier"):
-        df_jour["Variation %"] = (
-            (df_jour["CA N"] - df_jour["CA N-1"]) / df_jour["CA N-1"].replace(0, 1) * 100
+        df_jour["Variation %"] = np.where(
+            df_jour["CA N-1"] > 0,
+            (df_jour["CA N"] - df_jour["CA N-1"]) / df_jour["CA N-1"] * 100,
+            np.nan,  # sans base N-1 → « — »
         ).round(1)
         st.dataframe(df_jour, use_container_width=True)
 
     # ── Heatmap CA mensuel × année ─────────────────────────────
     section("Saisonnalité — Heatmap CA mensuel × année")
-    _hm = df_vc.groupby(["Année", "Mois"])["Montant TTC"].sum().reset_index()
+    _hm = df_vc_scope.groupby(["Année", "Mois"])["Montant TTC"].sum().reset_index()  # filtre Type, toutes années/mois
     _hm_pivot = _hm.pivot(index="Année", columns="Mois", values="Montant TTC").fillna(0)
     _hm_pivot = _hm_pivot.rename(columns=MOIS)
     fig_hm = px.imshow(_hm_pivot, text_auto=".0f", aspect="auto",
@@ -765,7 +868,7 @@ with tabs[1]:
 
     # ── Prévision rolling 3m — M+1 ─────────────────────────────
     section("Prévision — Rolling 3 mois")
-    _prev_df = df_vc[df_vc["Année"] >= max(annee_sel - 1, df_vc["Année"].min())].copy()
+    _prev_df = df_vc_scope[df_vc_scope["Année"] >= max(annee_sel - 1, df_vc_scope["Année"].min())].copy()
     _prev_m = _prev_df.groupby(["Année", "Mois"])["Montant TTC"].sum().reset_index()
     _prev_m["Periode"] = _prev_m["Année"].astype(str) + "-" + _prev_m["Mois"].astype(str).str.zfill(2)
     _prev_m = _prev_m.sort_values(["Année", "Mois"]).tail(6)  # last 6 months
@@ -792,6 +895,41 @@ with tabs[1]:
             st.metric("Prévision M+1", f"{_next_val:,.0f}",
                       delta=f"{((_next_val - _next_p)/_next_p*100):+.1f}%" if _next_p > 0 else None)
             st.caption(f"Basée sur moyenne mobile 3m (pondérée 60/40)")
+
+            # ── Run-rate fin d'année (P1) ──────────────────────
+            _rr = run_rate_fin_annee(df_vc_scope, annee_sel)
+            _ca_n1_full = float(df_vc_scope[df_vc_scope["Année"] == annee_sel - 1]["Montant TTC"].sum()) \
+                if "Montant TTC" in df_vc_scope.columns else 0.0
+            _rr_evo = evol_pct(_rr["Projection"], _ca_n1_full)
+            st.metric(
+                f"Run-rate fin {annee_sel}",
+                f"{_rr['Projection']:,.0f} TND" if pd.notna(_rr["Projection"]) else "—",
+                f"{fmt_pct(_rr_evo)} vs {annee_sel-1} (annuel)" if pd.notna(_rr["Projection"]) else None,
+                delta_color=color_delta(_rr_evo),
+            )
+            st.caption(f"CA YTD {_rr['CA YTD']:,.0f} / {_rr['Jours écoulés']} j écoulés × {_rr['Jours année']} j")
+
+    # ── Pont volume × panier (P1) : décomposition de ΔCA N vs N-1 ──
+    section("Pont de variation — Volume × Panier")
+    _bridge = bridge_volume_panier(df_vc_scope, annee_sel, mois_sel)
+    _beff = _bridge.set_index("Étape")["Effet (TND)"]
+    if pd.notna(_beff.get("+ Volume")):
+        st.plotly_chart(
+            chart_bridge(_bridge, "Étape", "Valeur",
+                         f"Décomposition ΔCA {annee_sel} vs {annee_sel-1}"
+                         f"{(' — ' + mois_label) if mois_sel else ''}"),
+            use_container_width=True,
+        )
+        bc1, bc2, bc3 = st.columns(3)
+        bc1.metric("Effet volume", f"{_beff.get('+ Volume'):+,.0f} TND",
+                   f"{_bridge.set_index('Étape').loc['+ Volume', 'Nb factures']:+,.0f} factures")
+        _dpan = _bridge.set_index("Étape").loc["+ Panier", "Panier moyen"]
+        bc2.metric("Effet panier", f"{_beff.get('+ Panier'):+,.0f} TND",
+                   f"{_dpan:+,.0f} TND/facture")
+        bc3.metric("Effet mix", f"{_beff.get('+ Mix'):+,.0f} TND",
+                   f"Δ total {_beff.get('= CA N'):+,.0f} TND")
+    else:
+        st.caption("Pas de base N-1 sur la période — pont non calculable.")
 
 
 # ══════════════════════════════════════════════════════════════
@@ -835,8 +973,8 @@ with tabs[2]:
     section("Portefeuille conventions — Vue synthétique")
     pk1, pk2, pk3, pk4 = st.columns(4)
     pk1.metric("\U0001f4cb Conventions actives", nb_convs)
-    pk2.metric("\U0001f4b0 CA Total N", f"{ca_total_n:,.0f} TND", f"{ev_total:+.1f}%",
-               delta_color="normal" if ev_total >= 0 else "inverse")
+    pk2.metric("\U0001f4b0 CA Total N", f"{ca_total_n:,.0f} TND", fmt_pct(ev_total),
+               delta_color=color_delta(ev_total))
     pk3.metric("\u26a0\ufe0f À risque", nb_risky, delta_color="inverse" if nb_risky > 0 else "off")
     pk4.metric("\U0001f504 Inactives", nb_inact, delta_color="inverse" if nb_inact > 0 else "off")
 
@@ -859,6 +997,144 @@ with tabs[2]:
                               legend=dict(orientation="h", y=-0.15, x=0, font=dict(size=11)))
         fig_top.update_traces(marker=dict(line=dict(width=0.5, color="white")))
         st.plotly_chart(fig_top, use_container_width=True)
+
+    # ── 2c. Cohortes par ancienneté (P2) ──────────────────
+    _coh = cohortes_conventions(df_vc_filt, annee_sel, mois_sel=mois_sel)
+    if not _coh.empty:
+        section("Cohortes — Ancienneté des conventions")
+        _cc1, _cc2 = st.columns([2, 1])
+        with _cc1:
+            fig_coh = px.bar(
+                _coh, x="Cohorte", y="CA N", color="Cohorte",
+                title=f"CA {annee_sel} par cohorte",
+                text_auto=".0f", height=320,
+                color_discrete_map={
+                    "✅ Fidèles": C["green"], "🆕 Nouvelles": C["blue"],
+                    "🔄 Revenantes": C["amber"], "❌ Perdues": C["slate"],
+                },
+            )
+            fig_coh.update_layout(xaxis_title="", yaxis_title="CA N (TND)", showlegend=False)
+            st.plotly_chart(fig_coh, use_container_width=True)
+        with _cc2:
+            st.dataframe(
+                _coh.style.format(
+                    {"CA N": "{:,.0f}", "CA N-1": "{:,.0f}",
+                     "Variation %": "{:+.1f}%", "Poids % N": "{:.1f}%"},
+                    na_rep="—",
+                ),
+                use_container_width=True, hide_index=True,
+            )
+
+    # ── 2b. Top hausses / pertes en TND (P1) ──────────────
+    if not _rm.empty and "CA N" in _rm.columns and "CA N-1" in _rm.columns:
+        section("Top hausses / pertes — Variation en TND")
+        _rm_tnd = _rm.copy()
+        _rm_tnd["Δ CA (TND)"] = _rm_tnd["CA N"] - _rm_tnd["CA N-1"]
+        _gains = _rm_tnd[_rm_tnd["Δ CA (TND)"] > 0].nlargest(5, "Δ CA (TND)")
+        _pertes = _rm_tnd[_rm_tnd["Δ CA (TND)"] < 0].nsmallest(5, "Δ CA (TND)")
+        _tot_g = float(_rm_tnd.loc[_rm_tnd["Δ CA (TND)"] > 0, "Δ CA (TND)"].sum())
+        _tot_p = float(_rm_tnd.loc[_rm_tnd["Δ CA (TND)"] < 0, "Δ CA (TND)"].sum())
+        _tg1, _tg2 = st.columns(2)
+        with _tg1:
+            st.markdown(f"**\U0001f4c8 Top 5 hausses** — total +{_tot_g:,.0f} TND")
+            if not _gains.empty:
+                st.dataframe(
+                    _gains[["Nom", "CA N", "CA N-1", "Δ CA (TND)", "Évolution %"]].style.format(
+                        {"CA N": "{:,.0f}", "CA N-1": "{:,.0f}",
+                         "Δ CA (TND)": "{:+,.0f}", "Évolution %": "{:+.1f}%"},
+                        na_rep="—",
+                    ),
+                    use_container_width=True, hide_index=True,
+                )
+            else:
+                st.caption("Aucune hausse vs N-1.")
+        with _tg2:
+            st.markdown(f"**\U0001f4c9 Top 5 pertes** — total {_tot_p:,.0f} TND")
+            if not _pertes.empty:
+                st.dataframe(
+                    _pertes[["Nom", "CA N", "CA N-1", "Δ CA (TND)", "Évolution %"]].style.format(
+                        {"CA N": "{:,.0f}", "CA N-1": "{:,.0f}",
+                         "Δ CA (TND)": "{:+,.0f}", "Évolution %": "{:+.1f}%"},
+                        na_rep="—",
+                    ),
+                    use_container_width=True, hide_index=True,
+                )
+            else:
+                st.caption("Aucune perte vs N-1.")
+
+    # ── 2d. Taux de conversion client (Effectif vs Acheteurs) ──
+    section("Taux de conversion client — Effectif vs Acheteurs")
+    _conv_rate = conversion_conventions(df_vc_filt, annee_sel, mois_sel if mois_sel else None)
+    _kpi_conv = kpi_conversion_globale(_conv_rate)
+    if not _conv_rate.empty:
+        tg = _kpi_conv.get("Taux global %")
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Taux de conversion global",
+                  f"{tg:.2f} %" if pd.notna(tg) else "—",
+                  help="Acheteurs distincts / Effectif total (conventions avec effectif > 0)")
+        c2.metric("Acheteurs distincts", f"{_kpi_conv['Nb acheteurs']:,}".replace(",", " "))
+        c3.metric("Effectif total suivi", f"{_kpi_conv['Effectif total']:,}".replace(",", " "))
+        c4.metric("Conventions suivies", _kpi_conv["Nb conventions suivies"],
+                  f"{_kpi_conv['Nb sans effectif']} sans effectif" if _kpi_conv["Nb sans effectif"] else None)
+        _top_conv = _conv_rate[_conv_rate["Effectif"] > 0].head(15).sort_values("Taux %", ascending=True)
+        if not _top_conv.empty:
+            fig_conv = px.bar(_top_conv, x="Taux %", y="Nom", orientation="h",
+                              title="Top 15 — Taux de conversion par convention",
+                              text="Taux %", height=450,
+                              hover_data=["Nb acheteurs", "Effectif", "Nb factures"])
+            fig_conv.update_layout(xaxis_title="Taux % (acheteurs / effectif)",
+                                   yaxis_title="")
+            st.plotly_chart(fig_conv, use_container_width=True)
+        _conv_show = _conv_rate.copy()
+        if conv_sel != "Tous":
+            _conv_show = _conv_show[_conv_show["Nom"] == conv_sel]
+        st.dataframe(
+            _conv_show.style.format(
+                {"Effectif": "{:,.0f}", "Nb acheteurs": "{:,.0f}",
+                 "Nb factures": "{:,.0f}", "Taux %": "{:.1f}%"},
+                na_rep="—"),
+            use_container_width=True, height=350,
+        )
+        st.caption("Source effectifs : data/effectifs_conventions.csv — "
+                   "« — » = effectif manquant ou nul. Acheteurs = N° Client distincts "
+                   "ayant acheté sur la période.")
+        with st.expander("➕ Ajouter / corriger un effectif", expanded=False):
+            _e1, _e2 = st.columns([2, 1])
+            with _e1:
+                _new_nom = st.selectbox("Convention",
+                    sorted(_conv_rate["Nom"].tolist()), key="eff_conv_nom")
+            with _e2:
+                _new_eff = st.number_input("Effectif", min_value=0, step=10,
+                    key="eff_conv_val")
+            if st.button("Enregistrer l'effectif", key="eff_conv_save"):
+                try:
+                    import csv as _csv
+                    from metrics.kpi import EFFECTIFS_PATH as _EFF_P
+                    _rows = list(_csv.DictReader(
+                        open(_EFF_P, encoding="utf-8"), delimiter=";")) \
+                        if _EFF_P.exists() else []
+                    _upd = False
+                    for _r in _rows:
+                        if str(_r.get("societe", "")).strip().lower() == \
+                           str(_new_nom).strip().lower():
+                            _r["effectif"] = str(int(_new_eff))
+                            _upd = True
+                    if not _upd:
+                        _rows.append({"societe": _new_nom,
+                                      "effectif": str(int(_new_eff))})
+                    with open(_EFF_P, "w", newline="",
+                              encoding="utf-8") as _f:
+                        _w = _csv.DictWriter(_f, fieldnames=["societe", "effectif"],
+                                             delimiter=";")
+                        _w.writeheader()
+                        _w.writerows(_rows)
+                    st.success(f"Effectif enregistré : {_new_nom} = {int(_new_eff)}")
+                    st.cache_data.clear()
+                    st.rerun()
+                except Exception as _e:
+                    st.error(f"Erreur : {_e}")
+    else:
+        st.caption("Aucune donnée de conversion sur la période.")
 
     # ── 3. Tableau des conventions (interactif) ──────────
     section("Liste des conventions")
@@ -913,11 +1189,29 @@ with tabs[2]:
 
         ci1, ci2, ci3, ci4 = st.columns(4)
         ci1.metric(f"CA {annee_sel}", f"{ca_cv_n:,.0f} TND",
-                   f"{ev_cv:+.1f}% vs {annee_sel-1}",
-                   delta_color="normal" if ev_cv >= 0 else "inverse")
+                   f"{fmt_pct(ev_cv)} vs {annee_sel-1}",
+                   delta_color=color_delta(ev_cv))
         ci2.metric(f"CA {annee_sel-1}", f"{ca_cv_n1:,.0f} TND")
         ci3.metric(f"Factures {annee_sel}", nb_fact_cv)
         ci4.metric("Panier moyen", f"{panier_cv:,.0f} TND")
+
+        # ── Taux de conversion de CETTE convention (pas de noms clients) ──
+        _one = conversion_conventions(df_vc_filt[df_vc_filt["Nom"] == conv_detail],
+                                      annee_sel, mois_sel if mois_sel else None)
+        if not _one.empty:
+            _r = _one.iloc[0]
+            _eff = _r.get("Effectif")
+            _ach = int(_r.get("Nb acheteurs", 0))
+            _tx = _r.get("Taux %")
+            t1, t2, t3 = st.columns(3)
+            t1.metric("Taux de conversion",
+                      f"{_tx:.1f} %" if pd.notna(_tx) else "—",
+                      help="Acheteurs distincts / effectif total de la convention")
+            t2.metric("Acheteurs", f"{_ach:,}".replace(",", " "))
+            t3.metric("Effectif", f"{_eff:,.0f}" if pd.notna(_eff) and _eff else "—")
+            if pd.isna(_tx):
+                st.caption("Effectif manquant ou nul pour cette convention — "
+                           "renseignez-le dans la section « Taux de conversion client » ci-dessus.")
 
         col_cv1, col_cv2 = st.columns(2)
         df_cv_comp = compare_years_date_to_date(df_cv, annee_sel, annee_sel - 1, mois_sel)
@@ -982,17 +1276,24 @@ with tabs[2]:
                 ca_n1_m = _df_fn1.groupby("Magasin")["Montant TTC"].sum().reset_index()
                 ca_n1_m.columns = ["Magasin", "CA N-1"]
                 detail_m = detail_m.merge(ca_n1_m, on="Magasin", how="left").fillna(0)
-                detail_m["Évolution %"] = ((detail_m["Montant TTC"] - detail_m["CA N-1"]) / detail_m["CA N-1"].replace(0, 1) * 100).round(1)
+                detail_m["Évolution %"] = np.where(
+                    detail_m["CA N-1"] > 0,
+                    ((detail_m["Montant TTC"] - detail_m["CA N-1"]) / detail_m["CA N-1"] * 100).round(1),
+                    np.nan,  # sans base N-1 → « — »
+                )
                 detail_m["CA N-1"] = detail_m["CA N-1"].apply(lambda x: f"{x:,.0f}" if x > 0 else "-")
             else:
                 detail_m["CA N-1"] = "-"
-                detail_m["Évolution %"] = 0.0
+                detail_m["Évolution %"] = np.nan  # pas de base N-1 → « — »
 
+            detail_m = detail_m.sort_values("Montant TTC", ascending=False)  # tri AVANT formatage
             detail_m["Montant TTC"]   = detail_m["Montant TTC"].apply(lambda x: f"{x:,.0f}")
             detail_m["Dernière Vente"] = detail_m["Dernière Vente"].dt.strftime("%d/%m/%Y")
-            detail_m["Évolution %"]   = detail_m["Évolution %"].apply(lambda x: f"{x:+.1f}%")
+            detail_m["Évolution %"]   = detail_m["Évolution %"].apply(
+                lambda x: "—" if pd.isna(x) else f"{x:+.1f}%"
+            )
 
-            st.dataframe(detail_m.sort_values("Montant TTC", ascending=False),
+            st.dataframe(detail_m,
                          use_container_width=True, height=min(400, 35 * (len(detail_m) + 1)))
         else:
             st.info("Aucune donnée magasin disponible pour cette convention.")
@@ -1007,12 +1308,10 @@ with tabs[3]:
     if "Magasin" not in df_vc.columns:
         st.info("Données magasin non disponibles")
     else:
-        _base_n  = df_vc_filt[df_vc_filt["Année"] == annee_sel].copy()
-        _base_n1 = df_vc_filt[df_vc_filt["Année"] == annee_sel - 1].copy()
-        # ponytail: date-à-date — tronquer N-1 aux mêmes (Mois, Jour) que N
-        if "Jour" in _base_n.columns and "Jour" in _base_n1.columns and not _base_n.empty:
-            _n_dates = _base_n[["Mois", "Jour"]].drop_duplicates()
-            _base_n1 = _base_n1.merge(_n_dates, on=["Mois", "Jour"], how="inner")
+        # Date-à-date via la SOURCE UNIQUE (conserve les jours N-1 sans facture N — metrics.kpi)
+        _d2d = truncate_n1_date_to_date(df_vc_filt, annee_sel, annee_sel - 1, mois_sel)
+        _base_n  = _d2d[_d2d["Année"] == annee_sel].copy()
+        _base_n1 = _d2d[_d2d["Année"] == annee_sel - 1].copy()
 
         all_stores = sorted(_base_n["Magasin"].dropna().unique()) if "Magasin" in _base_n.columns else []
 
@@ -1125,7 +1424,7 @@ with tabs[3]:
             panier_s = ca_n_s / nb_fact_s if nb_fact_s > 0 else 0
 
             k1, k2, k3, k4, k5 = st.columns(5)
-            k1.metric(f"\U0001f4b0 CA {annee_sel}", f"{ca_n_s:,.0f} TND", f"{evol_s:+.1f}%", delta_color="normal" if evol_s >= 0 else "inverse")
+            k1.metric(f"\U0001f4b0 CA {annee_sel}", f"{ca_n_s:,.0f} TND", fmt_pct(evol_s), delta_color=color_delta(evol_s))
             k2.metric(f"\U0001f4c5 CA {annee_sel-1}", f"{ca_n1_s:,.0f} TND")
             k3.metric("\U0001f9fe Factures", nb_fact_s)
             k4.metric("\U0001f4ca Panier moyen", f"{panier_s:,.0f} TND")
@@ -1162,9 +1461,10 @@ with tabs[3]:
                         Derniere_Vente=("Date", "max"),
                     ).reset_index()
                     detail.columns = ["Convention", "Montant TTC", "Nb Factures", "Dernière Vente"]
+                    detail = detail.sort_values("Montant TTC", ascending=False)  # tri AVANT formatage
                     detail["Montant TTC"] = detail["Montant TTC"].apply(lambda x: f"{x:,.0f}")
                     detail["Dernière Vente"] = detail["Dernière Vente"].dt.strftime("%d/%m/%Y")
-                    st.dataframe(detail.sort_values("Montant TTC", ascending=False),
+                    st.dataframe(detail,
                                 use_container_width=True, height=min(300, 35 * (len(detail) + 1)))
                 else:
                     st.info("Aucune convention sur la période.")
@@ -1219,8 +1519,9 @@ with tabs[3]:
 
                     c1, c2, c3, c4 = st.columns(4)
                     c1.metric(f"{icon} Dossiers", nb)
-                    c2.metric(f"\U0001f4b0 CA {annee_sel}", f"{ca_n_val:,.0f} TND", f"{ev:+.1f}%" if ca_n_val > 0 else None,
-                              delta_color="normal" if ev >= 0 else "inverse")
+                    c2.metric(f"\U0001f4b0 CA {annee_sel}", f"{ca_n_val:,.0f} TND",
+                              fmt_pct(ev) if ca_n_val > 0 else None,
+                              delta_color=color_delta(ev))
                     c3.metric(f"\U0001f4c5 CA {annee_sel-1}", f"{ca_n1_val:,.0f} TND")
                     c4.metric("\U0001f4ca Panier moyen", f"{pm:,.0f} TND" if nb > 0 else "0 TND")
 
@@ -1368,7 +1669,7 @@ with tabs[3]:
                         nb_t   = len(df_t[df_t["Année"] == an])
                         pan_t  = ca_t / nb_t if nb_t > 0 else 0
 
-                        st.metric(f"CA {an}", f"{ca_t:,.0f} TND", f"{evo_t:+.1f}%")
+                        st.metric(f"CA {an}", f"{ca_t:,.0f} TND", fmt_pct(evo_t), delta_color=color_delta(evo_t))
                         st.metric(f"CA {an1}", f"{ca_t1:,.0f} TND")
                         st.metric("Transactions", nb_t)
                         st.metric("Panier moyen", f"{pan_t:,.0f} TND")
@@ -1397,19 +1698,19 @@ with tabs[3]:
         if _df.empty:
             st.caption(f"Aucune donnée {enseigne} disponible.")
             return
-        _n  = _df[_df["Année"] == annee_sel]
-        _n1 = _df[_df["Année"] == annee_sel - 1]
-        if "Jour" in _n.columns and "Jour" in _n1.columns and not _n.empty:
-            _n1 = _n1.merge(_n[["Mois", "Jour"]].drop_duplicates(), on=["Mois", "Jour"], how="inner")  # ponytail: date-à-date
+        # Date-à-date via la SOURCE UNIQUE (conserve les jours N-1 sans facture N — metrics.kpi)
+        _d2d = truncate_n1_date_to_date(_df, annee_sel, annee_sel - 1, mois_sel)
+        _n  = _d2d[_d2d["Année"] == annee_sel]
+        _n1 = _d2d[_d2d["Année"] == annee_sel - 1]
         _ca_n  = _n["Montant TTC"].sum()
         _ca_n1 = _n1["Montant TTC"].sum()
-        _ev = evol_pct(_ca_n, _ca_n1) if _ca_n1 > 0 else 0
+        _ev = evol_pct(_ca_n, _ca_n1)
         _nb_mag = _n["Magasin"].nunique()
         _nb_mag_n1 = _n1["Magasin"].nunique()
         _part = _ca_n / df_vc[df_vc["Année"] == annee_sel]["Montant TTC"].sum() * 100 if not df_vc[df_vc["Année"] == annee_sel].empty else 0
         _c1, _c2, _c3, _c4, _c5 = st.columns(5)
-        _c1.metric(f"CA {enseigne} {annee_sel}", f"{_ca_n:,.0f}", f"{_ev:+.1f}%",
-                   delta_color="normal" if _ev >= 0 else "inverse")
+        _c1.metric(f"CA {enseigne} {annee_sel}", f"{_ca_n:,.0f}", fmt_pct(_ev),
+                   delta_color=color_delta(_ev))
         _c2.metric(f"CA {enseigne} {annee_sel-1}", f"{_ca_n1:,.0f}")
         _c3.metric("Magasins actifs", _nb_mag, f"{_nb_mag - _nb_mag_n1:+d} vs N-1")
         _c4.metric("Part du CA total", f"{_part:.1f}%")
@@ -1629,7 +1930,7 @@ with tabs[4]:
                 (etab["CA N"] == 0) & (etab["CA N-1"] == 0),
                 (etab["CA N"] > 0) & (etab["CA N-1"] == 0),
                 (etab["CA N"] == 0) & (etab["CA N-1"] > 0),
-                etab["Évolution %"] <= -20,
+                etab["Évolution %"] <= SEUILS["declin_fort_pct"],
                 etab["Évolution %"] < 0,
             ],
             [
@@ -2364,10 +2665,8 @@ with tabs[6]:
 with tabs[7]:
     st.markdown("### \U0001f6a8 Alertes Tendances")
     try:
-        from trend_analyzer import TrendAnalyzer
         with st.spinner("Analyse des tendances..."):
-            ta = TrendAnalyzer(df_vc=df_vc, df_edc=df_edc, conventions=df_conv, code_magasin=code_df)
-            alerts = ta.scan_all()
+            alerts = _cached_scan_all(df_vc, df_edc, df_conv, code_df)
             if "Nom" in df_vc_filt.columns:
                 _df_ytd_n = df_vc_filt[df_vc_filt["Année"] == annee_sel].copy()
                 _df_ytd_n1 = df_vc_filt[df_vc_filt["Année"] == annee_sel - 1].copy()
@@ -2399,7 +2698,7 @@ with tabs[7]:
                     ca_n1 = 0.0
                     for m, max_jour in _ytd_index[nom].items():
                         ca_n1 += float(dn1[(dn1["Mois"] == m) & (dn1["Jour"] <= int(max_jour))]["Montant TTC"].sum())
-                    evo = round((ca_n - ca_n1) / ca_n1 * 100, 1) if ca_n1 > 0 else (100.0 if ca_n > 0 else 0.0)
+                    evo = evol_pct(ca_n, ca_n1)
                     a["metrics"]["ytd_change_pct"] = evo
             render_alert_panel(alerts)
     except Exception as e:
@@ -2482,8 +2781,8 @@ with tabs[8]:
                         st.metric("CA Total", f"{kpi.get('ca_total',0):,.0f}")
                     with cols[2]:
                         var = kpi.get("var_total", 0)
-                        st.metric("Variation", f"{var:+.1f}%",
-                                  delta_color="normal" if var >= 0 else "inverse")
+                        st.metric("Variation", fmt_pct(var),
+                                  delta_color=color_delta(var))
 
                     # Exec summary
                     if exec_summary and exec_summary.get("tendance_globale"):
@@ -2528,5 +2827,5 @@ st.caption(
     f"Filtres actifs: Annee {annee_sel} "
     + (f"| Mois: {', '.join([MOIS.get(m, str(m)) for m in mois_sel])} " if mois_sel else "")
     + (f"| Conv. {conv_sel}" if conv_sel != "Tous" else "")
-    + (f"| Seuil inactivite: {seuil_inactif}j" if seuil_inactif != 60 else "")
+    + (f"| Seuil inactivite: {seuil_inactif}j" if seuil_inactif != SEUILS["inactivite_jours"] else "")
 )
