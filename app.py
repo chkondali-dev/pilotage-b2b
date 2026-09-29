@@ -2737,7 +2737,7 @@ with tabs[7]:
                         ca_n1 += float(dn1[(dn1["Mois"] == m) & (dn1["Jour"] <= int(max_jour))]["Montant TTC"].sum())
                     evo = evol_pct(ca_n, ca_n1)
                     a["metrics"]["ytd_change_pct"] = evo
-            render_alert_panel(alerts)
+            render_alert_panel(alerts, df=df_vc, annee_n=annee_sel)
     except Exception as e:
         st.warning(f"Analyse des tendances indisponible: {e}")
 
