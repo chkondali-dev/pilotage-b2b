@@ -31,11 +31,11 @@ from metrics.kpi import (
     objectif_tracking, cohortes_conventions, narratif_executif,
     ventes_positives, concentration_portefeuille, volumes_panier, business_insights,
     conversion_conventions, kpi_conversion_globale,
-    alertes_achats_repetes,
+    alertes_achats_repetes, mapping_nom_convention,
 )
 from charts.factory import (
     chart_bar, chart_grouped_bar, chart_line_compare, chart_variation_bar,
-    chart_bridge, chart_risk_table, chart_gauge, chart_pie,
+    chart_bridge, chart_risk_table, chart_gauge, chart_pie, chart_stacked_bar,
 )
 from ui.components import inject_css, hero, section, badge, rank_card, kpi_card
 from utils.github import push_csv_to_github
@@ -3220,81 +3220,119 @@ with tabs[9]:
     st.markdown("### \U0001f6e1️ Conformité 40% — Achats répétés")
     st.caption(
         "Règle réglementaire : la retenue sur salaire d'un adhérent ne doit pas dépasser "
-        "40% de son salaire net (art. 5 des conventions). Un adhérent cumulant "
-        f"**≥ {SEUILS['achats_annee_alerte']} achats à crédit dans la même année** est "
-        "signalé pour vérification manuelle de sa mensualité."
+        f"40% de son salaire net (art. 5 des conventions). "
+        f"**🔴 Alerte** : ≥ {SEUILS['achats_annee_alerte']} achats à crédit par nom "
+        f"et par année · **🟡 À risque** : ≥ {SEUILS['achats_annee_risque']} — "
+        "à vérifier manuellement auprès de l'Amicale (mensualité vs fiche de paie)."
     )
 
-    # ── Contrôles : seuil + année ──
-    cc1, cc2, cc3 = st.columns([2, 2, 3])
+    # ── Contrôles : flux + seuil + année ──
+    cc0, cc1, cc2 = st.columns([3, 2, 2])
+    with cc0:
+        _flux_conf = st.selectbox(
+            "Flux", options=["Crédit particulier", "Conventions (VC)", "Tous flux"],
+            index=0, key="conf40_flux",
+            help="Conventions (VC) = adhérents d'Amicales ; crédit particulier = individus.",
+        )
     with cc1:
         _seuil_alert = st.number_input(
-            "Seuil d'achats / an", min_value=2, max_value=10,
+            "Seuil alerte 🔴", min_value=2, max_value=10,
             value=int(SEUILS["achats_annee_alerte"]), step=1,
             help="Seuil par défaut centralisé dans data/config.py (SEUILS).",
             key="conf40_seuil",
         )
     with cc2:
-        _annees_dispo = sorted(
-            int(a) for a in df_credit_part["Année"].dropna().unique()
-        ) if not df_credit_part.empty and "Année" in df_credit_part.columns else []
-        _an_conf = st.selectbox(
-            "Année", options=_annees_dispo,
-            index=(_annees_dispo.index(annee_sel) if annee_sel in _annees_dispo else 0),
-            key="conf40_annee",
-        ) if _annees_dispo else None
+        _seuil_rq = st.number_input(
+            "Seuil risque 🟡", min_value=1, max_value=int(_seuil_alert),
+            value=min(int(SEUILS["achats_annee_risque"]), int(_seuil_alert)),
+            step=1, key="conf40_seuil_rq",
+        )
+
+    # ── Données selon le flux ──
+    if _flux_conf == "Conventions (VC)":
+        _df_conf = df_vc.copy() if "df_vc" in dir() else pd.DataFrame()
+    elif _flux_conf == "Tous flux":
+        _pieces = [d for d in (df_credit_part, df_vc) if not d.empty]
+        _df_conf = (pd.concat(_pieces, ignore_index=True)
+                    if _pieces else pd.DataFrame())
+    else:
+        _df_conf = df_credit_part.copy()
+
+    _annees_dispo = sorted(
+        int(a) for a in _df_conf["Année"].dropna().unique()
+    ) if not _df_conf.empty and "Année" in _df_conf.columns else []
+    _an_conf = st.selectbox(
+        "Année", options=_annees_dispo,
+        index=(_annees_dispo.index(annee_sel) if annee_sel in _annees_dispo else 0),
+        key="conf40_annee",
+    ) if _annees_dispo else None
+
+    # Mapping nom → convention (depuis le flux VC) — sinon "Hors convention"
+    try:
+        _conv_map = mapping_nom_convention(df_vc)
+    except Exception:
+        _conv_map = {}
 
     # ── Calcul (année sélectionnée) ──
-    _alertes = alertes_achats_repetes(df_credit_part, annee=_an_conf,
-                                      seuil=_seuil_alert)
+    _alertes = alertes_achats_repetes(_df_conf, annee=_an_conf,
+                                      seuil=_seuil_alert, seuil_risque=_seuil_rq,
+                                      conv_map=_conv_map)
     # Vue « toutes années » pour les KPI globaux
-    _alertes_all = alertes_achats_repetes(df_credit_part, seuil=_seuil_alert)
+    _alertes_all = alertes_achats_repetes(_df_conf, seuil=_seuil_alert,
+                                          seuil_risque=_seuil_rq, conv_map=_conv_map)
 
-    if df_credit_part.empty:
-        st.info("Aucune donnée de crédit particulier disponible.")
+    if _df_conf.empty:
+        st.info("Aucune donnée disponible sur ce flux.")
     else:
-        # ── KPI strip ──
+        # ── KPI strip : rouges puis ambres ──
+        _n_al = int((_alertes["Niveau"] == "🔴 Alerte").sum()) if not _alertes.empty else 0
+        _n_rq = int((_alertes["Niveau"] == "🟡 À risque").sum()) if not _alertes.empty else 0
         m1, m2, m3, m4 = st.columns(4)
-        m1.metric(f"Adhérents à risque ({_an_conf if _an_conf else 'toutes années'})",
-                  f"{len(_alertes):,}".replace(",", " "))
-        m2.metric("Cumul achats concernés",
-                  f"{_alertes['Montant total'].sum():,.0f} TND".replace(",", " ")
-                  if not _alertes.empty else "0 TND")
+        m1.metric(f"🔴 Alertes ({_an_conf if _an_conf else 'toutes années'})",
+                  f"{_n_al:,}".replace(",", " "))
+        m2.metric("🟡 À risque",
+                  f"{_n_rq:,}".replace(",", " "))
         m3.metric("Mensualité cumulée max",
                   f"{_alertes['Mensualité est.'].max():,.0f} TND".replace(",", " ")
                   if not _alertes.empty else "0 TND",
                   help="Somme des mensualités estimées de l'adhérent le plus exposé.")
         m4.metric("Toutes années", f"{len(_alertes_all):,}".replace(",", " "),
-                  help=f"Total d'alertes sur l'historique complet (seuil {_seuil_alert}).")
+                  help=f"Total des lignes (alertes + à risque) sur l'historique complet.")
 
-        # ── Répartition par année ──
+        # ── Répartition par année et niveau ──
         if not _alertes_all.empty:
             section("Répartition par année")
-            _par_an = (_alertes_all.groupby("Année")
+            _par_an = (_alertes_all.groupby(["Année", "Niveau"])
                        .agg(**{"Nb adhérents": ("Nom", "nunique"),
                                "Achats concernés": ("Nb achats", "sum"),
                                "Montant (TND)": ("Montant total", "sum")})
-                       .reset_index().sort_values("Année"))
-            _fig_par_an = chart_bar(
-                _par_an, x="Année", y="Nb adhérents",
-                title=f"Adhérents à risque par année (seuil {_seuil_alert} achats)",
-                color=C["red"], h=260,
+                       .reset_index().sort_values(["Année", "Niveau"]))
+            _fig_par_an = chart_stacked_bar(
+                _par_an, x="Année", cat="Niveau", y="Nb adhérents",
+                title=f"Conformité 40% par année — {_flux_conf}", h=260,
             )
             st.plotly_chart(_fig_par_an, use_container_width=True)
 
-        # ── Tableau d'alertes ──
-        section(f"Alertes — {_an_conf if _an_conf else 'toutes années'}")
+        # ── Tableau : alertes puis à risque ──
+        section(f"Lignes de conformité — {_an_conf if _an_conf else 'toutes années'} " +
+                f"({_flux_conf})")
         if _alertes.empty:
             st.success(
-                f"Aucun adhérent n'a atteint {_seuil_alert} achats dans l'année "
+                f"Aucun adhérent à {_seuil_rq} achats ou plus dans l'année "
                 f"{_an_conf if _an_conf else 'considérée'} — situation conforme."
             )
         else:
+            _nb_al = int((_alertes["Niveau"] == "🔴 Alerte").sum())
+            _nb_rq = int((_alertes["Niveau"] == "🟡 À risque").sum())
             st.warning(
-                f"**{len(_alertes)} adhérent(s)** à vérifier : cumul d'achats "
-                f"≥ {_seuil_alert} sur l'année — risque de dépassement des 40% du salaire net."
+                f"**{_nb_al} alerte(s) 🔴** + **{_nb_rq} à risque 🟡** — "
+                "risque de dépassement des 40% du salaire net à vérifier."
             )
-            _st = _alertes.style.format({
+            cols_t = [c for c in ["Niveau", "Nom", "Convention", "N° Client",
+                                  "Nb N° Client", "Nb achats",
+                                  "Montant total", "Mensualité est.", "Dernier achat"]
+                      if c in _alertes.columns]
+            _st = _alertes[cols_t].style.format({
                 "Montant total": "{:,.0f} TND",
                 "Mensualité est.": "{:,.0f} TND",
                 "Dernier achat": lambda d: d.strftime("%d/%m/%Y")
@@ -3313,15 +3351,16 @@ with tabs[9]:
         # ── Méthodologie ──
         with st.expander("ℹ️ Méthodologie", expanded=False):
             st.markdown(
-                f"- **Seuil** : ≥ {_seuil_alert} achats à crédit par adhérent, "
-                f"comptés **par nom dans la même année** "
-                f"(`SEUILS['achats_annee_alerte']` dans `data/config.py`).\n"
+                f"- **Niveaux** : 🔴 **Alerte** ≥ {_seuil_alert} achats/an "
+                f"par nom · 🟡 **À risque** ≥ {_seuil_rq} "
+                f"(seuils centralisés dans `data/config.py`).\n"
                 "- **Clé d'identification** : le **nom de l'adhérent normalisé** "
-                "(casse, accents, espaces et ponctuation unifiés) — un même adhérent "
-                "reste identifié même s'il cumule plusieurs N° Client (réinscription) "
-                "ou change de forme d'écriture.\n"
+                "(casse, accents, espaces et ponctuation unifiés).\n"
                 "- **Colonne « Nb N° Client »** : nombre de N° Client différents "
                 "rattachés à ce nom sur l'année (>1 = réinscription ou homonyme à vérifier).\n"
+                "- **Colonne « Convention »** : rattachée via le flux conventions (VC) "
+                "par nom d'adhérent — **« Hors convention »** si le nom n'y apparaît pas "
+                "(cas quasi systématique du crédit particulier : individus sans convention).\n"
                 "- **Mensualité estimée** : `Montant TTC / Nbr_Mois_Echéance`, "
                 "somme des factures de l'année — estimation brute, sans intérêts ni "
                 "échéanciers en cours.\n"

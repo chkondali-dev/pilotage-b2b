@@ -761,25 +761,55 @@ def _find_col(df: pd.DataFrame, *cands) -> str | None:
     return None
 
 
+def mapping_nom_convention(df_vc: pd.DataFrame) -> dict:
+    """
+    Mapping nom d'adhérent normalisé → nom(s) de convention(s), depuis le flux
+    conventions (VC) : colonne 'Nom' = convention, 'Nom Client' = adhérent.
+    Valeur = une seule convention, ou plusieurs jointes par " · ".
+    """
+    if df_vc is None or df_vc.empty:
+        return {}
+    c_nom = _find_col(df_vc, "Nom Client", "Nom client")
+    c_conv = _find_col(df_vc, "Nom", "Convention")
+    if not c_nom or not c_conv:
+        return {}
+    d = df_vc.dropna(subset=[c_nom, c_conv]).copy()
+    d["_key"] = d[c_nom].map(_norm_nom)
+    d = d[d["_key"] != ""]
+    return (d.groupby("_key")[c_conv]
+            .agg(lambda s: " · ".join(sorted(set(str(x).strip() for x in s))))
+            .to_dict())
+
+
 def alertes_achats_repetes(df: pd.DataFrame, annee: int = None,
-                           seuil: int = None) -> pd.DataFrame:
+                           seuil: int = None, seuil_risque: int = None,
+                           conv_map: dict = None) -> pd.DataFrame:
     """
-    Adhérents ayant réalisé ≥ `seuil` achats à crédit dans la même année.
+    Conformité 40 % : adhérents classés par niveau selon leurs achats à crédit
+    comptés PAR NOM dans la même année.
 
-    Règle métier (conformité réglementaire TN) : cumul trop d'achats sur la même
-    période fait courir le risque que la retenue mensuelle dépasse 40 % du salaire
-    net de l'adhérent (art. 5 des conventions). Seuil = SEUILS["achats_annee_alerte"].
+    Niveaux (SEUILS centralisés) :
+      🔴 Alerte   : Nb achats ≥ seuil        (SEUILS["achats_annee_alerte"], défaut 3)
+      🟡 À risque : Nb achats ≥ seuil_risque (SEUILS["achats_annee_risque"], défaut 2)
+    Au-delà de 2 achats cumulés, la retenue mensuelle risque de dépasser
+    40 % du salaire net (art. 5 des conventions).
 
-    Colonnes : Nom, N° Client, Nb N° Client, Année, Nb achats, Montant total,
-    Mensualité est., Dernier achat. Tri : Nb achats desc, puis Montant total desc.
-    DataFrame vide (avec les colonnes) si aucune alerte.
+    `conv_map` (optionnel, via mapping_nom_convention) : clé nom normalisé →
+    nom(s) de convention(s) ; colonne "Convention", "Hors convention" si absent.
+
+    Colonnes : Niveau, Nom, N° Client, Nb N° Client, Convention, Année, Nb achats,
+    Montant total, Mensualité est., Dernier achat. Tri : Niveau, Nb achats, Montant.
+    DataFrame vide (avec les colonnes) si aucun cas.
     """
-    cols = ["Nom", "N° Client", "Nb N° Client", "Année", "Nb achats",
-            "Montant total", "Mensualité est.", "Dernier achat"]
+    cols = ["Niveau", "Nom", "N° Client", "Nb N° Client", "Convention", "Année",
+            "Nb achats", "Montant total", "Mensualité est.", "Dernier achat"]
+    NIV_AL, NIV_RQ = "🔴 Alerte", "🟡 À risque"
     if df is None or df.empty:
         return pd.DataFrame(columns=cols)
 
     seuil = int(seuil or SEUILS.get("achats_annee_alerte", 3))
+    seuil_risque = int(seuil_risque or SEUILS.get("achats_annee_risque", 2))
+    seuil_risque = max(1, min(seuil_risque, seuil))  # cohérence : risque sous l'alerte
 
     c_id = _find_col(df, "N° Client", "N client", "N client facture")
     c_nom = _find_col(df, "Nom Client", "Nom")
@@ -847,10 +877,21 @@ def alertes_achats_repetes(df: pd.DataFrame, annee: int = None,
         g["N° Client"] = "—"
         g["Nb N° Client"] = 1
 
-    g = g[g["Nb achats"] >= seuil].copy()
+    # Convention rattachée au nom (via mapping_nom_convention) — sinon "Hors convention"
+    conv_map = conv_map or {}
+    g["Convention"] = g["_key"].map(lambda k: conv_map.get(k, "Hors convention"))
+
+    # Niveau : 🔴 dès le seuil, 🟡 dès le seuil de risque
+    g = g[g["Nb achats"] >= seuil_risque].copy()
+    g["Niveau"] = np.where(g["Nb achats"] >= seuil, NIV_AL, NIV_RQ)
+
     g = g.rename(columns={"_an": "Année"}).drop(columns=["_key"])
+    g["Nb N° Client"] = g["Nb N° Client"].astype(int)
+    g["Nb achats"] = g["Nb achats"].astype(int)
     g["Montant total"] = g["Montant total"].round(0).astype(int)
     g["Mensualité est."] = g["Mensualité est."].round(0).astype(int)
-    return (g[cols]
-            .sort_values(["Nb achats", "Montant total"], ascending=False)
-            .reset_index(drop=True))
+    niv_ordre = {NIV_AL: 0, NIV_RQ: 1}
+    g["_n"] = g["Niveau"].map(niv_ordre)
+    return (g.sort_values(["_n", "Nb achats", "Montant total"],
+                         ascending=[True, False, False])
+            .drop(columns=["_n"]).reset_index(drop=True)[cols])

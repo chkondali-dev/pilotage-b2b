@@ -54,7 +54,8 @@ SEUILS = {
     "ca_tnd_min": 1000,       # insight : ignore les variations sur CA < 1 000 TND (bruit)
     "prospection_stalle_jours": 30,  # onglet Conventions encours : prospect sans activité → bloqué
     "relance_jours": 14,      # délai entre 2 relances (prochaine relance auto pipeline)
-    "achats_annee_alerte": 3,  # conformité 40% : ≥ 3 achats/crédit par adhérent dans l'année → alerte
+    "achats_annee_alerte": 3,  # conformité 40% : ≥ 3 achats/crédit par adhérent dans l'année → 🔴 Alerte
+    "achats_annee_risque": 2,  # conformité 40% : = 2 achats dans l'année → 🟡 À risque (surveillance)
 }
 
 # Jalons types — délai max (jours) par étape du pipeline, par scénario.

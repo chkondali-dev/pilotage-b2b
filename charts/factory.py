@@ -305,3 +305,34 @@ def chart_inactive_bar(df, title: str, h: int = 380) -> go.Figure:
         xaxis_title="Jours sans facture",
     )
     return _base(fig, max(300, len(df) * 28))
+
+
+def chart_stacked_bar(df, x: str, cat: str, y: str,
+                      title: str, h: int = 380) -> go.Figure:
+    """Barres empilées génériques (mappings couleurs → palette C : red/amber/blue)."""
+    if df is None or df.empty:
+        return _empty(title, h)
+    _PALETTE = {str(k): C[v] for k, v in
+                [("Alerte", "red"), ("À risque", "amber"), ("N", "blue"),
+                 ("N-1", "slate"), ("Élevé", "red"), ("Faible", "green")]}
+    fig = go.Figure()
+    order = list(dict.fromkeys(df[cat].astype(str)))
+    for name in order:
+        sub = df[df[cat].astype(str) == name]
+        color = _PALETTE.get(name)
+        if color is None:
+            for token, col in (("lert", "red"), ("risq", "amber"), ("cros", "green"),
+                               ("bais", "red"), ("nouv", "blue")):
+                if token in name.lower():
+                    color = C[col]
+                    break
+            color = color or C["muted"]
+        fig.add_trace(go.Bar(
+            x=sub[x], y=sub[y], name=name,
+            marker_color=color,
+            text=[f"{v/1e3:.1f}k" if float(v or 0) >= 1000 else f"{int(v or 0)}"
+                  for v in sub[y]],
+            textposition="outside", textfont_size=9,
+        ))
+    fig.update_layout(barmode="stack", title=title)
+    return _base(fig, h)
