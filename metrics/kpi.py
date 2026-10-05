@@ -237,7 +237,15 @@ def inactive_conventions(
 # ══════════════════════════════════════════════════════════════
 
 def _scope_d2d(df: pd.DataFrame, annee_n: int, mois_sel: list = None) -> tuple:
-    """Scope N (mois filtrés) + N-1 tronquée date-à-date. Retourne (df_n, df_n1)."""
+    """
+    Scope N (mois filtrés) + N-1 tronquée date-à-date SUR LES MÊMES MOIS.
+    Retourne (df_n, df_n1).
+
+    Attention : truncate_n1_date_to_date conserve volontairement les autres
+    mois de N-1 (utile aux tendances 3 mois) ; on les retire ici pour que N
+    et N-1 portent rigoureusement sur la même période. Sans ce filtre, un mois
+    sélectionné était comparé à l'ANNÉE N-1 ENTIÈRE (pont, cohortes, volumes faux).
+    """
     if df.empty or "Année" not in df.columns:
         return df.iloc[0:0].copy(), df.iloc[0:0].copy()
     df_n = df[df["Année"] == annee_n].copy()
@@ -245,6 +253,8 @@ def _scope_d2d(df: pd.DataFrame, annee_n: int, mois_sel: list = None) -> tuple:
         df_n = df_n[df_n["Mois"].isin(mois_sel)]
     df_n1 = truncate_n1_date_to_date(df, annee_n, annee_n - 1, mois_sel)
     df_n1 = df_n1[df_n1["Année"] == annee_n - 1]
+    if mois_sel:
+        df_n1 = df_n1[df_n1["Mois"].isin(mois_sel)]
     return df_n, df_n1
 
 
@@ -276,10 +286,14 @@ def bridge_volume_panier(
 ) -> pd.DataFrame:
     """
     Pont de variation CA : ΔCA = effet volume + effet panier + interaction.
-      effet volume = (n − n0) × p0      (plus/moins de factures)
-      effet panier = n0 × (p − p0)      (panier moyen)
-      effet mix    = (n − n0) × (p − p0) (interaction, résiduel exact)
-    N-1 tronquée date-à-date (mêmes jours que N). Effets NaN sans base N-1.
+      effet volume      = (n − n0) × p0       (plus/moins de factures)
+      effet panier      = n0 × (p − p0)       (variation du panier moyen)
+      effet interaction = (n − n0) × (p − p0) (croisement des deux, résiduel exact)
+
+    Les trois effets S'ADDITIONNENT (ce n'est pas un produit, malgré le titre
+    historique « Volume × Panier ») et la somme redonne exactement ΔCA.
+    N-1 tronquée date-à-date (mêmes jours ET mêmes mois que N). Effets NaN
+    sans base N-1.
     """
     df_n, df_n1 = _scope_d2d(df, annee_n, mois_sel)
     ca_n = float(df_n["Montant TTC"].sum()) if "Montant TTC" in df_n.columns else 0.0
@@ -306,13 +320,12 @@ def bridge_volume_panier(
          "Panier moyen": r(p0 if base_ok else nan), "Effet (TND)": r(v), "Valeur": r(v)},
         {"Étape": "+ Panier", "Nb factures": n0 if base_ok else nan,
          "Panier moyen": r((p1 - p0) if base_ok else nan), "Effet (TND)": r(p), "Valeur": r(p)},
-        {"Étape": "+ Mix", "Nb factures": nan, "Panier moyen": nan,
+        {"Étape": "+ Interaction", "Nb factures": nan, "Panier moyen": nan,
          "Effet (TND)": r(mix), "Valeur": r(mix)},
         {"Étape": "= CA N", "Nb factures": n, "Panier moyen": r(p1 if n > 0 else nan),
          "Effet (TND)": round(ca_n - ca_n1, 0),
          "Valeur": round(ca_n, 0) if base_ok else nan},
     ])
-    return out
 
 # ── Run-rate fin d'année ─────────────────────────────────────
 
@@ -590,7 +603,8 @@ def narratif_executif(ctx: dict) -> list:
     br = ctx.get("bridge") or {}
     if pd.notna(br.get("+ Volume")):
         moteur = max([("+ Volume", br["+ Volume"]), ("+ Panier", br["+ Panier"]),
-                      ("+ Mix", br.get("+ Mix", 0))], key=lambda kv: abs(kv[1]))
+                      ("+ Interaction", br.get("+ Interaction", 0))],
+                     key=lambda kv: abs(kv[1]))
         b.append(("⚙️", f"Moteur dominant : {moteur[0].replace('+ ', '')} "
                   f"({moteur[1]:+,.0f} TND)."))
     th = ctx.get("top_hausse") or {}

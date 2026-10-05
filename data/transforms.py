@@ -1,9 +1,13 @@
 """
 Transformations et préparation des données.
 """
+import re
+import unicodedata
+from datetime import datetime
+
 import pandas as pd
 import streamlit as st
-from data.config import NOMS_INDIVIDUELS
+from data.config import NOMS_INDIVIDUELS, JALONS, JALONS_SCENARIOS
 from data.loader import _filter_conventions
 
 
@@ -176,3 +180,272 @@ def prepare_data(_raw: dict) -> tuple:
     if df_crm is not None:
         df_crm = _compute_ca_realise(df_crm, df_vc)
     return df_vc, df_credit, df_edc, df_conv, code_df, df_credit_part, df_cube_mag, df_prospection, df_crm
+
+
+# ══════════════════════════════════════════════════════════════
+# Onglet « Conventions encours » — enrichissement prospection
+# ══════════════════════════════════════════════════════════════
+
+# Étapes du pipeline (colonnes du sheet Excel « convention en cours »).
+PROSP_ETAPES = [
+    ("Prise de contact", "date prise de contact"),
+    ("Validation client", "date validation client"),
+    ("Juridique", "date juridique"),
+    ("Finance", "date fianance"),
+    ("Signature", "date signature"),
+]
+
+# Entrées horodatées du journal COMMENTAIRE : [24/06/2025 08:52] texte…
+_JOURNAL_RE = re.compile(
+    r"\[(\d{1,2}/\d{1,2}/\d{4}\s+\d{1,2}:\d{2})\](.*?)"
+    r"(?=\[\d{1,2}/\d{1,2}/\d{4}\s+\d{1,2}:\d{2}\]|\Z)",
+    re.S,
+)
+
+
+def _parse_journal(txt) -> tuple:
+    """Dernière entrée horodatée d'un journal → (Timestamp, texte nettoyé)."""
+    if not isinstance(txt, str) or not txt.strip():
+        return pd.NaT, ""
+    entries = []
+    for m in _JOURNAL_RE.finditer(txt.replace("_x000D_", "\n")):
+        try:
+            d = datetime.strptime(m.group(1), "%d/%m/%Y %H:%M")
+        except ValueError:
+            continue
+        body = " ".join(m.group(2).split()).strip(" -|")
+        if body:
+            entries.append((pd.Timestamp(d), body))
+    if not entries:
+        return pd.NaT, ""
+    d, body = max(entries, key=lambda e: e[0])
+    return d, body[:160]
+
+
+# ── Scénarios, jalons et motifs de blocage ─────────────────────
+
+# Motif pré-rempli selon l'étape où le prospect est bloqué (idée « calcul auto du motif »).
+_MOTIF_ETAPES = {
+    "Prise de contact": "Prise de contact non effectuée",
+    "Validation client": "En attente de validation client",
+    "Juridique": "Bloqué côté juridique",
+    "Finance": "Bloqué côté financier",
+    "Signature": "En attente de signature",
+}
+
+
+def _norm_txt(s) -> str:
+    """Minuscules, sans accents, espaces réduits — clé de comparaison de noms."""
+    nfkd = unicodedata.normalize("NFKD", str(s or ""))
+    return " ".join(nfkd.encode("ascii", "ignore").decode().lower().split())
+
+
+def scenario_prospect(nom: str) -> str:
+    """Numéro de scénario (01/03/04/07) d'un prospect — heurique sur le nom.
+
+    Utilisé pour appliquer les bons JALONS (data/config.py) aux prospects du
+    pipeline qui n'ont pas de champ « scenario » dans le sheet Excel.
+    """
+    n = _norm_txt(nom)
+    if "amicale" in n:
+        return "04"
+    if "mutuelle" in n:
+        return "07"
+    if any(k in n for k in ("ministere", "commune", "municipalite", "administration",
+                            "prefecture", "gouvernorat", "direction regional")):
+        return "03"
+    return "01"
+
+
+def _tokens_txt(s) -> set:
+    """Tokens significatifs (≥3 lettres, hors mots vides) pour le match de noms."""
+    stop = {"les", "des", "une", "societe", "sarl", "sas", "le", "la", "de", "du", "et", "el"}
+    return {t for t in re.split(r"[^a-z0-9]+", _norm_txt(s)) if len(t) >= 3 and t not in stop}
+
+
+def ajoute_crm(df: pd.DataFrame, df_crm: pd.DataFrame) -> pd.DataFrame:
+    """Colle CA potentiel / CA réalisé du CRM sur les prospects du pipeline.
+
+    Match : 1) égalité normalisée du nom  2) ≥ 2 tokens communs (≥3 lettres).
+    Colonnes ajoutées « CA potentiel (CRM) » / « CA réalisé (CRM) » (NaN si pas de match).
+    """
+    if df is None or df.empty or "conventions en cours" not in df.columns:
+        return df
+    df = df.copy()
+    df["CA potentiel (CRM)"] = float("nan")
+    df["CA réalisé (CRM)"] = float("nan")
+    if df_crm is None or df_crm.empty or "Nom entreprise" not in df_crm.columns:
+        return df
+    crm = df_crm.copy()
+    crm["_tok"] = crm["Nom entreprise"].map(_tokens_txt)
+    by_norm = {}
+    tok_idx = []
+    for i, row in crm.iterrows():
+        nn = _norm_txt(row["Nom entreprise"])
+        if nn and nn not in by_norm:
+            by_norm[nn] = i
+        tok_idx.append((row["_tok"], i))
+    ca_p = "CA potentiel" if "CA potentiel" in crm.columns else None
+    ca_r = "CA realise" if "CA realise" in crm.columns else None
+    for idx, nom in df["conventions en cours"].items():
+        hit = by_norm.get(_norm_txt(nom))
+        if hit is None:
+            nt = _tokens_txt(nom)
+            if nt and tok_idx:
+                best = max(tok_idx, key=lambda p: len(nt & p[0]))
+                if len(nt & best[0]) >= 2:
+                    hit = best[1]
+        if hit is not None:
+            if ca_p:
+                df.at[idx, "CA potentiel (CRM)"] = crm.at[hit, ca_p]
+            if ca_r:
+                df.at[idx, "CA réalisé (CRM)"] = crm.at[hit, ca_r]
+    return df
+
+
+def enrich_prospection(df: pd.DataFrame, seuil_stalle: int = 30,
+                       relance_jours: int = 14) -> pd.DataFrame:
+    """Colonnes calculées de suivi pour l'onglet Conventions encours.
+
+    Ajoute : Date début, Date fin, Durée (j), Étape atteinte/en cours,
+    Jours étape, Scénario + Cible/Retard (jalons par scénario, data/config.py),
+    Dernière activité, Dernier point, Sans mouvement (j), Relance suggérée,
+    Situation (🟢/🟡/🔴) et Motif blocage (suggéré, pré-rempli selon l'étape).
+
+    Seuil d'inactivité = SEUILS["prospection_stalle_jours"] ; délai entre deux
+    relances = SEUILS["relance_jours"] (data/config.py).
+    """
+    if df is None or df.empty or "conventions en cours" not in df.columns:
+        return pd.DataFrame()
+    df = df.copy()
+    nom = df["conventions en cours"]
+    df = df[nom.notna() & (nom.astype(str).str.strip() != "")].reset_index(drop=True)
+
+    date_cols = [c for _, c in PROSP_ETAPES if c in df.columns]
+    for c in date_cols:
+        df[c] = pd.to_datetime(df[c], errors="coerce")
+    dates = df[date_cols] if date_cols else pd.DataFrame(index=df.index)
+    today = pd.Timestamp.now().normalize()
+
+    # Date début = première date d'étape atteinte ; Date fin = date de signature
+    # (ou dernière date d'étape si clôturé sans date de signature renseignée).
+    df["Date début"] = dates.min(axis=1) if date_cols else pd.Series(pd.NaT, index=df.index)
+    if "date signature" in df.columns:
+        df["Date fin"] = df["date signature"].copy()
+    else:
+        df["Date fin"] = pd.Series(pd.NaT, index=df.index)
+    if "AVANCEMENT2" in df.columns and date_cols:
+        clot = (df["AVANCEMENT2"].fillna("").str.strip().str.lower().eq("clôturé")
+                & df["Date fin"].isna())
+        df.loc[clot, "Date fin"] = dates.max(axis=1)[clot]
+
+    df["Durée (j)"] = (df["Date fin"].fillna(today) - df["Date début"]).dt.days.where(
+        df["Date début"].notna()
+    )
+
+    # Étapes franchies / étape en cours / jours depuis la dernière étape
+    def _etapes(row):
+        atteinte, en_cours = "—", None
+        for nom_etape, col in PROSP_ETAPES:
+            if col not in df.columns:      # colonne absente du sheet → étape inconnue
+                continue
+            if pd.isna(row.get(col)):
+                if en_cours is None:
+                    en_cours = nom_etape
+            else:
+                atteinte = nom_etape
+        return pd.Series([atteinte, en_cours or "Terminé"])
+
+    if date_cols:
+        df[["Étape atteinte", "Étape en cours"]] = df.apply(_etapes, axis=1)
+        df["Jours étape"] = (today - dates.max(axis=1)).dt.days.where(
+            dates.notna().any(axis=1)
+        )
+    else:
+        df["Étape atteinte"] = "—"
+        df["Étape en cours"] = "—"
+        df["Jours étape"] = pd.Series(pd.NA, index=df.index, dtype="Int64")
+
+    # Jalons par scénario : cible de l'étape en cours + retard (jours au-delà)
+    df["Scénario"] = df["conventions en cours"].map(
+        lambda n: JALONS_SCENARIOS.get(scenario_prospect(n), JALONS_SCENARIOS["01"]))
+
+    def _cible(row):
+        etape = str(row.get("Étape en cours", "") or "")
+        if etape in ("Terminé", "—", ""):
+            return None
+        return JALONS[scenario_prospect(row.get("conventions en cours", ""))].get(etape)
+
+    df["Cible (j)"] = df.apply(_cible, axis=1)
+    df["Retard (j)"] = [
+        int(j) - int(c)
+        if (pd.notna(j) and c is not None and not pd.isna(c) and int(j) > int(c))
+        else None
+        for j, c in zip(df["Jours étape"], df["Cible (j)"])
+    ]
+
+    # Dernière activité : journal horodaté (COMMENTAIRE > Commentaire fathi > Commentaires)
+    journal_cols = [c for c in ("COMMENTAIRE", "Commentaire fathi", "Commentaires")
+                    if c in df.columns]
+
+    def _derniere_activite(row):
+        fallback = ""
+        for c in journal_cols:
+            d, body = _parse_journal(row.get(c))
+            if pd.notna(d):
+                return pd.Series([d, body])
+            if not fallback and isinstance(row.get(c), str) and row[c].strip():
+                fallback = " ".join(row[c].split())[:160]
+        return pd.Series([pd.NaT, fallback])
+
+    if journal_cols:
+        df[["Dernière activité", "Dernier point"]] = df.apply(_derniere_activite, axis=1)
+    else:
+        df["Dernière activité"] = pd.Series(pd.NaT, index=df.index)
+        df["Dernier point"] = ""
+
+    # Jours sans mouvement = depuis le max(journal, dates d'étape)
+    _touches = date_cols + (["Dernière activité"] if journal_cols else [])
+    if _touches:
+        _last = df[_touches].max(axis=1)
+        df["Sans mouvement (j)"] = (today - _last).dt.days
+        # Relance suggérée = dernière activité + délai de relance (SEUILS)
+        df["Relance suggérée"] = (_last + pd.Timedelta(days=relance_jours)).dt.normalize()
+    else:
+        df["Sans mouvement (j)"] = pd.Series(pd.NA, index=df.index, dtype="Int64")
+        df["Relance suggérée"] = pd.Series(pd.NaT, index=df.index)
+
+    def _situation(row) -> str:
+        statut = str(row.get("AVANCEMENT2", "") or "").strip().lower()
+        sm = row.get("Sans mouvement (j)")
+        sm = int(sm) if pd.notna(sm) else None
+        if statut == "clôturé":
+            return "✅ Clôturé"
+        if pd.notna(row.get("Date fin")):
+            return "✅ Signé"          # signature datée mais AVANCEMENT2 non mis à jour
+        if statut == "non démarré" and pd.isna(row.get("Date début")):
+            return "⚪ Non démarré"
+        if sm is None:
+            return "🔵 À qualifier"
+        if sm >= seuil_stalle:
+            return f"🔴 Bloqué ({sm} j)"
+        if sm >= seuil_stalle / 2:
+            return f"🟡 À relancer ({sm} j)"
+        return f"🟢 Actif ({sm} j)"
+
+    def _motif(row) -> str:
+        """Motif pré-rempli selon l'étape bloquée + dernier point du journal."""
+        if not str(row.get("Situation", "")).startswith("🔴"):
+            return ""
+        base = _MOTIF_ETAPES.get(str(row.get("Étape en cours", "")), "Sans activité")
+        point = str(row.get("Dernier point", "") or "").strip()
+        if point:
+            return f"{base} — {point}"[:160]
+        return base
+
+    df["Situation"] = df.apply(_situation, axis=1)
+    df["Motif blocage (suggéré)"] = df.apply(_motif, axis=1)
+    # Pas de relance suggérée sur les dossiers déjà clôturés
+    if "Relance suggérée" in df.columns:
+        df.loc[df["Situation"].str.startswith("✅"), "Relance suggérée"] = pd.NaT
+    return df

@@ -14,7 +14,48 @@ from pathlib import Path
 
 REGISTRY_PATH = Path(__file__).resolve().parent.parent / "data" / "conventions_signees.csv"
 FIELDS = ["code", "client", "scenario", "garantie", "statut",
-          "date_debut_prospection", "date_signature", "nb_modifications", "notes"]
+          "date_debut_prospection", "date_fin", "date_signature",
+          "motif_blocage", "prochaine_relance", "historique",
+          "nb_modifications", "notes"]
+
+# Format historique : "AAAA-MM-DD:ancien>nouveau" séparés par " | "
+
+
+def parse_historique(hist: str) -> list:
+    """'2026-05-07:Prospection>Negociation | …' → [(date, ancien, nouveau), …]."""
+    out = []
+    for chunk in str(hist or "").split("|"):
+        chunk = chunk.strip()
+        if not chunk or ":" not in chunk or ">" not in chunk:
+            continue
+        d_s, tr = chunk.split(":", 1)
+        ancien, nouveau = tr.split(">", 1)
+        try:
+            d = date.fromisoformat(d_s.strip())
+        except ValueError:
+            continue
+        out.append((d, ancien.strip(), nouveau.strip()))
+    return out
+
+
+def jours_dans_statut(row: dict, today: date | None = None) -> int | None:
+    """Jours écoulés depuis le dernier changement de statut (historique). None si inconnu."""
+    entries = parse_historique(row.get("historique", ""))
+    if not entries:
+        return None
+    today = today or date.today()
+    return (today - entries[-1][0]).days
+
+
+def _append_historique(r: dict, ancien: str, nouveau: str) -> None:
+    """Ajoute « AAAA-MM-DD:ancien>nouveau » si le statut a réellement changé."""
+    ancien = (ancien or "").strip()
+    nouveau = (nouveau or "").strip()
+    if not nouveau or nouveau == ancien:
+        return
+    entree = f"{date.today().isoformat()}:{ancien or '—'}>{nouveau}"
+    hist = str(r.get("historique", "") or "").strip(" |")
+    r["historique"] = f"{hist} | {entree}" if hist else entree
 
 
 def _read() -> list[dict]:
@@ -46,7 +87,10 @@ def load_convention(code: str) -> dict | None:
 
 def register_convention(code: str, client: str, scenario: str = "", garantie: str = "",
                         statut: str = "Prospection", date_debut_prospection: str | None = None,
-                        date_signature: str = "", notes: str = "") -> str:
+                        date_signature: str = "", notes: str = "",
+                        date_fin: str = "", motif_blocage: str = "",
+                        prochaine_relance: str = "",
+                        historique: str | None = None) -> str:
     """Upsert : crée ou met à jour une ligne. Retourne "created" | "updated".
 
     En mise à jour, seuls les champs fournis sont remplacés (pas de reset du statut).
@@ -56,20 +100,30 @@ def register_convention(code: str, client: str, scenario: str = "", garantie: st
     rows = _read()
     for r in rows:
         if str(r.get("code", "")).strip().lower() == code.lower():
+            ancien_statut = str(r.get("statut", "")).strip()
             updates = {"client": client, "scenario": scenario, "garantie": garantie,
-                       "statut": statut, "date_signature": date_signature, "notes": notes}
+                       "statut": statut, "date_signature": date_signature, "notes": notes,
+                       "date_fin": date_fin, "motif_blocage": motif_blocage,
+                       "prochaine_relance": prochaine_relance}
+            if historique is not None:   # jamais écrasé par défaut
+                updates["historique"] = historique
             if date_debut_prospection is not None:
                 updates["date_debut_prospection"] = date_debut_prospection
             for k, v in updates.items():
                 if v:
                     r[k] = v
+            _append_historique(r, ancien_statut, statut)   # trace du changement de statut
             r["nb_modifications"] = str(int(r.get("nb_modifications") or 0) + 1)
             _write(rows)
             return "updated"
     rows.append({"code": code, "client": client, "scenario": scenario, "garantie": garantie,
                  "statut": statut,
                  "date_debut_prospection": date_debut_prospection or date.today().isoformat(),
-                 "date_signature": date_signature, "nb_modifications": "0", "notes": notes})
+                 "date_signature": date_signature, "date_fin": date_fin,
+                 "motif_blocage": motif_blocage, "prochaine_relance": prochaine_relance,
+                 "historique": historique if historique is not None
+                 else f"{(date_debut_prospection or date.today().isoformat())}:—>{statut}",
+                 "nb_modifications": "0", "notes": notes})
     _write(rows)
     return "created"
 
@@ -84,11 +138,17 @@ def update_convention(code: str, **fields) -> dict | None:
     rows = _read()
     for r in rows:
         if str(r.get("code", "")).strip().lower() == target:
+            ancien_statut = str(r.get("statut", "")).strip()
             changed = False
             for k, v in fields.items():
                 if k in FIELDS and v is not None and str(r.get(k, "")) != str(v):
                     r[k] = str(v)
                     changed = True
+            # Historique : trace automatique de chaque changement de statut
+            avant_histo = r.get("historique", "")
+            _append_historique(r, ancien_statut, str(fields.get("statut") or ""))
+            if r.get("historique", "") != avant_histo:
+                changed = True
             if changed:
                 r["nb_modifications"] = str(int(r.get("nb_modifications") or 0) + 1)
                 _write(rows)
@@ -115,6 +175,20 @@ if __name__ == "__main__":
     assert r["nb_modifications"] == "1"
     assert update_convention("TEST_A", statut="Signe") is None      # aucun changement
     assert update_convention("TEST_A", statut="Archive") is not None
+    # Nouveaux champs prospection : date_fin + motif_blocage
+    assert update_convention("TEST_A", date_fin="2026-10-02",
+                             motif_blocage="Attente signature") is not None
+    r = load_convention("TEST_A")
+    assert r and r["date_fin"] == "2026-10-02" and r["motif_blocage"] == "Attente signature"
+    assert update_convention("TEST_A", date_fin="2026-10-02") is None  # inchangé
+    # Historique : entrée automatique à chaque changement de statut
+    hist = parse_historique(r["historique"])
+    assert hist and hist[-1][1:] == ("Signe", "Archive"), hist
+    assert jours_dans_statut(r) == 0
+    assert update_convention("TEST_A", statut="Archive") is None      # statut identique → pas d'entrée
+    # Prochaine relance
+    assert update_convention("TEST_A", prochaine_relance="2026-10-15") is not None
+    assert load_convention("TEST_A")["prochaine_relance"] == "2026-10-15"
     assert load_convention("INEXISTANT") is None
     assert len(load_all()) == nb_init + 1  # registre réel + TEST_A
 

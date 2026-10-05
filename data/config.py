@@ -52,4 +52,35 @@ SEUILS = {
     "concentration_top3_pct": 50,  # insight : top 3 > X % du CA → risque concentration
     "panier_bas_ratio": 0.8,  # insight : panier période < 80 % du panier annuel
     "ca_tnd_min": 1000,       # insight : ignore les variations sur CA < 1 000 TND (bruit)
+    "prospection_stalle_jours": 30,  # onglet Conventions encours : prospect sans activité → bloqué
+    "relance_jours": 14,      # délai entre 2 relances (prochaine relance auto pipeline)
 }
+
+# Jalons types — délai max (jours) par étape du pipeline, par scénario.
+# Clé = numéro du scénario ("01", "03"…) ; "defaut" si inconnu.
+# Source unique des seuils de pilotage : adapter ICI, jamais en dur dans app.py.
+JALONS = {
+    "01": {"Prise de contact": 7,  "Validation client": 21, "Juridique": 30, "Finance": 15, "Signature": 15},
+    "03": {"Prise de contact": 15, "Validation client": 30, "Juridique": 45, "Finance": 30, "Signature": 30},
+    "04": {"Prise de contact": 7,  "Validation client": 21, "Juridique": 30, "Finance": 20, "Signature": 20},
+    "07": {"Prise de contact": 15, "Validation client": 30, "Juridique": 45, "Finance": 30, "Signature": 30},
+    "defaut": {"Prise de contact": 10, "Validation client": 25, "Juridique": 35,
+               "Finance": 20, "Signature": 20},
+}
+
+JALONS_SCENARIOS = {   # libellés des scénarios (affichage)
+    "01": "01-Prive avec Amicale", "03": "03-Administration",
+    "04": "04-Amicale seule", "07": "07-Mutuelle",
+}
+
+# Jalons du registre : jours max dans un statut OUVERT avant alerte "en retard".
+JALONS_STATUTS = {
+    "Prospection": 30, "Negociation": 30, "En cours": 45, "Finalisation": 30,
+}
+
+
+def jalons_scenario(scenario: str) -> dict:
+    """Jalons d'un scénario « 07-Mutuelle », « 01 - Privé… » → dict étape→jours."""
+    import re as _re
+    m = _re.match(r"\s*(\d+)", str(scenario or ""))
+    return JALONS.get(m.group(1) if m else "", JALONS["defaut"])
