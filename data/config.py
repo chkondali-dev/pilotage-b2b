@@ -39,6 +39,13 @@ MOIS = {
 
 NOMS_INDIVIDUELS = {"AHMED ABIDI", "AMARA MISSAOUI", "BILEL BEN AMMAR", "MED KAIS SMAILI"}
 
+# Types de vente constituant une convention (identification "Hors convention").
+# SOURCE UNIQUE de la règle : un achat est "en convention" ssi son type de vente
+# est VC.CONV. ; tout le reste (VC.PARTIC., VC.CONSO., CLT-IMPAYE…) = hors convention.
+TYPES_CONVENTION = {"VC.CONV."}
+
+LIBELLE_HORS_CONVENTION = "Hors convention"
+
 # Seuils métier centralisés — SOURCE UNIQUE (P1).
 # Toute nouvelle règle de pilotage doit y déclarer son seuil ici.
 SEUILS = {

@@ -31,7 +31,7 @@ from metrics.kpi import (
     objectif_tracking, cohortes_conventions, narratif_executif,
     ventes_positives, concentration_portefeuille, volumes_panier, business_insights,
     conversion_conventions, kpi_conversion_globale,
-    alertes_achats_repetes, mapping_nom_convention,
+    alertes_achats_repetes,
 )
 from charts.factory import (
     chart_bar, chart_grouped_bar, chart_line_compare, chart_variation_bar,
@@ -3267,19 +3267,12 @@ with tabs[9]:
         key="conf40_annee",
     ) if _annees_dispo else None
 
-    # Mapping nom → convention (depuis le flux VC) — sinon "Hors convention"
-    try:
-        _conv_map = mapping_nom_convention(df_vc)
-    except Exception:
-        _conv_map = {}
-
-    # ── Calcul (année sélectionnée) ──
+    # ── Calcul (année sélectionnée) — la Convention vient du TYPE DE VENTE ──
     _alertes = alertes_achats_repetes(_df_conf, annee=_an_conf,
-                                      seuil=_seuil_alert, seuil_risque=_seuil_rq,
-                                      conv_map=_conv_map)
+                                      seuil=_seuil_alert, seuil_risque=_seuil_rq)
     # Vue « toutes années » pour les KPI globaux
     _alertes_all = alertes_achats_repetes(_df_conf, seuil=_seuil_alert,
-                                          seuil_risque=_seuil_rq, conv_map=_conv_map)
+                                          seuil_risque=_seuil_rq)
 
     if _df_conf.empty:
         st.info("Aucune donnée disponible sur ce flux.")
@@ -3358,9 +3351,10 @@ with tabs[9]:
                 "(casse, accents, espaces et ponctuation unifiés).\n"
                 "- **Colonne « Nb N° Client »** : nombre de N° Client différents "
                 "rattachés à ce nom sur l'année (>1 = réinscription ou homonyme à vérifier).\n"
-                "- **Colonne « Convention »** : rattachée via le flux conventions (VC) "
-                "par nom d'adhérent — **« Hors convention »** si le nom n'y apparaît pas "
-                "(cas quasi systématique du crédit particulier : individus sans convention).\n"
+                "- **Colonne « Convention »** : déterminée par le **type de vente** "
+                "de chaque facture (`Type vente à crédit` ∈ `TYPES_CONVENTION`, ex. "
+                "`VC.CONV.` → nom de la colonne `Nom`) — **« Hors convention »** "
+                "sinon (cas du crédit particulier : `VC.PARTIC.`).\n"
                 "- **Mensualité estimée** : `Montant TTC / Nbr_Mois_Echéance`, "
                 "somme des factures de l'année — estimation brute, sans intérêts ni "
                 "échéanciers en cours.\n"

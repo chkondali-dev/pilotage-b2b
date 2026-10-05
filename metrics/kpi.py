@@ -761,6 +761,28 @@ def _find_col(df: pd.DataFrame, *cands) -> str | None:
     return None
 
 
+def convention_de_facture(df: pd.DataFrame) -> pd.Series:
+    """
+    Convention d'une ligne de facture, déterminée par le TYPE DE VENTE (SOURCE UNIQUE).
+
+    Règle (data.config.TYPES_CONVENTION) : `Type vente à crédit` ∈ TYPES_CONVENTION
+    → le nom de la convention = colonne 'Nom' ; sinon → « Hors convention ».
+    Retourne une série alignée sur df.index.
+    """
+    from data.config import TYPES_CONVENTION, LIBELLE_HORS_CONVENTION
+    c_type = _find_col(df, "Type vente à crédit", "Type vente", "Type")
+    c_conv = _find_col(df, "Nom", "Convention")
+    if c_type is None:
+        return pd.Series(LIBELLE_HORS_CONVENTION, index=df.index)
+    t = df[c_type].astype(str).str.strip().str.upper()
+    conv = (df[c_conv].astype(str).str.strip() if c_conv
+            else pd.Series("", index=df.index))
+    conv = conv.where(conv.notna() & (conv != ""), "—")
+    return pd.Series(np.where(t.isin({x.upper() for x in TYPES_CONVENTION}),
+                              conv, LIBELLE_HORS_CONVENTION),
+                     index=df.index)
+
+
 def mapping_nom_convention(df_vc: pd.DataFrame) -> dict:
     """
     Mapping nom d'adhérent normalisé → nom(s) de convention(s), depuis le flux
@@ -794,8 +816,11 @@ def alertes_achats_repetes(df: pd.DataFrame, annee: int = None,
     Au-delà de 2 achats cumulés, la retenue mensuelle risque de dépasser
     40 % du salaire net (art. 5 des conventions).
 
-    `conv_map` (optionnel, via mapping_nom_convention) : clé nom normalisé →
-    nom(s) de convention(s) ; colonne "Convention", "Hors convention" si absent.
+    Colonne "Convention" : déterminée PAR FACTURE via le TYPE DE VENTE
+    (convention_de_facture / TYPES_CONVENTION) — le nom de 'Nom' si le type est
+    VC.CONV., sinon « Hors convention ». Le groupe hérite des conventions
+    distinctes rencontrées (jointes par " · ") ; `conv_map` (mapping nom →
+    convention, ex-mécanisme) reste supporté si fourni et complète le rattachement.
 
     Colonnes : Niveau, Nom, N° Client, Nb N° Client, Convention, Année, Nb achats,
     Montant total, Mensualité est., Dernier achat. Tri : Niveau, Nb achats, Montant.
@@ -877,9 +902,21 @@ def alertes_achats_repetes(df: pd.DataFrame, annee: int = None,
         g["N° Client"] = "—"
         g["Nb N° Client"] = 1
 
-    # Convention rattachée au nom (via mapping_nom_convention) — sinon "Hors convention"
+    # Convention rattachée PAR FACTURE via le type de vente (règle déterministe) ;
+    # le groupe hérite des conventions distinctes rencontrées (sinon "Hors convention").
+    d["_conv"] = convention_de_facture(d)
+    _conv = (d.groupby(["_key", "_an"])["_conv"]
+             .agg(lambda s: " · ".join(sorted(set(str(x).strip() for x in s))))
+             .reset_index(name="Convention"))
+    g = g.merge(_conv, on=["_key", "_an"])
+
+    # Complément historique : conv_map (mapping nom → convention) si fourni
     conv_map = conv_map or {}
-    g["Convention"] = g["_key"].map(lambda k: conv_map.get(k, "Hors convention"))
+    if conv_map:
+        from data.config import LIBELLE_HORS_CONVENTION
+        g["Convention"] = [c if c != LIBELLE_HORS_CONVENTION
+                           else conv_map.get(k, c)
+                           for c, k in zip(g["Convention"], g["_key"])]
 
     # Niveau : 🔴 dès le seuil, 🟡 dès le seuil de risque
     g = g[g["Nb achats"] >= seuil_risque].copy()
