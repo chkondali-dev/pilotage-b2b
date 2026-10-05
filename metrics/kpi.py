@@ -738,3 +738,96 @@ def business_insights(df: pd.DataFrame, annee_n: int, risk_mat: pd.DataFrame,
               f"({vol['Nb N']} vs {vol['Nb N-1']}).")
     ins.sort(key=lambda x: -x["impact"])
     return [(x["ico"], x["txt"]) for x in ins[:max_items]]
+
+
+# ══════════════════════════════════════════════════════════════
+# CONFORMITÉ 40% — achats répétés d'un même adhérent dans l'année
+# ══════════════════════════════════════════════════════════════
+
+def _find_col(df: pd.DataFrame, *cands) -> str | None:
+    """Première colonne de df correspondant à un candidat (normalisé : lower, sans accents)."""
+    if df is None or df.empty:
+        return None
+    idx = {}
+    for c in df.columns:
+        k = _re.sub(r"[^a-z0-9]+", "", _ud.normalize("NFKD", str(c))
+                    .encode("ascii", "ignore").decode("ascii").lower())
+        idx.setdefault(k, c)
+    for cand in cands:
+        k = _re.sub(r"[^a-z0-9]+", "", _ud.normalize("NFKD", cand)
+                    .encode("ascii", "ignore").decode("ascii").lower())
+        if k in idx:
+            return idx[k]
+    return None
+
+
+def alertes_achats_repetes(df: pd.DataFrame, annee: int = None,
+                           seuil: int = None) -> pd.DataFrame:
+    """
+    Adhérents ayant réalisé ≥ `seuil` achats à crédit dans la même année.
+
+    Règle métier (conformité réglementaire TN) : cumul trop d'achats sur la même
+    période fait courir le risque que la retenue mensuelle dépasse 40 % du salaire
+    net de l'adhérent (art. 5 des conventions). Seuil = SEUILS["achats_annee_alerte"].
+
+    Colonnes : N° Client, Nom, Année, Nb achats, Montant total, Mensualité est.,
+    Dernier achat. Tri : Nb achats desc, puis Montant total desc.
+    DataFrame vide (avec les colonnes) si aucune alerte.
+    """
+    cols = ["N° Client", "Nom", "Année", "Nb achats",
+            "Montant total", "Mensualité est.", "Dernier achat"]
+    if df is None or df.empty:
+        return pd.DataFrame(columns=cols)
+
+    seuil = int(seuil or SEUILS.get("achats_annee_alerte", 3))
+
+    c_id = _find_col(df, "N° Client", "N client", "N client facture")
+    c_nom = _find_col(df, "Nom Client", "Nom")
+    c_ttc = _find_col(df, "Montant TTC", "Montant")
+    c_mois = _find_col(df, "Nbr_Mois_Echance", "Nbr Mois Echeance", "Mois Echeance")
+    c_date = _find_col(df, "Date", "Date comptabilisation")
+    c_an = _find_col(df, "Année", "Annee")
+    c_annul = _find_col(df, "Annulé", "Annule")
+
+    d = df.copy()
+    # Exclusion des factures annulées (si la colonne existe)
+    if c_annul:
+        d = d[~d[c_annul].fillna(False).astype(bool)]
+
+    # Identifiant d'adhérent : N° Client si dispo, sinon le nom
+    d["_id"] = (d[c_id].astype(str).str.strip()
+                if c_id else d[c_nom].astype(str).str.strip())
+    if c_an and d[c_an].notna().any():
+        d["_an"] = pd.to_numeric(d[c_an], errors="coerce").astype("Int64")
+    elif c_date:
+        d["_an"] = pd.to_datetime(d[c_date], errors="coerce").dt.year.astype("Int64")
+    else:
+        return pd.DataFrame(columns=cols)
+    d = d.dropna(subset=["_an"])
+    if annee:
+        d = d[d["_an"] == int(annee)]
+    if d.empty:
+        return pd.DataFrame(columns=cols)
+
+    # Mensualité estimée par facture : Montant TTC / nb de mois d'échéance
+    if c_ttc and c_mois:
+        mois = pd.to_numeric(d[c_mois], errors="coerce").replace(0, np.nan)
+        d["_mens"] = (pd.to_numeric(d[c_ttc], errors="coerce") / mois).fillna(0.0)
+        d["_mtt"] = pd.to_numeric(d[c_ttc], errors="coerce").fillna(0.0)
+    else:
+        d["_mens"] = 0.0
+        d["_mtt"] = pd.to_numeric(d[c_ttc], errors="coerce").fillna(0.0) if c_ttc else 0.0
+
+    g = d.groupby(["_id", "_an"], as_index=False).agg(
+        **{"Nom": (c_nom, "first") if c_nom else ("_id", "first"),
+           "Nb achats": ("_id", "size"),
+           "Montant total": ("_mtt", "sum"),
+           "Mensualité est.": ("_mens", "sum"),
+           "Dernier achat": (c_date, "max") if c_date else ("_an", "max")})
+    g = g[g["Nb achats"] >= seuil].copy()
+    g = g.rename(columns={"_id": "N° Client", "_an": "Année"})
+    g["Montant total"] = g["Montant total"].round(0).astype(int)
+    g["Mensualité est."] = g["Mensualité est."].round(0).astype(int)
+    return (g[cols]
+            .sort_values(["Nb achats", "Montant total"], ascending=False)
+            .reset_index(drop=True))

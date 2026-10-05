@@ -31,6 +31,7 @@ from metrics.kpi import (
     objectif_tracking, cohortes_conventions, narratif_executif,
     ventes_positives, concentration_portefeuille, volumes_panier, business_insights,
     conversion_conventions, kpi_conversion_globale,
+    alertes_achats_repetes,
 )
 from charts.factory import (
     chart_bar, chart_grouped_bar, chart_line_compare, chart_variation_bar,
@@ -370,6 +371,7 @@ tabs = st.tabs([
     "\U0001f91d CRM",
     "\U0001f6a8 Alertes Tendances",
     "\U0001f4c2 Archive Rapports",
+    "\U0001f6e1️ Conformité 40%",
 ])
 
 # ══════════════════════════════════════════════════════════════
@@ -3210,6 +3212,118 @@ with tabs[8]:
                         st.markdown(f"[Ouvrir le rapport](./{_rel})")
                     except ValueError:
                         pass
+
+# ══════════════════════════════════════════════════════════════
+# TAB 9 — CONFORMITÉ 40% (réglementation TN : retenue ≤ 40% salaire net)
+# ══════════════════════════════════════════════════════════════
+with tabs[9]:
+    st.markdown("### \U0001f6e1️ Conformité 40% — Achats répétés")
+    st.caption(
+        "Règle réglementaire : la retenue sur salaire d'un adhérent ne doit pas dépasser "
+        "40% de son salaire net (art. 5 des conventions). Un adhérent cumulant "
+        f"**≥ {SEUILS['achats_annee_alerte']} achats à crédit dans la même année** est "
+        "signalé pour vérification manuelle de sa mensualité."
+    )
+
+    # ── Contrôles : seuil + année ──
+    cc1, cc2, cc3 = st.columns([2, 2, 3])
+    with cc1:
+        _seuil_alert = st.number_input(
+            "Seuil d'achats / an", min_value=2, max_value=10,
+            value=int(SEUILS["achats_annee_alerte"]), step=1,
+            help="Seuil par défaut centralisé dans data/config.py (SEUILS).",
+            key="conf40_seuil",
+        )
+    with cc2:
+        _annees_dispo = sorted(
+            int(a) for a in df_credit_part["Année"].dropna().unique()
+        ) if not df_credit_part.empty and "Année" in df_credit_part.columns else []
+        _an_conf = st.selectbox(
+            "Année", options=_annees_dispo,
+            index=(_annees_dispo.index(annee_sel) if annee_sel in _annees_dispo else 0),
+            key="conf40_annee",
+        ) if _annees_dispo else None
+
+    # ── Calcul (année sélectionnée) ──
+    _alertes = alertes_achats_repetes(df_credit_part, annee=_an_conf,
+                                      seuil=_seuil_alert)
+    # Vue « toutes années » pour les KPI globaux
+    _alertes_all = alertes_achats_repetes(df_credit_part, seuil=_seuil_alert)
+
+    if df_credit_part.empty:
+        st.info("Aucune donnée de crédit particulier disponible.")
+    else:
+        # ── KPI strip ──
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric(f"Adhérents à risque ({_an_conf if _an_conf else 'toutes années'})",
+                  f"{len(_alertes):,}".replace(",", " "))
+        m2.metric("Cumul achats concernés",
+                  f"{_alertes['Montant total'].sum():,.0f} TND".replace(",", " ")
+                  if not _alertes.empty else "0 TND")
+        m3.metric("Mensualité cumulée max",
+                  f"{_alertes['Mensualité est.'].max():,.0f} TND".replace(",", " ")
+                  if not _alertes.empty else "0 TND",
+                  help="Somme des mensualités estimées de l'adhérent le plus exposé.")
+        m4.metric("Toutes années", f"{len(_alertes_all):,}".replace(",", " "),
+                  help=f"Total d'alertes sur l'historique complet (seuil {_seuil_alert}).")
+
+        # ── Répartition par année ──
+        if not _alertes_all.empty:
+            section("Répartition par année")
+            _par_an = (_alertes_all.groupby("Année")
+                       .agg(**{"Nb adhérents": ("N° Client", "nunique"),
+                               "Achats concernés": ("Nb achats", "sum"),
+                               "Montant (TND)": ("Montant total", "sum")})
+                       .reset_index().sort_values("Année"))
+            _fig_par_an = chart_bar(
+                _par_an, x="Année", y="Nb adhérents",
+                title=f"Adhérents à risque par année (seuil {_seuil_alert} achats)",
+                color=C["red"], h=260,
+            )
+            st.plotly_chart(_fig_par_an, use_container_width=True)
+
+        # ── Tableau d'alertes ──
+        section(f"Alertes — {_an_conf if _an_conf else 'toutes années'}")
+        if _alertes.empty:
+            st.success(
+                f"Aucun adhérent n'a atteint {_seuil_alert} achats dans l'année "
+                f"{_an_conf if _an_conf else 'considérée'} — situation conforme."
+            )
+        else:
+            st.warning(
+                f"**{len(_alertes)} adhérent(s)** à vérifier : cumul d'achats "
+                f"≥ {_seuil_alert} sur l'année — risque de dépassement des 40% du salaire net."
+            )
+            _st = _alertes.style.format({
+                "Montant total": "{:,.0f} TND",
+                "Mensualité est.": "{:,.0f} TND",
+                "Dernier achat": lambda d: d.strftime("%d/%m/%Y")
+                if hasattr(d, "strftime") else str(d),
+            })
+            st.dataframe(_st, use_container_width=True, hide_index=True)
+
+            # ── Export CSV ──
+            csv_conf = _alertes.to_csv(index=False).encode("utf-8")
+            st.download_button(
+                "\U0001f4e5 Export CSV — alertes conformité 40%",
+                data=csv_conf, file_name=f"alertes_conformite40_{_an_conf or 'tout'}.csv",
+                mime="text/csv", key="dl_conf40",
+            )
+
+        # ── Méthodologie ──
+        with st.expander("ℹ️ Méthodologie", expanded=False):
+            st.markdown(
+                f"- **Seuil** : ≥ {_seuil_alert} achats à crédit par adhérent "
+                f"(`SEUILS['achats_annee_alerte']` dans `data/config.py`).\n"
+                "- **Identifiant** : `N° Client` (nom affiché à titre indicatif).\n"
+                "- **Mensualité estimée** : `Montant TTC / Nbr_Mois_Echéance`, "
+                "somme des factures de l'année — estimation brute, sans intérêts ni "
+                "échéanciers en cours.\n"
+                "- **Exclusions** : factures annulées.\n"
+                "- **Limite** : le salaire net individuel n'étant pas dans les données, "
+                "ce tableau liste les cas **à vérifier manuellement** auprès de l'Amicale "
+                "(fiche de paie) — il ne remplace pas le calcul exact des 40%."
+            )
 
 # ── Footer ────────────────────────────────────────────────────
 st.markdown("---")
