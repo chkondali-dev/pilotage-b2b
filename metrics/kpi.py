@@ -770,11 +770,11 @@ def alertes_achats_repetes(df: pd.DataFrame, annee: int = None,
     période fait courir le risque que la retenue mensuelle dépasse 40 % du salaire
     net de l'adhérent (art. 5 des conventions). Seuil = SEUILS["achats_annee_alerte"].
 
-    Colonnes : N° Client, Nom, Année, Nb achats, Montant total, Mensualité est.,
-    Dernier achat. Tri : Nb achats desc, puis Montant total desc.
+    Colonnes : Nom, N° Client, Nb N° Client, Année, Nb achats, Montant total,
+    Mensualité est., Dernier achat. Tri : Nb achats desc, puis Montant total desc.
     DataFrame vide (avec les colonnes) si aucune alerte.
     """
-    cols = ["N° Client", "Nom", "Année", "Nb achats",
+    cols = ["Nom", "N° Client", "Nb N° Client", "Année", "Nb achats",
             "Montant total", "Mensualité est.", "Dernier achat"]
     if df is None or df.empty:
         return pd.DataFrame(columns=cols)
@@ -794,9 +794,19 @@ def alertes_achats_repetes(df: pd.DataFrame, annee: int = None,
     if c_annul:
         d = d[~d[c_annul].fillna(False).astype(bool)]
 
-    # Identifiant d'adhérent : N° Client si dispo, sinon le nom
-    d["_id"] = (d[c_id].astype(str).str.strip()
-                if c_id else d[c_nom].astype(str).str.strip())
+    # Clé de regroupement = NOM d'adhérent normalisé (_norm_nom : casse, accents,
+    # ponctuation, espaces) — un adhérent reste le même même s'il cumule plusieurs
+    # N° Client (réinscription). Fallback : N° Client si pas de colonne nom.
+    if c_nom:
+        d["_key"] = d[c_nom].map(_norm_nom)
+        d = d[d["_key"] != ""]
+        d["_nom"] = d[c_nom].astype(str).str.strip()
+    elif c_id:
+        d["_key"] = d[c_id].astype(str).str.strip()
+        d["_nom"] = d["_key"]
+    else:
+        return pd.DataFrame(columns=cols)
+
     if c_an and d[c_an].notna().any():
         d["_an"] = pd.to_numeric(d[c_an], errors="coerce").astype("Int64")
     elif c_date:
@@ -818,14 +828,27 @@ def alertes_achats_repetes(df: pd.DataFrame, annee: int = None,
         d["_mens"] = 0.0
         d["_mtt"] = pd.to_numeric(d[c_ttc], errors="coerce").fillna(0.0) if c_ttc else 0.0
 
-    g = d.groupby(["_id", "_an"], as_index=False).agg(
-        **{"Nom": (c_nom, "first") if c_nom else ("_id", "first"),
-           "Nb achats": ("_id", "size"),
+    g = d.groupby(["_key", "_an"], as_index=False).agg(
+        **{"Nom": ("_nom", "first"),
+           "Nb achats": ("_key", "size"),
            "Montant total": ("_mtt", "sum"),
            "Mensualité est.": ("_mens", "sum"),
            "Dernier achat": (c_date, "max") if c_date else ("_an", "max")})
+
+    # N° Client rattachés au nom (liste + nombre) — signale réinscriptions/homonymes
+    if c_id:
+        _ids = (d.groupby(["_key", "_an"])[c_id]
+                .agg(lambda s: " · ".join(sorted(set(str(x).strip() for x in s))))
+                .reset_index(name="N° Client"))
+        _nid = (d.groupby(["_key", "_an"])[c_id].nunique()
+                .reset_index(name="Nb N° Client"))
+        g = g.merge(_ids, on=["_key", "_an"]).merge(_nid, on=["_key", "_an"])
+    else:
+        g["N° Client"] = "—"
+        g["Nb N° Client"] = 1
+
     g = g[g["Nb achats"] >= seuil].copy()
-    g = g.rename(columns={"_id": "N° Client", "_an": "Année"})
+    g = g.rename(columns={"_an": "Année"}).drop(columns=["_key"])
     g["Montant total"] = g["Montant total"].round(0).astype(int)
     g["Mensualité est."] = g["Mensualité est."].round(0).astype(int)
     return (g[cols]

@@ -3271,7 +3271,7 @@ with tabs[9]:
         if not _alertes_all.empty:
             section("Répartition par année")
             _par_an = (_alertes_all.groupby("Année")
-                       .agg(**{"Nb adhérents": ("N° Client", "nunique"),
+                       .agg(**{"Nb adhérents": ("Nom", "nunique"),
                                "Achats concernés": ("Nb achats", "sum"),
                                "Montant (TND)": ("Montant total", "sum")})
                        .reset_index().sort_values("Année"))
@@ -3313,13 +3313,19 @@ with tabs[9]:
         # ── Méthodologie ──
         with st.expander("ℹ️ Méthodologie", expanded=False):
             st.markdown(
-                f"- **Seuil** : ≥ {_seuil_alert} achats à crédit par adhérent "
+                f"- **Seuil** : ≥ {_seuil_alert} achats à crédit par adhérent, "
+                f"comptés **par nom dans la même année** "
                 f"(`SEUILS['achats_annee_alerte']` dans `data/config.py`).\n"
-                "- **Identifiant** : `N° Client` (nom affiché à titre indicatif).\n"
+                "- **Clé d'identification** : le **nom de l'adhérent normalisé** "
+                "(casse, accents, espaces et ponctuation unifiés) — un même adhérent "
+                "reste identifié même s'il cumule plusieurs N° Client (réinscription) "
+                "ou change de forme d'écriture.\n"
+                "- **Colonne « Nb N° Client »** : nombre de N° Client différents "
+                "rattachés à ce nom sur l'année (>1 = réinscription ou homonyme à vérifier).\n"
                 "- **Mensualité estimée** : `Montant TTC / Nbr_Mois_Echéance`, "
                 "somme des factures de l'année — estimation brute, sans intérêts ni "
                 "échéanciers en cours.\n"
-                "- **Exclusions** : factures annulées.\n"
+                "- **Exclusions** : factures annulées, noms vides.\n"
                 "- **Limite** : le salaire net individuel n'étant pas dans les données, "
                 "ce tableau liste les cas **à vérifier manuellement** auprès de l'Amicale "
                 "(fiche de paie) — il ne remplace pas le calcul exact des 40%."
