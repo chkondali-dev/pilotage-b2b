@@ -370,8 +370,8 @@ def call_llm(prompt: str, api_key: str | None = None) -> str | None:
             debug_file = SORTIE / f"ia_raw_response_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
             debug_file.write_text(str(r.text[:5000] if 'r' in dir() else 'N/A'), encoding='utf-8')
             print(f"      Reponse brute sauvegardee: {debug_file}")
-        except:
-            pass
+        except Exception as _e:
+            print(f"  ⚠️ Sauvegarde reponse brute impossible: {_e}")
         return None
 
 
@@ -1468,7 +1468,10 @@ def main():
         print("❌ Mois invalide (1-12)")
         sys.exit(1)
 
-    analyse(annee, mois, with_ai=not args.no_ai, with_email=not args.no_email, api_key=args.api_key)
+    # Clé : variable d'environnement LLM_API_KEY uniquement (Phase 1.4 —
+    # la clé n'est plus passée en ligne de commande du sous-processus).
+    analyse(annee, mois, with_ai=not args.no_ai, with_email=not args.no_email,
+            api_key=args.api_key or _GROQ_API_KEY)
 
 
 if __name__ == "__main__":

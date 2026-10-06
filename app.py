@@ -12,13 +12,17 @@ import subprocess
 import sys
 import os
 import json
+import logging
 from io import BytesIO
 import base64
 from datetime import datetime, timedelta
 from pathlib import Path
 from trend_alert_panel import render_alert_panel
 
-from data.config import C, MOIS, LOGO_MG_URL, LOGO_BATAM_URL, SEUILS, JALONS_STATUTS
+from data.config import (
+    C, MOIS, LOGO_MG_URL, LOGO_BATAM_URL, SEUILS, JALONS_STATUTS,
+    STATUTS_CONVENTION, annees_selecteur_principal, annees_selecteur_rapport,
+)
 from data.loader import load_all_data
 from data.transforms import prepare_data, enrich_prospection, PROSP_ETAPES, ajoute_crm
 from metrics.kpi import (
@@ -38,8 +42,10 @@ from charts.factory import (
     chart_bridge, chart_risk_table, chart_gauge, chart_pie, chart_stacked_bar,
 )
 from ui.components import inject_css, hero, section, badge, rank_card, kpi_card
-from utils.github import push_csv_to_github
+from utils.github import push_csv_to_github, file_sha
 import business.conventions as conv
+
+logger = logging.getLogger(__name__)
 
 st.set_page_config(
     page_title="Pilotage B2B — SMG",
@@ -65,18 +71,34 @@ with col_h:
 with col_l1:
     try:
         st.image(LOGO_MG_URL, width=90)
-    except Exception:
-        pass
+    except Exception as _e:
+        logger.warning("Logo MG indisponible : %s", _e)
 with col_l2:
     try:
         st.image(LOGO_BATAM_URL, width=90)
-    except Exception:
-        pass
+    except Exception as _e:
+        logger.warning("Logo BATAM indisponible : %s", _e)
+
+# ── Chargement données (AVANT les filtres : le sélecteur Année est dérivé des données) ──
+with st.spinner("Chargement des données…"):
+    _raw = load_all_data()
+
+df_vc, df_credit, df_edc, df_conv, code_df, df_credit_part, df_cube_mag, df_prospection, df_crm = prepare_data(_raw)
+_raw_part = _raw.get("credit_particulier", pd.DataFrame())
 
 # ── Sidebar ───────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("### \U0001f50d Filtres")
-    annee_sel = st.selectbox("Année", [2026, 2025, 2024, 2023], index=0)
+    # Années dérivées des données (Phase 1.1) : jamais figée, jamais de ValueError.
+    _annees_data = set()
+    for _df_flux in (df_vc, df_credit, df_credit_part):
+        if "Année" in _df_flux.columns:
+            _annees_data.update(int(a) for a in _df_flux["Année"].dropna().unique())
+    annee_sel = st.selectbox(
+        "Année",
+        annees_selecteur_principal(_annees_data, datetime.now().year),
+        index=0,
+    )
 
     # Filtre mois — vide = année complète (comparaison N/N-1 homogène)
     all_mois = list(range(1, 13))
@@ -97,13 +119,6 @@ with st.sidebar:
     if st.button("\U0001f504 Actualiser"):
         st.cache_data.clear()
         st.rerun()
-
-# ── Chargement données ────────────────────────────────────────
-with st.spinner("Chargement des données…"):
-    _raw = load_all_data()
-
-df_vc, df_credit, df_edc, df_conv, code_df, df_credit_part, df_cube_mag, df_prospection, df_crm = prepare_data(_raw)
-_raw_part = _raw.get("credit_particulier", pd.DataFrame())
 
 # ── Registre LENS — 6 périmètres d'un seul onglet (filtre unique) ──────────
 LENS_LABELS = [
@@ -264,8 +279,8 @@ with st.sidebar:
                 index=default_month - 1,
                 format_func=lambda m: mois_noms[m - 1])
         with col_a:
-            rapport_annee = st.selectbox("Annee", [2023, 2024, 2025, 2026],
-                index=[2023, 2024, 2025, 2026].index(default_year))
+            _rap_opts, _rap_idx = annees_selecteur_rapport(_annees_data, default_year)
+            rapport_annee = st.selectbox("Annee", _rap_opts, index=_rap_idx)
 
         # Lister les rapports existants
         txt_files = sorted(
@@ -308,8 +323,7 @@ with st.sidebar:
                     [sys.executable, str(Path(__file__).parent / "monthly_report.py"),
                      "--month", str(rapport_mois),
                      "--year", str(rapport_annee),
-                     "--no-email",
-                     "--api-key", api_key],
+                     "--no-email"],
                     capture_output=True, text=True, timeout=300, env=env,
                 )
             if result.returncode == 0:
@@ -361,6 +375,38 @@ else:
 
 # (fonction push_csv_to_github importee depuis utils.github)
 
+REGISTRY_CSV_REL = "data/conventions_signees.csv"
+
+
+def _registry_sha_now():
+    """sha blob du registre local APRÈS une synchro réussie (nouvelle base)."""
+    return file_sha(Path(__file__).parent / REGISTRY_CSV_REL)
+
+
+def _sync_registre(commit_msg: str, msg_ok: str) -> bool:
+    """Pousse le registre sur GitHub et affiche le statut RÉEL (Phase 1.2).
+
+    « synchronisé » affiché uniquement si le push réussit ; sinon st.error avec
+    la cause. La modification reste locale et l'intention est conservée dans
+    st.session_state["sync_pending"] pour retenter (bouton en haut de l'onglet
+    Conventions encours).
+    """
+    res = push_csv_to_github(
+        REGISTRY_CSV_REL, commit_msg,
+        base_sha=st.session_state.get("registry_base_sha"),
+    )
+    if res["ok"]:
+        st.session_state.pop("sync_pending", None)
+        st.session_state["registry_base_sha"] = _registry_sha_now()
+        st.success(msg_ok)
+        return True
+    st.session_state["sync_pending"] = {
+        "commit_msg": commit_msg, "status": res["status"], "detail": res["detail"]}
+    st.error(f"GitHub non synchronisé ({res['status']}) : {res['detail']}")
+    st.caption("Modifications conservées localement dans data/conventions_signees.csv "
+               "— « Réessayer la synchronisation » en haut de l'onglet Conventions encours.")
+    return False
+
 tabs = st.tabs([
     "\U0001f3e0 Vue Exécutive",
     "\U0001f4c8 CA & Tendances",
@@ -402,11 +448,13 @@ with tabs[0]:
         f"{fmt_pct(_vol0['Evo panier %'])} vs N-1" if pd.notna(_vol0["Evo panier %"]) else "—",
         delta_color=color_delta(_vol0["Evo panier %"]),
     )
-    k4.metric(
-        "Conventions actives",
-        f"{nb_actives}",
-        f"{_conc0['Top3 %']:.1f}% top 3" if pd.notna(_conc0["Top3 %"]) else f"/ {nb_total} total",
-    )
+    with k4:
+        st.metric("Conventions actives", f"{nb_actives}")
+        # Information de concentration en caption, pas en delta (Phase 1.5 :
+        # un « % top 3 » n'est pas une évolution — pas de flèche verte).
+        st.caption(
+            f"{_conc0['Top3 %']:.1f}% top 3" if pd.notna(_conc0["Top3 %"]) else f"/ {nb_total} total"
+        )
 
     # ── CA à risque + inactivité : conventions inactives ─────────
     if nb_inact > 0 and not df_inactive.empty and "CA N-1" in df_inactive.columns:
@@ -605,7 +653,8 @@ with tabs[0]:
     if pd.notna(_conc0["Top3 %"]):
         _k1, _k2, _k3 = st.columns(3)
         _k1.metric("Part Top 3", f"{_conc0['Top3 %']:.1f}%")
-        _k2.metric("HHI", f"{_conc0['HHI']}", f"{_conc0['Niveau']}")
+        _k2.metric("HHI", f"{_conc0['HHI']}")
+        _k2.caption(f"{_conc0['Niveau']}")  # niveau HHI : caption, pas delta (Phase 1.5)
         _k3.metric("Conventions", f"{_conc0['Nb']}")
         _conc_top = _conc0["courbe"]
         fig_conc = go.Figure()
@@ -722,8 +771,10 @@ with tabs[1]:
             mg_pct = (mg_ca / total_ca * 100) if total_ca > 0 else 0
             bam_pct = (bam_ca / total_ca * 100) if total_ca > 0 else 0
 
-            st.metric("CA MG", f"{mg_ca:,.0f} TND", f"{mg_pct:.1f}% du total")
-            st.metric("CA BATAM", f"{bam_ca:,.0f} TND", f"{bam_pct:.1f}% du total")
+            st.metric("CA MG", f"{mg_ca:,.0f} TND")
+            st.caption(f"{mg_pct:.1f}% du total")  # part, pas évolution (Phase 1.5)
+            st.metric("CA BATAM", f"{bam_ca:,.0f} TND")
+            st.caption(f"{bam_pct:.1f}% du total")
             st.caption(f"**Total:** {total_ca:,.0f} TND")
         else:
             st.info("Pas de donnees d'enseigne disponibles")
@@ -1402,7 +1453,8 @@ with tabs[3]:
             k1, k2, k3, k4 = st.columns(4)
             k1.metric("\U0001f3ea Magasins actifs", len(ca_mag[ca_mag["CA N"] > 0]))
             k2.metric("\U0001f4b0 CA Total Conventions", f"{simple_sum:,.0f} TND")
-            k3.metric("\U0001f4c8 En croissance", len(ca_mag[ca_mag["Evolution %"] > 0]), f"/ {len(ca_mag)}")
+            k3.metric("\U0001f4c8 En croissance", len(ca_mag[ca_mag["Evolution %"] > 0]))
+            k3.caption(f"/ {len(ca_mag)}")  # dénominateur, pas évolution (Phase 1.5)
             k4.metric("\U0001f4c9 En baisse", len(ca_mag[ca_mag["Evolution %"] < 0]))
 
             col_m1, col_m2 = st.columns(2)
@@ -2441,6 +2493,26 @@ with tabs[5]:
     st.markdown("Conventions encours")
     st.caption("Suivi des projets de convention — de la prospection a la finalisation.")
 
+    # Synchronisation GitHub en attente (Phase 1.2) : erreur visible + retentative.
+    _pend = st.session_state.get("sync_pending")
+    if _pend:
+        st.error(f"GitHub non synchronisé ({_pend['status']}) : {_pend['detail']} "
+                 "— modifications conservées localement.")
+        if st.button("Réessayer la synchronisation", key="retry_sync"):
+            _res = push_csv_to_github(
+                REGISTRY_CSV_REL, _pend["commit_msg"],
+                base_sha=st.session_state.get("registry_base_sha"),
+            )
+            if _res["ok"]:
+                st.session_state.pop("sync_pending", None)
+                st.session_state["registry_base_sha"] = _registry_sha_now()
+                st.success("Synchronisé sur GitHub.")
+                st.rerun()
+            else:
+                st.session_state["sync_pending"] = {
+                    **_pend, "status": _res["status"], "detail": _res["detail"]}
+                st.error(f"Échec à nouveau ({_res['status']}) : {_res['detail']}")
+
     # Motifs de blocage proposés (registre éditable + nouvelle convention)
     MOTIFS_BLOCAGE = [
         "(aucun)",
@@ -2647,6 +2719,9 @@ with tabs[5]:
     if not os.path.exists(csv_path):
         st.info("Fichier data/conventions_signees.csv introuvable.")
     else:
+        if "registry_base_sha" not in st.session_state:
+            # Sha observé à la LECTURE : base de comparaison anti-écrasement (Phase 1.2).
+            st.session_state["registry_base_sha"] = file_sha(csv_path)
         df_sig = pd.read_csv(csv_path, sep=";")
         # compat anciens CSV sans les nouvelles colonnes prospection
         for _c in ("date_fin", "motif_blocage", "prochaine_relance", "historique"):
@@ -2806,7 +2881,10 @@ with tabs[5]:
                 df_edit[["Client","Statut","Debut","Fin","Delai (j)","Modifs","Motif blocage","Relance","Notes","Archiver","_idx"]],
                 column_config={
                     "Client": st.column_config.TextColumn("Client", disabled=True),
-                    "Statut": st.column_config.TextColumn("Statut", help="Valeurs: Prospection, Negociation, En cours, Finalisation, Signe, Finalise, Refuse"),
+                    "Statut": st.column_config.SelectboxColumn(
+                        "Statut", options=STATUTS_CONVENTION,
+                        help="Liste fermée (data/config.py STATUTS_CONVENTION) : "
+                             + ", ".join(STATUTS_CONVENTION)),
                     "Debut": st.column_config.TextColumn("Debut", disabled=True),
                     "Fin": st.column_config.DateColumn("Fin", format="DD/MM/YYYY",
                         help="Date de fin de prospection (signature ou clôture) — stockée en AAAA-MM-JJ"),
@@ -2844,9 +2922,11 @@ with tabs[5]:
                                         prochaine_relance=_relance):
                                     modifs += 1
                         if modifs:
-                            push_csv_to_github("data/conventions_signees.csv", "update(data): modifications conventions [auto]")
-                            st.success("Modifications sauvegardees et synchronisees sur GitHub !")
-                            st.rerun()
+                            if _sync_registre(
+                                "update(data): modifications conventions [auto]",
+                                "Modifications sauvegardees et synchronisees sur GitHub !",
+                            ):
+                                st.rerun()
                         else:
                             st.info("Aucune modification.")
 
@@ -2859,13 +2939,14 @@ with tabs[5]:
                                 if idx in df_sig.index:
                                     conv.update_convention(
                                         str(df_sig.at[idx, "code"]).strip(), statut="Archive")
-                            push_csv_to_github("data/conventions_signees.csv", "update(data): archivage convention [auto]")
-                            st.success(f"{len(to_arch)} projet(s) archive(s) et synchronise(s) sur GitHub !")
-                            st.rerun()
+                            if _sync_registre(
+                                "update(data): archivage convention [auto]",
+                                f"{len(to_arch)} projet(s) archive(s) et synchronise(s) sur GitHub !",
+                            ):
+                                st.rerun()
 
             if stats:
                 st.markdown("#### Repartition par statut")
-                import plotly.express as px
                 df_chart = pd.DataFrame({"Statut": list(stats.keys()), "Nombre": list(stats.values())})
                 colors = COLORS_STATUTS
                 fig = px.bar(df_chart, x="Statut", y="Nombre", color="Statut",
@@ -2982,9 +3063,9 @@ with tabs[5]:
                                                  motif_blocage="" if nm == "(aucun)" else nm,
                                                  prochaine_relance=nr.strip(),
                                                  notes=nt)
-                        push_csv_to_github("data/conventions_signees.csv", "update(data): nouvelle convention [auto]")
-                        st.success(f"Ajoute : {nc}")
-                        st.rerun()
+                        if _sync_registre("update(data): nouvelle convention [auto]",
+                                          f"Ajoute : {nc}"):
+                            st.rerun()
 
 with tabs[6]:
     if df_crm is not None and len(df_crm) > 0:
@@ -3211,7 +3292,7 @@ with tabs[8]:
                         _rel = html_file.relative_to(Path(__file__).parent)
                         st.markdown(f"[Ouvrir le rapport](./{_rel})")
                     except ValueError:
-                        pass
+                        logger.debug("Rapport hors arborescence — lien relatif non affiché")
 
 # ══════════════════════════════════════════════════════════════
 # TAB 9 — CONFORMITÉ 40% (réglementation TN : retenue ≤ 40% salaire net)
@@ -3250,7 +3331,7 @@ with tabs[9]:
 
     # ── Données selon le flux ──
     if _flux_conf == "Conventions (VC)":
-        _df_conf = df_vc.copy() if "df_vc" in dir() else pd.DataFrame()
+        _df_conf = df_vc.copy()
     elif _flux_conf == "Tous flux":
         _pieces = [d for d in (df_credit_part, df_vc) if not d.empty]
         _df_conf = (pd.concat(_pieces, ignore_index=True)

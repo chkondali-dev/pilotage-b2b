@@ -1,6 +1,7 @@
 """
 Configuration centralisée — constantes, palette, fichiers.
 """
+from datetime import datetime
 
 GITHUB_RAW = "https://raw.githubusercontent.com/chkondali-dev/pilotage-b2b/main/2025/"
 GITHUB_RAW_IMAGES = "https://raw.githubusercontent.com/chkondali-dev/pilotage-b2b/main/"
@@ -86,6 +87,37 @@ JALONS_SCENARIOS = {   # libellés des scénarios (affichage)
 JALONS_STATUTS = {
     "Prospection": 30, "Negociation": 30, "En cours": 45, "Finalisation": 30,
 }
+
+# Statuts autorisés du registre des conventions (source unique — Phase 1.3).
+# Le data_editor de « Conventions encours » impose cette liste fermée.
+# "Archive" est inclus : le filtrage du registre et l'archivage l'utilisent.
+STATUTS_CONVENTION = [
+    "Prospection", "Negociation", "En cours", "Finalisation",
+    "Signe", "Finalise", "Refuse", "Archive",
+]
+
+
+def annees_selecteur_principal(annees_donnees, annee_courante=None) -> list:
+    """Années du sélecteur « Année » (sidebar) : dérivées des données, décroissantes.
+
+    Phase 1.1 : ne fige plus la liste à [2026..2023] et ne lève jamais de
+    ValueError. Sans données -> [annee_courante] (l'écran d'erreur s'affiche ensuite).
+    """
+    out = sorted({int(a) for a in annees_donnees}, reverse=True)
+    if not out:
+        out = [int(annee_courante) if annee_courante else datetime.now().year]
+    return out
+
+
+def annees_selecteur_rapport(annees_donnees, annee_courante) -> tuple:
+    """Sélecteur « Annee » du rapport mensuel : données ∪ année courante.
+
+    Retourne (options croissantes, index par défaut = année courante).
+    L'ancien `[2023, 2024, 2025, 2026].index(default_year)` levait une
+    ValueError en janvier 2027 (Phase 1.1).
+    """
+    options = sorted({int(a) for a in annees_donnees} | {int(annee_courante)})
+    return options, options.index(int(annee_courante))
 
 
 def jalons_scenario(scenario: str) -> dict:

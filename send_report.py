@@ -39,8 +39,8 @@ def load_excel(url):
         r = requests.get(url, timeout=30)
         if r.status_code == 200:
             return pd.read_excel(BytesIO(r.content), engine="openpyxl")
-    except:
-        pass
+    except Exception as e:
+        print(f"  ⚠️ Lecture fichier distante impossible: {e}")
     return None
 
 def load_all_data():

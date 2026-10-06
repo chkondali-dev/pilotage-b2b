@@ -73,8 +73,8 @@ def generate_regression_analysis(alerts):
     if resp:
         try:
             return json.loads(resp)
-        except:
-            pass
+        except Exception as _e:
+            print(f"  ⚠️ Reponse LLM non-JSON, repli sur la synthese auto: {_e}")
     r=s.get("red_alerts",0)
     a=s.get("amber_alerts",0)
     return {"synthese":"Scan auto: "+str(r)+"R, "+str(a)+"A. LLM indisponible.","regressions":[],"priorites":[{"action":"Investiguer alertes ROUGES","urgence":"haute"}],"generated_at":datetime.now().isoformat()}
