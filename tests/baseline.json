@@ -1,0 +1,94 @@
+{
+  "meta": {
+    "date_reference": "2026-10-05",
+    "seuil_inactivite_jours": 60,
+    "filtre_mois": "vide",
+    "filtre_convention": "Tous",
+    "annees": [
+      2025,
+      2026
+    ],
+    "types_vente": [
+      "Global",
+      "Convention",
+      "Credit conso",
+      "Credit particulier"
+    ],
+    "snapshot": "tests/fixtures/",
+    "comment": "Baseline Phase 0 — generee par tests/make_baseline.py. Toute evolution de ces chiffres exige un accord explicite."
+  },
+  "types": {
+    "Global": {
+      "2025": {
+        "ca_n": 31817286.46,
+        "ca_n1": 25639575.04,
+        "nb_factures": 16523,
+        "panier_moyen": 1926.0,
+        "conventions_actives": 5001,
+        "ca_a_risque": 9989681.03
+      },
+      "2026": {
+        "ca_n": 27943896.03,
+        "ca_n1": 26797352.45,
+        "nb_factures": 13696,
+        "panier_moyen": 2040.0,
+        "conventions_actives": 4060,
+        "ca_a_risque": 11020525.6
+      }
+    },
+    "Convention": {
+      "2025": {
+        "ca_n": 12922794.25,
+        "ca_n1": 9633598.92,
+        "nb_factures": 7221,
+        "panier_moyen": 1790.0,
+        "conventions_actives": 77,
+        "ca_a_risque": 871761.75
+      },
+      "2026": {
+        "ca_n": 10240372.87,
+        "ca_n1": 11039782.13,
+        "nb_factures": 5506,
+        "panier_moyen": 1860.0,
+        "conventions_actives": 78,
+        "ca_a_risque": 1456705.14
+      }
+    },
+    "Credit conso": {
+      "2025": {
+        "ca_n": 9178048.42,
+        "ca_n1": 6751569.64,
+        "nb_factures": 4219,
+        "panier_moyen": 2175.0,
+        "conventions_actives": 4,
+        "ca_a_risque": 519.0
+      },
+      "2026": {
+        "ca_n": 9458487.66,
+        "ca_n1": 7268396.54,
+        "nb_factures": 4122,
+        "panier_moyen": 2295.0,
+        "conventions_actives": 6,
+        "ca_a_risque": 3998.0
+      }
+    },
+    "Credit particulier": {
+      "2025": {
+        "ca_n": 9716443.79,
+        "ca_n1": 9208094.94,
+        "nb_factures": 5083,
+        "panier_moyen": 1912.0,
+        "conventions_actives": 4921,
+        "ca_a_risque": 9126515.27
+      },
+      "2026": {
+        "ca_n": 8245035.51,
+        "ca_n1": 8421952.69,
+        "nb_factures": 4068,
+        "panier_moyen": 2027.0,
+        "conventions_actives": 3976,
+        "ca_a_risque": 9575201.28
+      }
+    }
+  }
+}

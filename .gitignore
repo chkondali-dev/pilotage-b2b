@@ -26,6 +26,9 @@ node_modules/
 # Data / export (ne pas versionner les fichiers générés)
 *.xlsx
 *.xlsm
+# Exception : snapshot de donnees des tests (baseline Phase 0 — versionne)
+!tests/fixtures/*.xlsx
+!tests/fixtures/*.xlsm
 *.html
 *.txt
 *.csv
