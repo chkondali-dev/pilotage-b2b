@@ -114,11 +114,23 @@ def load_cube_magasin(df_raw: pd.DataFrame, code_df: pd.DataFrame = None) -> pd.
         id_vars=["Date"], value_vars=store_cols, var_name="StoreRaw", value_name="CA Magasin"
     )
     data_long["Magasin"] = data_long["StoreRaw"].apply(map_store_name)
-    data_long["Date"] = pd.to_datetime(data_long["Date"], errors="coerce")
+    # Dates OLAP : strings "AAAA-MM-JJ" (+ lignes d'annee "2024" a exclure).
+    # NOTE : pd.to_datetime generique renvoie NaT sur ces strings dans
+    # l'env actuel -> format explicite + fallback generique.
+    _ds = data_long["Date"].astype(str).str.strip()
+    _parsed = pd.to_datetime(_ds, format="%Y-%m-%d", errors="coerce")
+    _mask = _parsed.isna() & _ds.str.match(r"^\d{4}-\d{2}-\d{2}$", na=False)
+    data_long["Date"] = _parsed.where(~_mask, pd.to_datetime(_ds[_mask], errors="coerce"))
+    # Lignes intercalaires d'annee du pivot (ex. "2024", "Total 2024") :
+    # non convertibles en date -> exclues ici (NaT), on ne garde que les jours.
+    data_long = data_long.dropna(subset=["Date"])
     data_long["Année"] = data_long["Date"].dt.year
     data_long["Mois"] = data_long["Date"].dt.month
-    data_long = data_long.dropna(subset=["Date", "CA Magasin"])
+    data_long = data_long.dropna(subset=["CA Magasin"])
     data_long["CA Magasin"] = pd.to_numeric(data_long["CA Magasin"], errors="coerce").fillna(0)
+    # Lignes de sous-total du pivot ("Total ...") : exclues (double-compte + dates NaT).
+    data_long = data_long[~data_long["StoreRaw"].astype(str).str.lower().str.startswith("total")]
+    data_long = data_long[data_long["CA Magasin"] != 0]
     return data_long[["Date", "Magasin", "CA Magasin", "Année", "Mois"]]
 
 

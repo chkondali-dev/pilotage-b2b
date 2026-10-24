@@ -932,3 +932,77 @@ def alertes_achats_repetes(df: pd.DataFrame, annee: int = None,
     return (g.sort_values(["_n", "Nb achats", "Montant total"],
                          ascending=[True, False, False])
             .drop(columns=["_n"]).reset_index(drop=True)[cols])
+
+
+# ══════════════════════════════════════════════════════════════
+# POIDS CONVENTION / CA GLOBAL (cube magasin)
+# ══════════════════════════════════════════════════════════════
+
+def poids_convention_cube(df_cube: pd.DataFrame, df_vc: pd.DataFrame,
+                          annee: int, mois_sel: list = None) -> dict:
+    """Poids Convention / CA global par croisement cube x factures VC.
+
+    Scope COMMUN : intersection des jours presents dans le cube ET dans
+    les factures (le cube peut ne couvrir que quelques jours, ex. 1-10 mai).
+    CA Total = cube magasin (CA TTC ART, EM, tous modes) ; CA Convention =
+    somme Montant TTC des factures VC sur les memes jours ; CA Comptant
+    estime = max(CA Total - CA Convention, 0). Retourne dict avec
+    totaux globaux + detail par magasin (colonnes : Magasin, CA Total,
+    CA Convention, CA Comptant, Poids Conv %, Alerte) + jours compares.
+    """
+    cols = ["Magasin", "CA Total", "CA Convention", "CA Comptant",
+            "Poids Conv %", "Alerte"]
+    out = {"ca_total": 0.0, "ca_conv": 0.0, "ca_comptant": 0.0,
+           "poids_pct": float("nan"), "detail": pd.DataFrame(columns=cols),
+           "nb_alertes": 0, "jours": 0, "periode": ""}
+    if df_cube is None or df_cube.empty or df_vc is None or df_vc.empty:
+        return out
+    cube = df_cube.copy()
+    cube["Date"] = pd.to_datetime(cube["Date"], errors="coerce")
+    cube = cube[cube["Date"].dt.year == annee]
+    if mois_sel and "Mois" in cube.columns:
+        cube = cube[cube["Mois"].isin(mois_sel)]
+    vc = df_vc.copy()
+    if "Date" in vc.columns:
+        vc["_jour"] = pd.to_datetime(vc["Date"], errors="coerce").dt.normalize()
+    else:
+        vc["_jour"] = pd.NaT
+    cube["_jour"] = cube["Date"].dt.normalize()
+    # Jours communs cube x VC (comparaison jour a jour, pas annee entiere)
+    jours_communs = set(cube["_jour"].dropna().unique()) & set(vc["_jour"].dropna().unique())
+    if not jours_communs:
+        return out
+    cube = cube[cube["_jour"].isin(jours_communs)]
+    vc = vc[vc["_jour"].isin(jours_communs)]
+    out["jours"] = len(jours_communs)
+    out["periode"] = (f"{min(jours_communs).date()} au {max(jours_communs).date()}")
+    ca_total_mag = (cube.groupby("Magasin")["CA Magasin"].sum()
+                    .rename("CA Total") if "Magasin" in cube.columns
+                    else pd.Series(dtype=float))
+    ca_conv_mag = (vc.groupby("Magasin")["Montant TTC"].sum()
+                   .rename("CA Convention") if "Magasin" in vc.columns
+                   else pd.Series(dtype=float))
+    # Construction robuste du détail : union des magasins (une des deux
+    # séries peut être vide / sans nom si la colonne Magasin manque côté VC
+    # ou cube) — jamais de KeyError, jamais d'onglet cassé.
+    _idx = set(ca_total_mag.index.tolist()) | set(ca_conv_mag.index.tolist())
+    if not _idx:
+        return out
+    det = pd.DataFrame({"Magasin": sorted((str(x) for x in _idx))})
+    det["CA Total"] = det["Magasin"].map(ca_total_mag).fillna(0).astype(float)
+    det["CA Convention"] = det["Magasin"].map(ca_conv_mag).fillna(0).astype(float)
+    det["CA Comptant brut"] = det["CA Total"] - det["CA Convention"]
+    det["Alerte"] = det["CA Comptant brut"] < 0
+    det["CA Comptant"] = det["CA Comptant brut"].clip(lower=0)
+    det["Poids Conv %"] = np.where(
+        det["CA Total"] > 0,
+        (det["CA Convention"] / det["CA Total"] * 100).round(1), np.nan)
+    det = det.sort_values("CA Total", ascending=False).reset_index(drop=True)
+    out["ca_total"] = float(det["CA Total"].sum())
+    out["ca_conv"] = float(det["CA Convention"].sum())
+    out["ca_comptant"] = float(det["CA Comptant"].sum())
+    out["poids_pct"] = (round(out["ca_conv"] / out["ca_total"] * 100, 1)
+                        if out["ca_total"] > 0 else float("nan"))
+    out["nb_alertes"] = int(det["Alerte"].sum())
+    out["detail"] = det[cols]
+    return out
