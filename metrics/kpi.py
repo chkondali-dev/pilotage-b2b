@@ -40,6 +40,23 @@ def fmt_pct(v, na: str = "—") -> str:
     return f"{v:+.1f}%"
 
 
+def _norm_magasin(name: str) -> str:
+    """Normalize magasin name: strip, uppercase, remove accents/diacritics for matching."""
+    if not isinstance(name, str):
+        return ""
+    s = name.upper().strip()
+    # Remove common accents for matching
+    s = (s.replace("É", "E").replace("È", "E").replace("Ê", "E")
+              .replace("À", "A").replace("Â", "A")
+              .replace("Ô", "O").replace("Ô", "O")
+              .replace("Ç", "C").replace("İ", "I")
+              .replace("Ö", "O").replace("Ü", "U"))
+    # Remove digits and extra spaces
+    s = _re.sub(r"\d+", "", s)
+    s = _re.sub(r"\s+", " ", s).strip()
+    return s
+
+
 def color_delta(v) -> str:
     """Couleur delta Streamlit : « off » sans base (NaN/None), sinon normal/inverse."""
     if v is None or (isinstance(v, float) and np.isnan(v)):
@@ -938,44 +955,7 @@ def alertes_achats_repetes(df: pd.DataFrame, annee: int = None,
 # POIDS CONVENTION / CA GLOBAL (cube magasin)
 # ══════════════════════════════════════════════════════════════
 
-def poids_convention_cube(df_cube: pd.DataFrame, df_vc: pd.DataFrame,
-                          annee: int, mois_sel: list = None) -> dict:
-    """Poids Convention / CA global par croisement cube x factures VC.
 
-    Scope COMMUN : intersection des jours presents dans le cube ET dans
-    les factures (le cube peut ne couvrir que quelques jours, ex. 1-10 mai).
-    CA Total = cube magasin (CA TTC ART, EM, tous modes) ; CA Convention =
-    somme Montant TTC des factures VC sur les memes jours ; CA Comptant
-    estime = max(CA Total - CA Convention, 0). Retourne dict avec
-    totaux globaux + detail par magasin (colonnes : Magasin, CA Total,
-    CA Convention, CA Comptant, Poids Conv %, Alerte) + jours compares.
-    """
-    cols = ["Magasin", "CA Total", "CA Convention", "CA Comptant",
-            "Poids Conv %", "Alerte"]
-    out = {"ca_total": 0.0, "ca_conv": 0.0, "ca_comptant": 0.0,
-           "poids_pct": float("nan"), "detail": pd.DataFrame(columns=cols),
-           "nb_alertes": 0, "jours": 0, "periode": ""}
-    if df_cube is None or df_cube.empty or df_vc is None or df_vc.empty:
-        return out
-    cube = df_cube.copy()
-    cube["Date"] = pd.to_datetime(cube["Date"], errors="coerce")
-    cube = cube[cube["Date"].dt.year == annee]
-    if mois_sel and "Mois" in cube.columns:
-        cube = cube[cube["Mois"].isin(mois_sel)]
-    vc = df_vc.copy()
-    if "Date" in vc.columns:
-        vc["_jour"] = pd.to_datetime(vc["Date"], errors="coerce").dt.normalize()
-    else:
-        vc["_jour"] = pd.NaT
-    cube["_jour"] = cube["Date"].dt.normalize()
-    # Jours communs cube x VC (comparaison jour a jour, pas annee entiere)
-    jours_communs = set(cube["_jour"].dropna().unique()) & set(vc["_jour"].dropna().unique())
-    if not jours_communs:
-        return out
-    cube = cube[cube["_jour"].isin(jours_communs)]
-    vc = vc[vc["_jour"].isin(jours_communs)]
-    out["jours"] = len(jours_communs)
-    out["periode"] = (f"{min(jours_communs).date()} au {max(jours_communs).date()}")
     ca_total_mag = (cube.groupby("Magasin")["CA Magasin"].sum()
                     .rename("CA Total") if "Magasin" in cube.columns
                     else pd.Series(dtype=float))
@@ -1004,5 +984,243 @@ def poids_convention_cube(df_cube: pd.DataFrame, df_vc: pd.DataFrame,
     out["poids_pct"] = (round(out["ca_conv"] / out["ca_total"] * 100, 1)
                         if out["ca_total"] > 0 else float("nan"))
     out["nb_alertes"] = int(det["Alerte"].sum())
-    out["detail"] = det[cols]
-    return out
+    
+    """Compute convention weight from Cube Magasin + VC data.
+
+    Parameters
+    ----------
+    df_cube_mag : DataFrame
+        Cube Magasin with columns: Date, Annee, Mois, Jour, Magasin,
+        Enseigne, CA Magasin (daily granularity).
+    df_vc : DataFrame
+        VC data with columns: Type de vente, Montant TTC, Date comptabilisation,
+        Magasin, Enseigne.
+    annee : int
+        Year to filter.
+    mois : int, list of ints, or None, optional
+        Month(s) to filter.
+
+    Returns
+    -------
+    dict
+        Keys: poids_pct, ca_conv, ca_total, ca_comptant, nb_alertes, jours, periode.
+    """
+    # Handle empty inputs
+    if df_cube_mag is None or df_cube_mag.empty or df_vc is None or df_vc.empty:
+        return {
+            "poids_pct": float("nan"),
+            "ca_conv": 0.0,
+            "ca_total": 0.0,
+            "ca_comptant": 0.0,
+            "nb_alertes": 0,
+            "jours": 0,
+            "periode": f"{annee}",
+        }
+    # Handle missing columns in cube
+    cube_required = ["Date", "Annee", "Mois", "Jour", "Magasin", "CA Magasin"]
+    for col in cube_required:
+        if col not in df_cube_mag.columns:
+            return {
+                "poids_pct": float("nan"),
+                "ca_conv": 0.0,
+                "ca_total": 0.0,
+                "ca_comptant": 0.0,
+                "nb_alertes": 0,
+                "jours": 0,
+                "periode": f"{annee}",
+            }
+    # Handle missing columns in VC
+    vc_required = ["Type de vente", "Montant TTC", "Date comptabilisation", "Magasin"]
+    for col in vc_required:
+        if col not in df_vc.columns:
+            return {
+                "poids_pct": float("nan"),
+                "ca_conv": 0.0,
+                "ca_total": 0.0,
+                "ca_comptant": 0.0,
+                "nb_alertes": 0,
+                "jours": 0,
+                "periode": f"{annee}",
+            }
+    # Filter by year
+    df_cube = df_cube_mag[df_cube_mag["Annee"] == annee].copy()
+    # Handle month filtering
+    if mois is not None:
+        if "Mois" in df_cube.columns:
+            df_cube = df_cube[df_cube["Mois"].isin(mois)]
+        if "Mois" in df_vc.columns:
+            df_vc = df_vc[df_vc["Mois"].isin(mois)]
+    # Normalize magasin names using _norm_magasin helper
+    df_cube["Magasin_norm"] = df_cube["Magasin"].map(_norm_magasin)
+    df_vc_filtered = df_vc.copy()
+    df_vc_filtered["Magasin_norm"] = df_vc_filtered["Magasin"].map(_norm_magasin)
+    # Identify conventionned sales: Type de vente == 'VC.CONV.'
+    df_vc_conv = df_vc_filtered[df_vc_filtered["Type de vente"] == "VC.CONV."].copy()
+    # CA_total per (magasin, jour) from Cube Magasin
+    ca_total_daily = (
+        df_cube.groupby(["Magasin_norm", "Jour"])["CA Magasin"]
+        .sum()
+        .reset_index()
+    )
+    ca_total_daily.columns = ["Magasin", "Jour", "CA_Total"]
+    # CA_conv per (magasin, jour) from VC conventionned sales
+    if not df_vc_conv.empty and "Montant TTC" in df_vc_conv.columns:
+        df_vc_conv["Jour"] = (
+            pd.to_datetime(df_vc_conv["Date comptabilisation"], errors="coerce")
+            .dt.day
+        )
+        df_vc_conv["Magasin_norm"] = df_vc_conv["Magasin"].map(_norm_magasin)
+        ca_conv_daily = (
+            df_vc_conv.groupby(["Magasin_norm", "Jour"])["Montant TTC"]
+            .sum()
+            .reset_index()
+        )
+        ca_conv_daily.columns = ["Magasin", "Jour", "CA_Conv"]
+    else:
+        ca_conv_daily = pd.DataFrame(columns=["Magasin", "Jour", "CA_Conv"])
+    # Merge CA_total and CA_conv on (Magasin, Jour)
+    if not ca_total_daily.empty and not ca_conv_daily.empty:
+        daily_merge = ca_total_daily.merge(
+            ca_conv_daily, on=["Magasin", "Jour"], how="outer"
+        ).fillna(0)
+    elif not ca_total_daily.empty:
+        daily_merge = ca_total_daily.copy()
+        daily_merge["CA_Conv"] = 0
+    elif not ca_conv_daily.empty:
+        daily_merge = ca_conv_daily.copy()
+        daily_merge["CA_Total"] = 0
+    else:
+        daily_merge = pd.DataFrame(
+            columns=["Magasin", "Jour", "CA_Total", "CA_Conv"]
+        )
+    # Compute global values
+    ca_total = float(daily_merge["CA_Total"].sum())
+    ca_conv = float(daily_merge["CA_Conv"].sum())
+    ca_comptant = float(ca_total - ca_conv)
+    # Weight percentage
+    poids_pct = round(ca_conv / ca_total * 100, 1) if ca_total > 0 else float("nan")
+    # Count alerts: magasins where total CA_conv > total CA_total for that magasin
+    if not daily_merge.empty:
+        magasin_totals = (
+            daily_merge.groupby("Magasin")
+            .agg(
+                CA_Total_magasin=("CA_Total", "sum"),
+                CA_Conv_magasin=("CA_Conv", "sum"),
+            )
+            .reset_index()
+        )
+        nb_alertes = int(
+            (magasin_totals["CA_Conv_magasin"] > magasin_totals["CA_Total_magasin"]).sum()
+        )
+    else:
+        nb_alertes = 0
+    # Count unique jours
+    jours = int(daily_merge["Jour"].nunique()) if not daily_merge.empty else 0
+    # Build periode string
+    periode = f"{annee}"
+    if mois is not None:
+        if isinstance(mois, int):
+            periode = f"{annee}-{mois:02d}"
+        elif isinstance(mois, list) and len(mois) > 0:
+            periode = f"{annee}-{min(mois):02d}-{max(mois):02d}"
+    return {
+        "poids_pct": poids_pct,
+        "ca_conv": ca_conv,
+        "ca_total": ca_total,
+        "ca_comptant": ca_comptant,
+        "nb_alertes": nb_alertes,
+        "jours": jours,
+        "periode": periode,
+    }
+    """Compute convention weight from Cube Magasin + VC data.
+
+    Parameters
+    ----------
+    df_cube_mag : DataFrame
+        Cube Magasin with columns: Date, Annee, Mois, Jour, Magasin,
+        Enseigne, CA Magasin (daily granularity).
+    df_vc : DataFrame
+        VC data with columns: Type de vente, Montant TTC, Date comptabilisation,
+        Magasin, Enseigne.
+    annee : int
+        Year to filter.
+    mois : int, list of ints, or None, optional
+        Month(s) to filter.
+
+    Returns
+    -------
+    dict
+        Keys: poids_pct, ca_conv, ca_total, ca_comptant, nb_alertes, jours, periode.
+    """
+    # Handle empty inputs
+    if df_cube_mag is None or df_cube_mag.empty or df_vc is None or df_vc.empty:
+        return {
+            "poids_pct": float("nan"),
+            "ca_conv": 0.0,
+            "ca_total": 0.0,
+            "ca_comptant": 0.0,
+            "nb_alertes": 0,
+            "jours": 0,
+            "periode": f"{annee}",
+        }
+
+"""
+    # Handle missing columns in cube
+    cube_required = ["Date", "Annee", "Mois", "Jour", "Magasin", "CA Magasin"]
+    for col in cube_required:
+        if col not in df_cube_mag.columns:
+            return {
+                "poids_pct": float("nan"),
+                "ca_conv": 0.0,
+                "ca_total": 0.0,
+                "ca_comptant": 0.0,
+                "nb_alertes": 0,
+                "jours": 0,
+                "periode": f"{annee}",
+            }
+    # Handle missing columns in VC
+    vc_required = ["Type de vente", "Montant TTC", "Date comptabilisation", "Magasin"]
+    for col in vc_required:
+        if col not in df_vc.columns:
+            return {
+                "poids_pct": float("nan"),
+                "ca_conv": 0.0,
+                "ca_total": 0.0,
+                "ca_comptant": 0.0,
+                "nb_alertes": 0,
+                "jours": 0,
+                "periode": f"{annee}",
+            }
+    # Filter by year
+    df_cube = df_cube_mag[df_cube_mag["Annee"] == annee].copy()
+    # Handle month filtering
+    if mois is not None:
+        if "Mois" in df_cube.columns:
+            df_cube = df_cube[df_cube["Mois"].isin(mois)]
+        if "Mois" in df_vc.columns:
+            df_vc = df_vc[df_vc["Mois"].isin(mois)]
+    # Normalize magasin names using _norm_magasin helper
+    df_cube["Magasin_norm"] = df_cube["Magasin"].map(_norm_magasin)
+    df_vc_filtered = df_vc.copy()
+    df_vc_filtered["Magasin_norm"] = df_vc_filtered["Magasin"].map(_norm_magasin)
+    # Identify conventionned sales: Type de vente == 'VC.CONV.'
+    df_vc_conv = df_vc_filtered[df_vc_filtered["Type de vente"] == "VC.CONV."].copy()
+
+Parameters
+----------
+df_cube_mag : DataFrame
+    Cube Magasin with columns: Date, Annee, Mois, Jour, Magasin,
+    Enseigne, CA Magasin (daily granularity).
+df_vc : DataFrame
+    VC data with columns: Type de vente, Montant TTC, Date comptabilisation,
+    Magasin, Enseigne.
+annee : int
+    Year to filter.
+mois : int, list of ints, or None, optional
+    Month(s) to filter.
+
+Returns
+-------
+dict
+    Keys: poids_pct, ca_conv, ca_total, ca_comptant, nb_alertes, jours, periode.
+"""
