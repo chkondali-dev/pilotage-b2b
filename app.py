@@ -409,11 +409,12 @@ with tabs[0]:
             df_vc_filt[df_vc_filt["Enseigne"] == enseigne],
             annee_sel, annee_sel - 1, mois_sel,
         )
-        return (_d[_d["Année"] == annee_sel]["Montant TTC"].sum(),
+        return (_d,
+                _d[_d["Année"] == annee_sel]["Montant TTC"].sum(),
                 _d[_d["Année"] == annee_sel - 1]["Montant TTC"].sum())
 
-    _mg_n, _mg_n1 = _ens_ca("MG")
-    _bt_n, _bt_n1 = _ens_ca("BATAM")
+    _mg_d, _mg_n, _mg_n1 = _ens_ca("MG")
+    _bt_d, _bt_n, _bt_n1 = _ens_ca("BATAM")
     _tot_n, _tot_n1 = _mg_n + _bt_n, _mg_n1 + _bt_n1
     _ens_cols = st.columns(2)
     for _col, _lbl, _cn, _cn1 in zip(
@@ -432,6 +433,41 @@ with tabs[0]:
         _col.caption(
             f"{_pts:+.1f} pt de part vs {annee_sel-1}" if pd.notna(_pts) else "part N-1 indisponible"
         )
+
+    _pie_col, _mg_col, _bt_col = st.columns([1, 2, 2])
+    if _tot_n > 0:
+        with _pie_col:
+            st.plotly_chart(
+                chart_pie([_mg_n, _bt_n], ["MG", "BATAM"],
+                          f"Poids du CA {annee_sel}", h=230),
+                use_container_width=True,
+                key="exec_poids_pie",
+            )
+
+    for _col, _d, _lbl, _key in (
+        (_mg_col, _mg_d, "MG", "exec_mg_mois"),
+        (_bt_col, _bt_d, "BATAM", "exec_batam_mois"),
+    ):
+        _t = (_d[_d["Année"].isin([annee_sel, annee_sel - 1])]
+              .groupby(["Année", "Mois"])["Montant TTC"].sum().reset_index())
+        if _t.empty:
+            continue
+        fig_ens = go.Figure()
+        for _yr in (annee_sel, annee_sel - 1):
+            _by = _t[_t["Année"] == _yr]
+            fig_ens.add_trace(go.Bar(
+                x=_by["Mois"], y=_by["Montant TTC"], name=str(_yr),
+                marker_color=C["blue"] if _yr == annee_sel else C["slate"],
+                opacity=0.8 if _yr == annee_sel else 0.5,
+            ))
+        fig_ens.update_layout(
+            height=230, barmode="group", title=f"CA mensuel {_lbl}",
+            xaxis=dict(tickmode="array", tickvals=list(range(1, 13)),
+                       ticktext=[MOIS[i] for i in range(1, 13)]),
+            margin=dict(l=10, r=10, t=30, b=10),
+        )
+        with _col:
+            st.plotly_chart(fig_ens, use_container_width=True, key=_key)
 
     # ── 30 s : ce qui explique l'écart, sans détail opérationnel ──
     section("Ce qui explique la performance")
