@@ -386,11 +386,13 @@ with tabs[0]:
         f"CA {annee_sel}", f"{ca_n:,.0f} TND",
         f"{fmt_pct(ev_nn1)} vs {annee_sel-1}", delta_color=color_delta(ev_nn1),
     )
+    _realisation = (ca_n / ca_n1 * 100
+                    if pd.notna(ca_n) and pd.notna(ca_n1) and ca_n1 > 0 else float("nan"))
     h2.metric(
-        f"Écart vs {annee_sel-1}",
-        f"{ca_n - ca_n1:+,.0f} TND" if pd.notna(ca_n) and pd.notna(ca_n1) else "—",
-        "date-à-date" if pd.notna(ca_n) and pd.notna(ca_n1) else None,
-        delta_color="off",
+        f"Réalisation vs {annee_sel-1}",
+        f"{_realisation:.1f} %" if pd.notna(_realisation) else "—",
+        f"{ca_n - ca_n1:+,.0f} TND" if pd.notna(_realisation) else None,
+        delta_color=color_delta(ca_n - ca_n1) if pd.notna(_realisation) else "off",
     )
     h3.metric("Conventions actives", f"{nb_actives}")
     h4.metric(
