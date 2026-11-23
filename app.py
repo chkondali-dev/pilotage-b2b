@@ -11,12 +11,10 @@ import requests
 import subprocess
 import sys
 import os
-import json
 from io import BytesIO
 import base64
 from datetime import datetime, timedelta
 from pathlib import Path
-from trend_alert_panel import render_alert_panel
 
 from data.config import C, MOIS, LOGO_MG_URL, LOGO_BATAM_URL, SEUILS, JALONS_STATUTS
 from data.loader import load_all_data
@@ -204,15 +202,6 @@ _conv_options = (
 
 
 @st.cache_data(show_spinner=False)
-def _cached_scan_all(df_vc_in, df_edc_in, df_conv_in, df_code_in):
-    """Scan tendances TrendAnalyzer — recalculé uniquement si les entrées changent."""
-    from trend_analyzer import TrendAnalyzer
-    ta = TrendAnalyzer(df_vc=df_vc_in, df_edc=df_edc_in,
-                       conventions=df_conv_in, code_magasin=df_code_in)
-    return ta.scan_all()
-
-
-@st.cache_data(show_spinner=False)
 def _cached_data_health(df):
     """Santé des données — recalculée uniquement si les données changent."""
     return data_health(df)
@@ -368,9 +357,6 @@ tabs = st.tabs([
     "\U0001f3ea Magasins",
     "\U0001f9ed Tous flux & Mutuelles",
     "\U0001f4cb Conventions encours",
-    "\U0001f91d CRM",
-    "\U0001f6a8 Alertes Tendances",
-    "\U0001f4c2 Archive Rapports",
     "\U0001f6e1️ Conformité 40%",
 ])
 
@@ -2986,237 +2972,10 @@ with tabs[5]:
                         st.success(f"Ajoute : {nc}")
                         st.rerun()
 
+# ══════════════════════════════════════════════════════════════
+# TAB 6 — CONFORMITÉ 40% (réglementation TN : retenue ≤ 40% salaire net)
+# ══════════════════════════════════════════════════════════════
 with tabs[6]:
-    if df_crm is not None and len(df_crm) > 0:
-        ca_pot_total = df_crm["CA potentiel"].sum()
-        ca_real_total = df_crm["CA realise"].sum()
-        k1, k2, k3, k4, k5 = st.columns(5)
-        k1.metric("Total prospects", len(df_crm))
-        en_cours = len(df_crm[df_crm["Statut pipeline"]=="En cours"])
-        k2.metric("En cours", en_cours)
-        cloture = len(df_crm[df_crm["Statut pipeline"]=="Cloture"])
-        k3.metric("Cloturees", cloture)
-        k4.metric("CA potentiel", f"{ca_pot_total:,.0f}")
-        k5.metric("CA realise", f"{ca_real_total:,.0f}",
-                  delta=f"{((ca_real_total/ca_pot_total*100) if ca_pot_total > 0 else 0):.0f}% taux real.")
-
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            pipe = df_crm["Statut pipeline"].value_counts().reset_index()
-            pipe.columns = ["Statut", "Nb"]
-            fig_pipe = px.bar(pipe, x="Statut", y="Nb", color="Statut",
-                              title="Pipeline Commercial", text_auto=True, height=300)
-            fig_pipe.update_layout(showlegend=False)
-            st.plotly_chart(fig_pipe, use_container_width=True)
-        with col2:
-            prio = df_crm["Priorite relance"].value_counts().reset_index()
-            prio.columns = ["Priorite", "Nb"]
-            fig_prio = px.pie(prio, values="Nb", names="Priorite",
-                              title="Priorites Relance", height=300, hole=0.4)
-            st.plotly_chart(fig_prio, use_container_width=True)
-        with col3:
-            sect = df_crm["Secteur"].value_counts().reset_index()
-            sect.columns = ["Secteur", "Nb"]
-            fig_sect = px.pie(sect, values="Nb", names="Secteur",
-                              title="Secteurs", height=300, hole=0.4,
-                              color_discrete_sequence=["#059669", "#1D4ED8", "#D97706"])
-            st.plotly_chart(fig_sect, use_container_width=True)
-
-        st.markdown("<div class='sec-hdr'>Prospects</div>", unsafe_allow_html=True)
-        cols_show = [
-            "Nom entreprise", "Statut pipeline", "Priorite relance",
-            "Secteur", "CA potentiel", "CA realise",
-            "Responsable commercial", "Date derniere activite"
-        ]
-        cols_ok = [c for c in cols_show if c in df_crm.columns]
-        df_disp = df_crm[cols_ok].head(20).reset_index(drop=True)
-        ev = st.dataframe(df_disp, use_container_width=True, height=450,
-                          column_config={c: st.column_config.NumberColumn(format="%d")
-                                         for c in ["CA potentiel", "CA realise"]
-                                         if c in df_disp.columns},
-                          on_select="rerun", selection_mode="single-row")
-        sel = ev.selection.rows if hasattr(ev, 'selection') else []
-        if sel:
-            idx = sel[0]
-            client = df_crm.loc[df_disp.index[idx]]
-            nm = str(client.get("Nom entreprise", ""))
-            with st.container():
-                st.markdown(f"<div style='background:#f0f2f6;padding:1.2rem 1.5rem;border-radius:12px;margin-top:0.5rem'>"
-                            f"<h3 style='margin:0 0 1rem 0'>{nm}</h3>", unsafe_allow_html=True)
-                cx = st.columns(4)
-                cx[0].markdown(f"**Contact**<br>{client.get('Contact', '')}", unsafe_allow_html=True)
-                cx[1].markdown(f"**Telephone**<br>{client.get('Telephone', '')}", unsafe_allow_html=True)
-                cx[2].markdown(f"**Secteur**<br>{client.get('Secteur', '')}", unsafe_allow_html=True)
-                ca_p = client.get("CA potentiel", 0)
-                ca_r = client.get("CA realise", 0)
-                cx[3].markdown(f"**CA potentiel**<br>{ca_p:,.0f}  \n**CA realise**<br>{ca_r:,.0f}", unsafe_allow_html=True)
-                cmt = str(client.get("Commentaire", ""))
-                if cmt and cmt != "nan" and cmt.strip():
-                    st.markdown(f"**Commentaire :** {cmt}")
-                st.markdown("</div>", unsafe_allow_html=True)
-    else:
-        st.info("CRM desactive. Verifiez TDC2.xlsx et crm.py")
-
-with tabs[7]:
-    st.markdown("### \U0001f6a8 Alertes Tendances")
-    try:
-        with st.spinner("Analyse des tendances..."):
-            alerts = _cached_scan_all(df_vc, df_edc, df_conv, code_df)
-            if "Nom" in df_vc_filt.columns:
-                _df_ytd_n = df_vc_filt[df_vc_filt["Année"] == annee_sel].copy()
-                _df_ytd_n1 = df_vc_filt[df_vc_filt["Année"] == annee_sel - 1].copy()
-                if mois_sel and len(mois_sel) > 0:
-                    _df_ytd_n = _df_ytd_n[_df_ytd_n["Mois"].isin(mois_sel)]
-                    _df_ytd_n1 = _df_ytd_n1[_df_ytd_n1["Mois"].isin(mois_sel)]
-                if "Jour" in _df_ytd_n.columns and not _df_ytd_n.empty:
-                    _conv_jours = _df_ytd_n.groupby(["Nom", "Mois"])["Jour"].apply(max).to_dict()
-                else:
-                    _conv_jours = {}
-                _ytd_index = {}
-                _ytd_orig = {}
-                for (n, m), jours in _conv_jours.items():
-                    key = str(n).strip().upper()
-                    if key not in _ytd_index:
-                        _ytd_index[key] = {}
-                        _ytd_orig[key] = n
-                    _ytd_index[key][m] = jours
-                for a in alerts.get("convention_alerts", []):
-                    nom = str(a.get("nom", "")).strip().upper()
-                    if not nom or nom not in _ytd_index:
-                        continue
-                    orig = _ytd_orig[nom]
-                    dn = _df_ytd_n[_df_ytd_n["Nom"] == orig]
-                    dn1 = _df_ytd_n1[_df_ytd_n1["Nom"] == orig]
-                    if dn.empty:
-                        continue
-                    ca_n = float(dn["Montant TTC"].sum())
-                    ca_n1 = 0.0
-                    for m, max_jour in _ytd_index[nom].items():
-                        ca_n1 += float(dn1[(dn1["Mois"] == m) & (dn1["Jour"] <= int(max_jour))]["Montant TTC"].sum())
-                    evo = evol_pct(ca_n, ca_n1)
-                    a["metrics"]["ytd_change_pct"] = evo
-            render_alert_panel(alerts, df=df_vc, annee_n=annee_sel)
-    except Exception as e:
-        st.warning(f"Analyse des tendances indisponible: {e}")
-
-    # ── Détection d'outliers factures ────────────────────────────
-    section("Anomalies — Factures outliers")
-    _out = df_vc[df_vc["Année"] == annee_sel].copy()
-    if not _out.empty and "Montant TTC" in _out.columns and "Magasin" in _out.columns:
-        _out_stats = _out.groupby("Magasin")["Montant TTC"].agg(["mean", "std", "count"]).reset_index()
-        _out_stats.columns = ["Magasin", "Moyenne", "Ecart_type", "Nb"]
-        _out_stats = _out_stats[_out_stats["Ecart_type"] > 0]
-        if not _out_stats.empty:
-            _out_merged = _out.merge(_out_stats[["Magasin", "Moyenne", "Ecart_type"]], on="Magasin")
-            _out_merged["Z_score"] = abs(_out_merged["Montant TTC"] - _out_merged["Moyenne"]) / _out_merged["Ecart_type"]
-            _outliers = _out_merged[_out_merged["Z_score"] > 3].copy()
-            _outliers["Écart %"] = ((_outliers["Montant TTC"] - _outliers["Moyenne"]) / _outliers["Moyenne"] * 100).round(1)
-            if len(_outliers) > 0:
-                st.caption(f"{len(_outliers)} factures anormales détectées (|Z|>3, σ par magasin)")
-                _od = _outliers.sort_values("Z_score", ascending=False).head(20)
-                _od["Montant TTC"] = _od["Montant TTC"].round(0)
-                _od["Moyenne"] = _od["Moyenne"].round(0)
-                cols_o = [c for c in ["Nom", "Magasin", "Montant TTC", "Moyenne", "Écart %", "Date"] if c in _od.columns]
-                st.dataframe(_od[cols_o], use_container_width=True, height=300,
-                             column_config={"Montant TTC": st.column_config.NumberColumn(format="%d"),
-                                            "Moyenne": st.column_config.NumberColumn(format="%d")})
-            else:
-                st.caption("Aucune anomalie détectée sur la période.")
-        else:
-            st.caption("Pas assez de données par magasin.")
-    else:
-        st.caption("Données insuffisantes.")
-
-# ══════════════════════════════════════════════════════════════
-# TAB 8 — ARCHIVE RAPPORTS
-# ══════════════════════════════════════════════════════════════
-with tabs[8]:
-    st.markdown("### \U0001f4c2 Archive des Rapports Mensuels")
-    archive_path = Path(__file__).parent / ".cache_monthly" / "report_archive.json"
-
-    if not archive_path.exists():
-        st.info("Aucun rapport archive pour l'instant. Utilisez `python monthly_report.py` pour generer un rapport.")
-    else:
-        try:
-            archive = json.loads(archive_path.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, ValueError):
-            archive = []
-
-        if not archive:
-            st.info("Archive vide.")
-        else:
-            # Navigation par mois/annee
-            periodes = sorted(set((e["annee"], e["mois"]) for e in archive), reverse=True)
-            col1, col2 = st.columns([1, 3])
-            with col1:
-                selected = st.selectbox(
-                    "Periode",
-                    options=[f"{MOIS.get(m, m)} {a}" for a, m in periodes],
-                    index=0,
-                )
-            with col2:
-                st.markdown(f"**{len(archive)} rapport(s)** archive(s)")
-
-            # Filtrer
-            selected_entries = [e for e in archive
-                                if f"{MOIS.get(e['mois'], e['mois'])} {e['annee']}" == selected]
-
-            for entry in reversed(selected_entries):
-                filename = entry.get("filename", "?")
-                ts = entry.get("timestamp", "")[:16].replace("T", " ")
-                kpi = entry.get("kpi", {})
-                exec_summary = entry.get("exec_summary")
-
-                with st.container(border=True):
-                    cols = st.columns([3, 1, 1])
-                    with cols[0]:
-                        st.markdown(f"**{filename}**  \n"
-                                    f"Genere le {ts}")
-                    with cols[1]:
-                        st.metric("CA Total", f"{kpi.get('ca_total',0):,.0f}")
-                    with cols[2]:
-                        var = kpi.get("var_total", 0)
-                        st.metric("Variation", fmt_pct(var),
-                                  delta_color=color_delta(var))
-
-                    # Exec summary
-                    if exec_summary and exec_summary.get("tendance_globale"):
-                        tg = exec_summary["tendance_globale"]
-                        st.markdown(f"**Tendance :** {tg.get('texte', '')}  \n"
-                                    f"Direction: {tg.get('direction','?').upper()} — "
-                                    f"Intensite: {tg.get('intensite','?')}")
-                        points = exec_summary.get("points_cles", [])
-                        if points:
-                            for p in points:
-                                st.markdown(f"- {p}")
-
-                    # Actions
-                    report_dir = Path.home() / "Downloads" / "rapport_mensuel"
-                    html_file = report_dir / filename
-                    if html_file.exists():
-                        with open(html_file, "r", encoding="utf-8") as fh:
-                            html_content = fh.read()
-                        st.download_button(
-                            label="\U0001f4e5 Telecharger le rapport HTML",
-                            data=html_content,
-                            file_name=filename,
-                            mime="text/html",
-                            key=f"dl_{filename}",
-                        )
-                    else:
-                        st.caption(f"Fichier non trouve: {html_file.name}")
-
-                    # Lien pour ouvrir
-                    try:
-                        _rel = html_file.relative_to(Path(__file__).parent)
-                        st.markdown(f"[Ouvrir le rapport](./{_rel})")
-                    except ValueError:
-                        pass
-
-# ══════════════════════════════════════════════════════════════
-# TAB 9 — CONFORMITÉ 40% (réglementation TN : retenue ≤ 40% salaire net)
-# ══════════════════════════════════════════════════════════════
-with tabs[9]:
     st.markdown("### \U0001f6e1️ Conformité 40% — Achats répétés")
     st.caption(
         "Règle réglementaire : la retenue sur salaire d'un adhérent ne doit pas dépasser "
