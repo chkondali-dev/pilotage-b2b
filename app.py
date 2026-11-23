@@ -26,7 +26,7 @@ from metrics.kpi import (
     fmt_pct, color_delta,
     nb_factures, panier_moyen, bridge_volume_panier,
     run_rate_fin_annee, data_health,
-    objectif_tracking, cohortes_conventions,
+    cohortes_conventions,
     ventes_positives, concentration_portefeuille, volumes_panier,
     conversion_conventions, kpi_conversion_globale,
     alertes_achats_repetes,
@@ -214,12 +214,6 @@ with st.sidebar:
         min_value=15, max_value=180, value=SEUILS["inactivite_jours"], step=15,
         help="Conventions sans facture depuis plus de N jours",
     )
-    objectif_m = st.number_input(
-        "Objectif CA annuel (M TND)",
-        min_value=0.0, value=float(SEUILS["objectif_defaut_m"]), step=0.5,
-        help="Cible annuelle — % atteinte, jauge et narratif exécutif",
-    )
-
     with st.expander("\U0001fa7a Santé des données", expanded=False):
         _health = _cached_data_health(df_vc)
         st.markdown(f"### {_health['Statut']} Santé des données")
@@ -379,18 +373,13 @@ with tabs[0]:
     _ca_n1_full = float(df_vc_scope[df_vc_scope["Année"] == annee_sel - 1]["Montant TTC"].sum()) \
         if "Montant TTC" in df_vc_scope.columns else 0.0
     _rr_evo = evol_pct(_rr0["Projection"], _ca_n1_full)
-    _obj = objectif_tracking(
-        _rr0["CA YTD"], float(objectif_m) * 1_000_000,
-        _rr0["Jours écoulés"], _rr0["Jours année"],
-    )
     _vol0 = volumes_panier(df_vc_filt, annee_sel, mois_sel)
     _conc0 = concentration_portefeuille(df_vc_filt, annee_sel, mois_sel)
 
     section("Vue d'ensemble")
-    _verdict = f"**{ca_n:,.0f} TND de CA {annee_sel} ({fmt_pct(ev_nn1)} vs {annee_sel-1})"
-    if pd.notna(_obj["Atteinte %"]):
-        _verdict += f" · objectif atteint à {_obj['Atteinte %']:.0f} %"
-    st.markdown(_verdict + ".**")
+    st.markdown(
+        f"**{ca_n:,.0f} TND de CA {annee_sel} ({fmt_pct(ev_nn1)} vs {annee_sel-1}).**"
+    )
 
     h1, h2, h3, h4 = st.columns(4)
     h1.metric(
@@ -398,10 +387,10 @@ with tabs[0]:
         f"{fmt_pct(ev_nn1)} vs {annee_sel-1}", delta_color=color_delta(ev_nn1),
     )
     h2.metric(
-        "Atteinte objectif",
-        f"{_obj['Atteinte %']:.0f} %" if pd.notna(_obj["Atteinte %"]) else "—",
-        f"{_obj['Avance/retard']:+,.0f} TND / prorata" if pd.notna(_obj["Avance/retard"]) else None,
-        delta_color=color_delta(_obj["Avance/retard"]),
+        f"Écart vs {annee_sel-1}",
+        f"{ca_n - ca_n1:+,.0f} TND" if pd.notna(ca_n) and pd.notna(ca_n1) else "—",
+        "date-à-date" if pd.notna(ca_n) and pd.notna(ca_n1) else None,
+        delta_color="off",
     )
     h3.metric("Conventions actives", f"{nb_actives}")
     h4.metric(
