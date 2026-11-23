@@ -26,16 +26,16 @@ from metrics.kpi import (
     fmt_pct, color_delta,
     nb_factures, panier_moyen, bridge_volume_panier,
     run_rate_fin_annee, data_health,
-    objectif_tracking, cohortes_conventions, narratif_executif,
-    ventes_positives, concentration_portefeuille, volumes_panier, business_insights,
+    objectif_tracking, cohortes_conventions,
+    ventes_positives, concentration_portefeuille, volumes_panier,
     conversion_conventions, kpi_conversion_globale,
     alertes_achats_repetes,
 )
 from charts.factory import (
     chart_bar, chart_grouped_bar, chart_line_compare, chart_variation_bar,
-    chart_bridge, chart_risk_table, chart_gauge, chart_pie, chart_stacked_bar,
+    chart_bridge, chart_gauge, chart_pie, chart_stacked_bar,
 )
-from ui.components import inject_css, hero, section, badge, rank_card, kpi_card
+from ui.components import inject_css, hero, section, badge, kpi_card
 from utils.github import push_csv_to_github
 import business.conventions as conv
 
@@ -364,250 +364,138 @@ tabs = st.tabs([
 # TAB 0 — VUE EXÉCUTIVE
 # ══════════════════════════════════════════════════════════════
 with tabs[0]:
+    # ── 10 s : périmètre, verdict et 4 chiffres héros ──────────────
+    _last_mois = (int(df_vc_scope["Mois"].max())
+                  if not df_vc_scope.empty and df_vc_scope["Mois"].notna().any() else None)
+    mois_label = (", ".join(MOIS.get(m, str(m)) for m in mois_sel) if mois_sel
+                  else f"YTD jusqu'à {MOIS.get(_last_mois)}" if _last_mois else "année pleine")
+    st.caption(f"MG + BATAM · {annee_sel} ({mois_label})")
 
-    # ── KPI strip : 8 KPI utiles, valeur + évolution + contexte ──
-    section("Indicateurs clés")
-    _vol0 = volumes_panier(df_vc_filt, annee_sel, mois_sel)
-    _conc0 = concentration_portefeuille(df_vc_filt, annee_sel, mois_sel)
-    k1, k2, k3, k4 = st.columns(4)
-    k1.metric(
-        f"CA {annee_sel}",
-        f"{ca_n:,.0f} TND",
-        f"{fmt_pct(ev_nn1)} vs {annee_sel-1}",
-        delta_color=color_delta(ev_nn1),
+    _ca_risque = (
+        float(df_inactive["CA N-1"].sum())
+        if nb_inact > 0 and not df_inactive.empty and "CA N-1" in df_inactive.columns else 0.0
     )
-    k2.metric(
-        f"Factures {annee_sel}",
-        f"{_vol0['Nb N']:,}".replace(",", " "),
-        f"{fmt_pct(_vol0['Evo Nb %'])} vs N-1" if pd.notna(_vol0["Evo Nb %"]) else "—",
-        delta_color=color_delta(_vol0["Evo Nb %"]),
-    )
-    k3.metric(
-        "Panier moyen",
-        f"{_vol0['Panier N']:,.0f} TND" if pd.notna(_vol0["Panier N"]) else "—",
-        f"{fmt_pct(_vol0['Evo panier %'])} vs N-1" if pd.notna(_vol0["Evo panier %"]) else "—",
-        delta_color=color_delta(_vol0["Evo panier %"]),
-    )
-    k4.metric(
-        "Conventions actives",
-        f"{nb_actives}",
-        f"{_conc0['Top3 %']:.1f}% top 3" if pd.notna(_conc0["Top3 %"]) else f"/ {nb_total} total",
-    )
-
-    # ── CA à risque + inactivité : conventions inactives ─────────
-    if nb_inact > 0 and not df_inactive.empty and "CA N-1" in df_inactive.columns:
-        _ca_risque = float(df_inactive["CA N-1"].sum())
-        if _ca_risque > 0:
-            st.warning(
-                f"\U0001f4b0 À risque : **{_ca_risque:,.0f} TND** de CA {annee_sel - 1} "
-                f"(période sélectionnée) proviennent de **{nb_inact} convention(s)** sans "
-                f"facture depuis plus de {seuil_inactif} jours — à relancer en priorité."
-            )
-    elif nb_inact == 0:
-        st.success("✅ Aucune convention inactive — portefeuille vivant.")
-
-    # ── À retenir : insights automatiques (max 5, triés par impact) ──
-    _ins0 = business_insights(df_vc_filt, annee_sel, risk_mat, mois_sel)
-    if _ins0:
-        st.markdown("**💡 À retenir**")
-        for _ico, _txt in _ins0:
-            st.markdown(f"{_ico} {_txt}")
-
-    # ── Synthèse exécutive : objectif + narratif (P2) ─────
-    section("Synthèse exécutive")
     _rr0 = run_rate_fin_annee(df_vc_scope, annee_sel)
     _obj = objectif_tracking(
         _rr0["CA YTD"], float(objectif_m) * 1_000_000,
         _rr0["Jours écoulés"], _rr0["Jours année"],
     )
-    _oc1, _oc2 = st.columns([1, 2])
-    with _oc1:
-        if pd.notna(_obj["Atteinte %"]):
-            st.plotly_chart(
-                chart_gauge(_obj["CA YTD"], _obj["Objectif"],
-                            f"Atteinte objectif {annee_sel}"), use_container_width=True,
-            )
-        else:
-            st.caption("Définissez un objectif > 0 dans la sidebar.")
-    with _oc2:
-        oc_a, oc_b, oc_c = st.columns(3)
-        oc_a.metric("Objectif", f"{_obj['Objectif']:,.0f} TND")
-        oc_b.metric("Atteinte", fmt_pct(_obj["Atteinte %"]) if pd.notna(_obj["Atteinte %"]) else "—")
-        oc_c.metric("Avance/retard prorata",
-                    f"{_obj['Avance/retard']:+,.0f} TND" if pd.notna(_obj["Avance/retard"]) else "—")
-    _ctx_narr = {
-        "annee": annee_sel, "ca_n": ca_n, "ca_n1": ca_n1, "evo_pct": ev_nn1,
-        "objectif": _obj["Objectif"], "atteinte_pct": _obj["Atteinte %"],
-        "avance_retard": _obj["Avance/retard"], "run_rate": _rr0["Projection"],
-        "ca_risque": float(df_inactive["CA N-1"].sum())
-        if (nb_inact > 0 and not df_inactive.empty and "CA N-1" in df_inactive.columns) else 0.0,
-        "nb_inact": nb_inact,
-    }
-    _br_narr = bridge_volume_panier(df_vc_scope, annee_sel, mois_sel)
-    _ctx_narr["bridge"] = _br_narr.set_index("Étape")["Effet (TND)"].to_dict()
-    if not risk_mat.empty and "CA N" in risk_mat.columns:
-        _rm_narr = risk_mat.copy()
-        _rm_narr["Δ CA (TND)"] = _rm_narr["CA N"] - _rm_narr["CA N-1"]
-        _g = _rm_narr[_rm_narr["Δ CA (TND)"] > 0].nlargest(1, "Δ CA (TND)")
-        _f = _rm_narr[_rm_narr["CA N-1"] > 0].nsmallest(1, "Évolution %")
-        if not _g.empty:
-            _ctx_narr["top_hausse"] = {"nom": _g.iloc[0]["Nom"], "delta": float(_g.iloc[0]["Δ CA (TND)"])}
-        if not _f.empty:
-            _ctx_narr["flop"] = {"nom": _f.iloc[0]["Nom"], "evo": _f.iloc[0]["Évolution %"]}
-    for _ico, _txt in narratif_executif(_ctx_narr):
-        st.markdown(f"{_ico} {_txt}")
+    _vol0 = volumes_panier(df_vc_filt, annee_sel, mois_sel)
+    _conc0 = concentration_portefeuille(df_vc_filt, annee_sel, mois_sel)
 
-    mois_label = ", ".join([MOIS.get(m, str(m)) for m in mois_sel]) if mois_sel else f"{annee_sel}"
+    section("Vue d'ensemble")
+    _verdict = f"**{ca_n:,.0f} TND de CA {annee_sel} ({fmt_pct(ev_nn1)} vs {annee_sel-1})"
+    if pd.notna(_obj["Atteinte %"]):
+        _verdict += f" · objectif atteint à {_obj['Atteinte %']:.0f} %"
+    st.markdown(_verdict + ".**")
 
-    # ── Évolution CA : mensuel N vs N-1 + cumul ──────────────
-    section("Évolution du chiffre d'affaires")
+    h1, h2, h3, h4 = st.columns(4)
+    h1.metric(
+        f"CA {annee_sel}", f"{ca_n:,.0f} TND",
+        f"{fmt_pct(ev_nn1)} vs {annee_sel-1}", delta_color=color_delta(ev_nn1),
+    )
+    h2.metric(
+        "Atteinte objectif",
+        f"{_obj['Atteinte %']:.0f} %" if pd.notna(_obj["Atteinte %"]) else "—",
+        f"{_obj['Avance/retard']:+,.0f} TND / prorata" if pd.notna(_obj["Avance/retard"]) else None,
+        delta_color=color_delta(_obj["Avance/retard"]),
+    )
+    h3.metric("Conventions actives", f"{nb_actives}")
+    h4.metric(
+        f"Projection fin {annee_sel}",
+        f"{_rr0['Projection']:,.0f} TND" if pd.notna(_rr0["Projection"]) else "—",
+        "annualisé du CA YTD" if pd.notna(_rr0["Projection"]) else None,
+        delta_color="off",
+    )
+
+    # ── 30 s : ce qui explique l'écart, sans détail opérationnel ──
+    section("Ce qui explique la performance")
     col_a, col_b = st.columns(2)
 
     with col_a:
-        fig_gb = chart_grouped_bar(
-            df_comp, "Mois Nom", "CA N", "CA N-1",
-            f"CA Mensuel — {annee_sel} vs {annee_sel-1}", annee_sel,
-        )
-        st.plotly_chart(fig_gb, use_container_width=True)
-
-    with col_b:
-        # Cumul N vs N-1 : lecture d'écart qui se creuse / se résorbe
         _cum = df_comp[["Mois Nom", "CA N", "CA N-1"]].copy() if not df_comp.empty else pd.DataFrame()
         if not _cum.empty:
             _cum["Cumul N"] = _cum["CA N"].cumsum()
             _cum["Cumul N-1"] = _cum["CA N-1"].cumsum()
-            fig_cum = chart_line_compare(
-                _cum, "Mois Nom", "Cumul N", "Cumul N-1",
-                f"CA Cumulé — {annee_sel} vs {annee_sel-1}", annee_sel,
+            st.plotly_chart(
+                chart_line_compare(
+                    _cum, "Mois Nom", "Cumul N", "Cumul N-1",
+                    f"CA Cumulé — {annee_sel} vs {annee_sel-1}", annee_sel,
+                ),
+                use_container_width=True,
+                key="exec_cum",
             )
-            st.plotly_chart(fig_cum, use_container_width=True)
         else:
             st.caption("Aucune donnée disponible.")
 
-    # ── Portefeuille conventions : Top 10 + variations ────────
-    section("Portefeuille conventions — Performance")
-    col_c, col_d = st.columns(2)
+    with col_b:
+        _bridge = bridge_volume_panier(df_vc_scope, annee_sel, mois_sel)
+        if pd.notna(_bridge.set_index("Étape")["Effet (TND)"].get("+ Volume")):
+            st.plotly_chart(
+                chart_bridge(
+                    _bridge, "Étape", "Valeur",
+                    f"Décomposition ΔCA {annee_sel} vs {annee_sel-1}",
+                ),
+                use_container_width=True,
+                key="exec_bridge",
+            )
+        else:
+            st.caption("Pas de base N-1 — pont non calculable.")
 
-    with col_c:
-        _top10 = ventes_positives(df_filt).groupby("Nom")["Montant TTC"].sum().nlargest(10).reset_index()
-        fig_t10 = chart_bar(
-            _top10, "Montant TTC", "Nom",
-            f"Top 10 conventions — {annee_sel}", C["blue"], h=400, orientation="h",
+    _flop_nom, _flop_delta = "", 0.0
+    _up_nom, _up_delta = "", 0.0
+    if not risk_mat.empty and {"CA N-1", "CA N"}.issubset(risk_mat.columns):
+        _rm = risk_mat.copy()
+        _rm["Δ CA"] = _rm["CA N"] - _rm["CA N-1"]
+        _f = _rm[(_rm["CA N-1"] > 0) & (_rm["Δ CA"] < 0)].nsmallest(1, "Δ CA")
+        if not _f.empty:
+            _flop_nom, _flop_delta = str(_f.iloc[0]["Nom"]), float(_f.iloc[0]["Δ CA"])
+        _u = _rm.nlargest(1, "Δ CA")
+        if not _u.empty:
+            _up_nom, _up_delta = str(_u.iloc[0]["Nom"]), float(_u.iloc[0]["Δ CA"])
+
+    e1, e2, e3, e4 = st.columns(4)
+    e1.metric(
+        "Factures", f"{_vol0['Nb N']:,}".replace(",", " "),
+        f"{fmt_pct(_vol0['Evo Nb %'])} vs N-1" if pd.notna(_vol0["Evo Nb %"]) else None,
+        delta_color=color_delta(_vol0["Evo Nb %"]),
+    )
+    e2.metric(
+        "Panier moyen",
+        f"{_vol0['Panier N']:,.0f} TND" if pd.notna(_vol0["Panier N"]) else "—",
+        f"{fmt_pct(_vol0['Evo panier %'])} vs N-1" if pd.notna(_vol0["Evo panier %"]) else None,
+        delta_color=color_delta(_vol0["Evo panier %"]),
+    )
+    e3.metric(
+        "Concentration Top 3",
+        f"{_conc0['Top3 %']:.1f} %" if pd.notna(_conc0["Top3 %"]) else "—",
+        f"HHI {_conc0['HHI']} · {_conc0['Niveau']}" if pd.notna(_conc0["Top3 %"]) else None,
+        delta_color="off",
+    )
+    e4.metric(
+        "Plus forte baisse", _flop_nom[:26] if _flop_nom else "—",
+        f"{_flop_delta:+,.0f} TND vs N-1" if _flop_nom else None,
+        delta_color="inverse",
+    )
+
+    st.markdown("**Lecture express**")
+    if _up_nom:
+        st.markdown(f"\U0001f4c8 **{_up_nom}** : {_up_delta:+,.0f} TND vs {annee_sel-1}.")
+    if _flop_nom:
+        st.markdown(f"\U0001f4c9 **{_flop_nom}** : {_flop_delta:,.0f} TND vs {annee_sel-1}.")
+    if _ca_risque > 0:
+        st.markdown(
+            f"\u26a0\ufe0f **{nb_inact} conventions** sans facture depuis {seuil_inactif} j "
+            f"= {_ca_risque:,.0f} TND de CA antérieur à relancer."
         )
-        st.plotly_chart(fig_t10, use_container_width=True)
 
-    with col_d:
-        fig_var = chart_variation_bar(
-            risk_mat.head(20), "Nom", "Évolution %",
-            f"Évolution N/N-1 — Top 20 conventions", h=400,
-        )
-        st.plotly_chart(fig_var, use_container_width=True)
+    st.markdown("---")
+    st.caption(
+        "Détails → **CA & Tendances** (mensuel, prévision, saisonnalité) · "
+        "**Conventions** (liste, risques) · **Magasins** (MG/BATAM) · "
+        "**Conformité 40 %**"
+    )
 
-    # ── Signaux : tableau risque + Top/Flop (mêmes sources) ─────
-    section("Signaux décisionnels — Risques & Opportunités")
-    col_e, col_f, col_g = st.columns([3, 1, 1])
-
-    with col_e:
-        fig_sc = chart_risk_table(
-            risk_mat.head(20), annee_sel,
-            "État du portefeuille — Vue condensée", h=450,
-        )
-        st.plotly_chart(fig_sc, use_container_width=True)
-
-    if "Nom" in df_filt.columns and len(df_filt) > 0:
-        ca_cli = ventes_positives(df_filt).groupby("Nom")["Montant TTC"].sum()
-        top3   = ca_cli.nlargest(3)
-
-        with col_f:
-            st.markdown("**\U0001f3c6 Top 3**")
-            for i, (nom, ca) in enumerate(top3.items(), 1):
-                rank_card(i, nom, f"{ca:,.0f} TND", "top")
-
-        with col_g:
-            # Flop 3 = plus fortes BAISSES N vs N-1 (base N-1 exigée), pas les plus petits CA
-            st.markdown("**\u26a0\ufe0f Flop 3 — Fortes baisses**")
-            if not risk_mat.empty:
-                _flop = risk_mat[risk_mat["CA N-1"] > 0].nsmallest(3, "Évolution %")
-                if not _flop.empty:
-                    for i, (_, _r) in enumerate(_flop.iterrows(), 1):
-                        rank_card(i, _r["Nom"], f"{fmt_pct(_r['Évolution %'])} vs N-1", "flop")
-                else:
-                    st.caption("Aucune baisse mesurable — pas de base N-1.")
-            else:
-                st.caption("Données de risque indisponibles.")
-
-    # ── Dynamique du portefeuille : actives + nouvelles (tout historique) ──
-    section("Dynamique du portefeuille — Entrées / Sorties")
-    # Build full dataset for the selected years
-    _pieces = [df_vc]
-    if not df_credit.empty:
-        _pieces.append(df_credit)
-    if not df_credit_part.empty:
-        _pieces.append(df_credit_part)
-    _all = pd.concat(_pieces, ignore_index=True)
-    _all = _all[_all["Année"].between(annee_sel - 1, annee_sel)].copy()
-
-    if not _all.empty and "Nom" in _all.columns:
-        _all["Periode"] = _all["Année"].astype(str) + "-" + _all["Mois"].astype(str).str.zfill(2)
-        # Active conventions per month
-        _act = _all.groupby("Periode")["Nom"].nunique().reset_index(name="Actives")
-        # First invoice date per convention → SUR TOUT L'HISTORIQUE (pas la fenêtre 2 ans) :
-        # une convention antérieure à la fenêtre n'est pas « nouvelle ».
-        _first = pd.concat(_pieces, ignore_index=True).groupby("Nom")["Date"].min().reset_index()
-        _first["Periode"] = _first["Date"].dt.year.astype(str) + "-" + _first["Date"].dt.month.astype(str).str.zfill(2)
-        _new = _first["Periode"].value_counts().reset_index()
-        _new.columns = ["Periode", "Nouvelles"]
-        _pf = _act.merge(_new, on="Periode", how="left").fillna(0)
-        _pf["Nouvelles"] = _pf["Nouvelles"].astype(int)
-        _pf = _pf.sort_values("Periode")
-
-        _pf_a = _pf[_pf["Periode"] >= f"{annee_sel-1}-01"]
-        fig_pf = go.Figure()
-        fig_pf.add_trace(go.Scatter(x=_pf_a["Periode"], y=_pf_a["Actives"],
-                                    name="Actives", line=dict(color=C["blue"], width=3)))
-        fig_pf.add_trace(go.Bar(x=_pf_a["Periode"], y=_pf_a["Nouvelles"],
-                                name="Nouvelles", marker_color=C["green"], opacity=0.5,
-                                yaxis="y2"))
-        fig_pf.update_layout(height=320, margin=dict(l=10, r=10, t=10, b=10),
-                            yaxis=dict(title="Actives", side="left"),
-                            yaxis2=dict(title="Nouvelles", side="right", overlaying="y"),
-                            legend=dict(orientation="h", y=1.05))
-        _col_pf1, _col_pf2 = st.columns([3, 1])
-        with _col_pf1:
-            st.plotly_chart(fig_pf, use_container_width=True)
-        with _col_pf2:
-            _pf_annee = _pf[_pf["Periode"].str.startswith(str(annee_sel))]
-            _pf_n1 = _pf[_pf["Periode"].str.startswith(str(annee_sel - 1))]
-            avg_a = _pf_annee["Actives"].mean()
-            avg_n1 = _pf_n1["Actives"].mean()
-            evo_pf = evol_pct(avg_a, avg_n1)
-            st.metric("Moy. actives/mois", f"{avg_a:.0f}",
-                      f"{fmt_pct(evo_pf)} vs N-1" if pd.notna(evo_pf) else "—",
-                      delta_color=color_delta(evo_pf))
-            st.metric("Nouvelles YTD", f"{_pf_annee['Nouvelles'].sum():.0f}")
-
-    # ── Concentration : Top 3 + Pareto (ventes positives) ──────
-    section("Concentration du portefeuille")
-    if pd.notna(_conc0["Top3 %"]):
-        _k1, _k2, _k3 = st.columns(3)
-        _k1.metric("Part Top 3", f"{_conc0['Top3 %']:.1f}%")
-        _k2.metric("HHI", f"{_conc0['HHI']}", f"{_conc0['Niveau']}")
-        _k3.metric("Conventions", f"{_conc0['Nb']}")
-        _conc_top = _conc0["courbe"]
-        fig_conc = go.Figure()
-        fig_conc.add_trace(go.Bar(x=_conc_top["Nom"], y=_conc_top["CA"],
-                                  name="CA", marker_color=C["blue"]))
-        fig_conc.add_trace(go.Scatter(x=_conc_top["Nom"], y=_conc_top["Cumul %"],
-                                      name="% cumulé", yaxis="y2",
-                                      line=dict(color=C["red"], width=2),
-                                      marker=dict(color=C["red"])))
-        fig_conc.update_layout(height=280, margin=dict(l=10, r=10, t=10, b=10),
-                               yaxis=dict(title="CA"),
-                               yaxis2=dict(title="% cumulé", overlaying="y",
-                                           side="right", range=[0, 105]))
-        st.plotly_chart(fig_conc, use_container_width=True)
-    else:
-        st.caption("Aucune donnée disponible.")
 
 
 # ══════════════════════════════════════════════════════════════
