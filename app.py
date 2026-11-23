@@ -376,6 +376,9 @@ with tabs[0]:
         if nb_inact > 0 and not df_inactive.empty and "CA N-1" in df_inactive.columns else 0.0
     )
     _rr0 = run_rate_fin_annee(df_vc_scope, annee_sel)
+    _ca_n1_full = float(df_vc_scope[df_vc_scope["Année"] == annee_sel - 1]["Montant TTC"].sum()) \
+        if "Montant TTC" in df_vc_scope.columns else 0.0
+    _rr_evo = evol_pct(_rr0["Projection"], _ca_n1_full)
     _obj = objectif_tracking(
         _rr0["CA YTD"], float(objectif_m) * 1_000_000,
         _rr0["Jours écoulés"], _rr0["Jours année"],
@@ -404,8 +407,8 @@ with tabs[0]:
     h4.metric(
         f"Projection fin {annee_sel}",
         f"{_rr0['Projection']:,.0f} TND" if pd.notna(_rr0["Projection"]) else "—",
-        "annualisé du CA YTD" if pd.notna(_rr0["Projection"]) else None,
-        delta_color="off",
+        f"{fmt_pct(_rr_evo)} vs {annee_sel-1} (annuel)" if pd.notna(_rr0["Projection"]) else None,
+        delta_color=color_delta(_rr_evo),
     )
 
     # ── 30 s : ce qui explique l'écart, sans détail opérationnel ──
