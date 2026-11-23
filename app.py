@@ -402,6 +402,37 @@ with tabs[0]:
         delta_color=color_delta(_rr_evo),
     )
 
+    section("Répartition MG / BATAM")
+
+    def _ens_ca(enseigne):
+        _d = truncate_n1_date_to_date(
+            df_vc_filt[df_vc_filt["Enseigne"] == enseigne],
+            annee_sel, annee_sel - 1, mois_sel,
+        )
+        return (_d[_d["Année"] == annee_sel]["Montant TTC"].sum(),
+                _d[_d["Année"] == annee_sel - 1]["Montant TTC"].sum())
+
+    _mg_n, _mg_n1 = _ens_ca("MG")
+    _bt_n, _bt_n1 = _ens_ca("BATAM")
+    _tot_n, _tot_n1 = _mg_n + _bt_n, _mg_n1 + _bt_n1
+    _ens_cols = st.columns(2)
+    for _col, _lbl, _cn, _cn1 in zip(
+        _ens_cols, ("MG", "BATAM"), (_mg_n, _bt_n), (_mg_n1, _bt_n1)
+    ):
+        _poids = _cn / _tot_n * 100 if _tot_n > 0 else float("nan")
+        _poids_n1 = _cn1 / _tot_n1 * 100 if _tot_n1 > 0 else float("nan")
+        _evo_ens = evol_pct(_cn, _cn1)
+        _pts = _poids - _poids_n1 if pd.notna(_poids) and pd.notna(_poids_n1) else float("nan")
+        _col.metric(
+            _lbl,
+            f"{_poids:.1f} %" if pd.notna(_poids) else "—",
+            f"{fmt_pct(_evo_ens)} vs {annee_sel-1}" if pd.notna(_evo_ens) else None,
+            delta_color=color_delta(_evo_ens),
+        )
+        _col.caption(
+            f"{_pts:+.1f} pt de part vs {annee_sel-1}" if pd.notna(_pts) else "part N-1 indisponible"
+        )
+
     # ── 30 s : ce qui explique l'écart, sans détail opérationnel ──
     section("Ce qui explique la performance")
     col_a, col_b = st.columns(2)
