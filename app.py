@@ -488,9 +488,13 @@ with tabs[0]:
         ~df_vc_filt["Nom"].str.upper().str.replace(" ", "", regex=False)
         .str.contains("TUNISAIR", na=False)
     ]
-    _ca_ht_n, _ca_ht_n1, _ = ca_sum_date_to_date(_ht, annee_sel, annee_sel - 1, mois_sel)
+    _ca_ht_n, _ca_ht_n1, _ev_ht = ca_sum_date_to_date(_ht, annee_sel, annee_sel - 1, mois_sel)
     ht1, ht2 = st.columns(2)
-    ht1.metric(f"CA {annee_sel} hors Tunisair", f"{_ca_ht_n:,.0f} TND")
+    ht1.metric(
+        f"CA {annee_sel} hors Tunisair", f"{_ca_ht_n:,.0f} TND",
+        f"{fmt_pct(_ev_ht)} vs {annee_sel-1}" if pd.notna(_ev_ht) else None,
+        delta_color=color_delta(_ev_ht),
+    )
     ht2.metric(
         f"Réalisation vs {annee_sel-1} hors Tunisair",
         f"{_ca_ht_n / _ca_ht_n1 * 100:.1f} %" if _ca_ht_n1 > 0 else "—",
