@@ -404,11 +404,17 @@ with tabs[0]:
 
     section("Répartition MG / BATAM")
 
+    # Base commune aux deux enseignes : mois comparés identiques au total, sinon
+    # un mois sans vente N mais avec du CA N-1 gonfle la base et fausse l'évolution.
+    _mois_compar = df_comp["Mois"].tolist() if not df_comp.empty else mois_sel
+    _d2d_ens = truncate_n1_date_to_date(df_vc_filt, annee_sel, annee_sel - 1, mois_sel)
+    _d2d_ens = _d2d_ens[
+        _d2d_ens["Année"].isin([annee_sel, annee_sel - 1])
+        & _d2d_ens["Mois"].isin(_mois_compar)
+    ]
+
     def _ens_ca(enseigne):
-        _d = truncate_n1_date_to_date(
-            df_vc_filt[df_vc_filt["Enseigne"] == enseigne],
-            annee_sel, annee_sel - 1, mois_sel,
-        )
+        _d = _d2d_ens[_d2d_ens["Enseigne"] == enseigne]
         return (_d,
                 _d[_d["Année"] == annee_sel]["Montant TTC"].sum(),
                 _d[_d["Année"] == annee_sel - 1]["Montant TTC"].sum())
