@@ -40,3 +40,9 @@ app_backup_*.py
 
 # Exception: manifeste dependances (Streamlit Cloud)
 !requirements.txt
+
+# Caches de build generates (pas a versionner)
+**/.dart_tool/
+**/.gradle/
+*.log
+**/android/local.properties
