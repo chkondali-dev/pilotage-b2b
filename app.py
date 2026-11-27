@@ -29,7 +29,7 @@ from metrics.kpi import (
     cohortes_conventions,
     ventes_positives, concentration_portefeuille, volumes_panier,
     conversion_conventions, kpi_conversion_globale,
-    alertes_achats_repetes,
+    alertes_achats_repetes, poids_convention_cube,
 )
 from charts.factory import (
     chart_bar, chart_grouped_bar, chart_line_compare, chart_variation_bar,
@@ -38,6 +38,12 @@ from charts.factory import (
 from ui.components import inject_css, hero, section, badge, kpi_card
 from utils.github import push_csv_to_github
 import business.conventions as conv
+
+BRIDGE_LEGEND = (
+    "Lecture : CA N-1 → + Volume (nb de factures) → + Panier (TND/facture) "
+    "→ + Interaction (croisement) → CA N. Les 3 effets s'additionnent "
+    "(pas de produit) et redonnent exactement le ΔCA, sur les mêmes mois que N-1."
+)
 
 st.set_page_config(
     page_title="Pilotage B2B — SMG",
@@ -324,6 +330,15 @@ def _cached_precalcs(df, annee, seuil, mois_tuple, _df_conv_ref):
 df_comp, risk_mat, df_inactive, df_3m, ca_n, ca_n1, ev_nn1, ca_n2, nb_actives, nb_inact, nb_total = \
     _cached_precalcs(df_vc_filt, annee_sel, seuil_inactif, tuple(mois_sel) if mois_sel else (), df_conv)
 
+
+@st.cache_data(show_spinner=False)
+def _cached_poids_cube(cube, vc, annee, mois_tuple):
+    """Poids VC.CONV. / CA global — partagé Vue Exécutive + Magasins."""
+    return poids_convention_cube(cube, vc, annee, list(mois_tuple) if mois_tuple else None)
+
+
+_pc = _cached_poids_cube(df_cube_mag, df_vc, annee_sel, tuple(mois_sel) if mois_sel else ())
+
 ev_n1n2 = evol_pct(ca_n1, ca_n2)
 
 # ── Compteurs risques ─────────────────────────────────────────
@@ -475,6 +490,55 @@ with tabs[0]:
         with _col:
             st.plotly_chart(fig_ens, use_container_width=True, key=_key)
 
+    section("Poids du conventionnel dans le CA magasin")
+    if pd.notna(_pc["poids_pct"]) and _pc["ca_global"] > 0:
+        _pg1, _pg2, _pg3 = st.columns(3)
+        _pg1.metric("CA global magasin", f"{_pc['ca_global']:,.0f} TND")
+        _pg2.metric("CA conventions", f"{_pc['ca_conv']:,.0f} TND")
+        _pg3.metric(
+            "Poids / CA global", f"{_pc['poids_pct']:.1f} %",
+            f"{_pc['ecart_pt']:+.1f} pt vs {annee_sel-1}"
+            if pd.notna(_pc["ecart_pt"]) else None,
+            delta_color=color_delta(_pc["ecart_pt"]),
+        )
+        _pe = _pc["par_enseigne"]
+        if not _pe.empty:
+            _el, _er = st.columns(2)
+            for _col, _ens in zip((_el, _er), ("MG", "BATAM")):
+                _row = _pe[_pe["Enseigne"] == _ens]
+                if _row.empty or pd.isna(_row.iloc[0]["Poids %"]):
+                    continue
+                _r = _row.iloc[0]
+                _dp = _r["Écart pt"]
+                _col.metric(
+                    f"Poids {_ens}", f"{_r['Poids %']:.1f} %",
+                    f"{_dp:+.1f} pt" if pd.notna(_dp) else None,
+                    delta_color=color_delta(_dp),
+                )
+        _pm = _pc["par_magasin"]
+        if not _pm.empty:
+            st.dataframe(
+                _pm.head(10)[["Magasin", "CA global", "CA conv", "Poids %", "Écart pt"]]
+                .style.format(
+                    {"CA global": "{:,.0f}", "CA conv": "{:,.0f}",
+                     "Poids %": "{:.1f}%", "Écart pt": "{:+.1f}"},
+                    na_rep="—",
+                ),
+                use_container_width=True, hide_index=True,
+            )
+        st.caption(
+            "Source : CUBE MAGASIN (CA TTC ART, périmètre SECTEUR 4 - EM) — "
+            "numérateur : ventes VC.CONV., comparaison date à date. "
+            "Détail par magasin dans l'onglet Magasins."
+        )
+        if _pc["nb_sans_correspondance"]:
+            st.caption(
+                f"⚠️ {_pc['nb_sans_correspondance']} magasin(s) facturé(s) "
+                "sans correspondance dans le cube (CA hors périmètre du poids)."
+            )
+    else:
+        st.caption("CA global indisponible — poids du conventionnel non calculable.")
+
     # ── 30 s : ce qui explique l'écart, sans détail opérationnel ──
     section("Ce qui explique la performance")
     col_a, col_b = st.columns(2)
@@ -506,6 +570,7 @@ with tabs[0]:
                 use_container_width=True,
                 key="exec_bridge",
             )
+            st.caption(BRIDGE_LEGEND)
         else:
             st.caption("Pas de base N-1 — pont non calculable.")
 
@@ -871,7 +936,7 @@ with tabs[1]:
             st.caption(f"CA YTD {_rr['CA YTD']:,.0f} / {_rr['Jours écoulés']} j écoulés × {_rr['Jours année']} j")
 
     # ── Pont volume × panier (P1) : décomposition de ΔCA N vs N-1 ──
-    section("Pont de variation — Volume × Panier")
+    section("Pont de variation — Volume + Panier + Interaction")
     _bridge = bridge_volume_panier(df_vc_scope, annee_sel, mois_sel)
     _beff = _bridge.set_index("Étape")["Effet (TND)"]
     if pd.notna(_beff.get("+ Volume")):
@@ -881,6 +946,7 @@ with tabs[1]:
                          f"{(' — ' + mois_label) if mois_sel else ''}"),
             use_container_width=True,
         )
+        st.caption(BRIDGE_LEGEND)
         bc1, bc2, bc3 = st.columns(3)
         bc1.metric("Effet volume", f"{_beff.get('+ Volume'):+,.0f} TND",
                    f"{_bridge.set_index('Étape').loc['+ Volume', 'Nb factures']:+,.0f} factures")
@@ -1346,15 +1412,21 @@ with tabs[3]:
                 0.0
             )
 
-            if not df_cube_mag.empty and "Magasin" in df_cube_mag.columns:
-                cube_agg = df_cube_mag.groupby("Magasin")["CA Magasin"].sum().reset_index()
-                cube_agg.columns = ["Magasin", "CA Total Magasin"]
-                ca_mag = ca_mag.merge(cube_agg, on="Magasin", how="left").fillna(0)
+            _pm = _pc["par_magasin"]
+            if not _pm.empty:
+                _pm_join = _pm.rename(columns={
+                    "CA global": "CA global magasin",
+                    "Poids %": "Poids / CA global %",
+                    "Écart pt": "Δ pts vs N-1",
+                })[["Magasin", "CA global magasin", "Poids / CA global %", "Δ pts vs N-1"]]
+                ca_mag = ca_mag.merge(_pm_join, on="Magasin", how="left")
             else:
-                ca_mag["CA Total Magasin"] = 0
+                ca_mag["CA global magasin"] = 0.0
+                ca_mag["Poids / CA global %"] = np.nan
+                ca_mag["Δ pts vs N-1"] = np.nan
 
             total_n = ca_mag["CA N"].sum()
-            ca_mag["Poids %"] = (ca_mag["CA N"] / total_n * 100).round(1) if total_n > 0 else 0.0
+            ca_mag["Part CA conv %"] = (ca_mag["CA N"] / total_n * 100).round(1) if total_n > 0 else 0.0
 
             ca_mag = ca_mag.sort_values("CA N", ascending=False)
             simple_sum = _base_n["Montant TTC"].sum()
@@ -1401,11 +1473,15 @@ with tabs[3]:
                     st.plotly_chart(fig_type, use_container_width=True)
 
             with st.expander("\U0001f4cb Tableau complet des magasins"):
-                display_cols = ["Magasin", "CA N", "Poids %", "Evolution %"]
+                display_cols = ["Magasin", "CA N", "CA global magasin",
+                                "Poids / CA global %", "Δ pts vs N-1",
+                                "Part CA conv %", "Evolution %"]
                 available = [c for c in display_cols if c in ca_mag.columns]
                 st.dataframe(
                     ca_mag[available].style.format(
-                        {"CA N": "{:,.0f}", "Poids %": "{:.1f}%", "Evolution %": "{:+.1f}%"},
+                        {"CA N": "{:,.0f}", "CA global magasin": "{:,.0f}",
+                         "Poids / CA global %": "{:.1f}%", "Δ pts vs N-1": "{:+.1f}",
+                         "Part CA conv %": "{:.1f}%", "Evolution %": "{:+.1f}%"},
                         na_rep="—"
                     ), use_container_width=True, height=400
                 )
@@ -1431,6 +1507,19 @@ with tabs[3]:
             k3.metric("\U0001f9fe Factures", nb_fact_s)
             k4.metric("\U0001f4ca Panier moyen", f"{panier_s:,.0f} TND")
             k5.metric("\U0001f3f7\ufe0f Enseigne", enseigne)
+
+            _pm_store = _pc["par_magasin"]
+            _pm_store = _pm_store[_pm_store["Magasin"] == selected_store]
+            if not _pm_store.empty:
+                _r = _pm_store.iloc[0]
+                _mg1, _mg2 = st.columns(2)
+                _mg1.metric("CA global magasin", f"{_r['CA global']:,.0f} TND")
+                _mg2.metric(
+                    "Poids / CA global",
+                    f"{_r['Poids %']:.1f} %" if pd.notna(_r["Poids %"]) else "—",
+                    f"{_r['Écart pt']:+.1f} pt" if pd.notna(_r["Écart pt"]) else None,
+                    delta_color=color_delta(_r["Écart pt"]),
+                )
 
             if "Mois" in store_n.columns:
                 col_c1, col_c2 = st.columns(2)
@@ -1710,13 +1799,24 @@ with tabs[3]:
         _nb_mag = _n["Magasin"].nunique()
         _nb_mag_n1 = _n1["Magasin"].nunique()
         _part = _ca_n / df_vc[df_vc["Année"] == annee_sel]["Montant TTC"].sum() * 100 if not df_vc[df_vc["Année"] == annee_sel].empty else 0
-        _c1, _c2, _c3, _c4, _c5 = st.columns(5)
+        _c1, _c2, _c3, _c4, _c5, _c6 = st.columns(6)
         _c1.metric(f"CA {enseigne} {annee_sel}", f"{_ca_n:,.0f}", fmt_pct(_ev),
                    delta_color=color_delta(_ev))
         _c2.metric(f"CA {enseigne} {annee_sel-1}", f"{_ca_n1:,.0f}")
         _c3.metric("Magasins actifs", _nb_mag, f"{_nb_mag - _nb_mag_n1:+d} vs N-1")
         _c4.metric("Part du CA total", f"{_part:.1f}%")
         _c5.metric("Panier moyen", f"{_ca_n/len(_n):,.0f}" if len(_n) > 0 else "0")
+        _pe_ens = _pc["par_enseigne"]
+        _ens_row = _pe_ens[_pe_ens["Enseigne"] == enseigne]
+        if not _ens_row.empty:
+            _poids_ens = _ens_row.iloc[0]["Poids %"]
+            _dp_ens = _ens_row.iloc[0]["Écart pt"]
+            _c6.metric(
+                "Poids / CA global",
+                f"{_poids_ens:.1f} %" if pd.notna(_poids_ens) else "—",
+                f"{_dp_ens:+.1f} pt" if pd.notna(_dp_ens) else None,
+                delta_color=color_delta(_dp_ens),
+            )
         # Monthly trend
         _t = _df[_df["Année"].isin([annee_sel, annee_sel-1])]
         _t = _t.groupby(["Année", "Mois"])["Montant TTC"].sum().reset_index()

@@ -110,16 +110,25 @@ def load_cube_magasin(df_raw: pd.DataFrame, code_df: pd.DataFrame = None) -> pd.
         return s
 
     store_cols = [c for c in data.columns if c != "Date" and pd.notna(c)]
+    # Les lignes de total annuel (Date = "2024"/"2025"/…) n'ont aucune valeur
+    # magasin : sans ce filtre, pandas infère le format "%Y" et rend toutes les
+    # vraies dates NaT.
+    data = data.dropna(how="all", subset=store_cols).copy()
     data_long = data.melt(
         id_vars=["Date"], value_vars=store_cols, var_name="StoreRaw", value_name="CA Magasin"
     )
     data_long["Magasin"] = data_long["StoreRaw"].apply(map_store_name)
-    data_long["Date"] = pd.to_datetime(data_long["Date"], errors="coerce")
+    data_long["Date"] = pd.to_datetime(data_long["Date"], errors="coerce", format="mixed")
     data_long["Année"] = data_long["Date"].dt.year
     data_long["Mois"] = data_long["Date"].dt.month
+    data_long["Jour"] = data_long["Date"].dt.day
     data_long = data_long.dropna(subset=["Date", "CA Magasin"])
     data_long["CA Magasin"] = pd.to_numeric(data_long["CA Magasin"], errors="coerce").fillna(0)
-    return data_long[["Date", "Magasin", "CA Magasin", "Année", "Mois"]]
+    data_long["Enseigne"] = (
+        data_long["Magasin"].str.upper().str.contains("BATAM|BTM", regex=True)
+        .map({True: "BATAM", False: "MG"})
+    )
+    return data_long[["Date", "Magasin", "CA Magasin", "Année", "Mois", "Jour", "Enseigne"]]
 
 
 def _compute_ca_realise(df_crm: pd.DataFrame, df_vc: pd.DataFrame) -> pd.DataFrame:

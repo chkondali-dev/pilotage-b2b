@@ -251,10 +251,13 @@ def _scope_d2d(df: pd.DataFrame, annee_n: int, mois_sel: list = None) -> tuple:
     df_n = df[df["Année"] == annee_n].copy()
     if mois_sel:
         df_n = df_n[df_n["Mois"].isin(mois_sel)]
+    # N-1 doit porter sur les MÊMES mois que N, même sans mois_sel : sinon
+    # décembre 2025 entre dans le bridge alors que N s'arrête à novembre.
+    mois_n = sorted(df_n["Mois"].dropna().unique()) if "Mois" in df_n.columns else []
     df_n1 = truncate_n1_date_to_date(df, annee_n, annee_n - 1, mois_sel)
     df_n1 = df_n1[df_n1["Année"] == annee_n - 1]
-    if mois_sel:
-        df_n1 = df_n1[df_n1["Mois"].isin(mois_sel)]
+    if "Mois" in df_n1.columns:
+        df_n1 = df_n1[df_n1["Mois"].isin(mois_n)]
     return df_n, df_n1
 
 
@@ -932,3 +935,106 @@ def alertes_achats_repetes(df: pd.DataFrame, annee: int = None,
     return (g.sort_values(["_n", "Nb achats", "Montant total"],
                          ascending=[True, False, False])
             .drop(columns=["_n"]).reset_index(drop=True)[cols])
+
+
+# ══════════════════════════════════════════════════════════════
+# POIDS DU CONVENTIONNEL DANS LE CA GLOBAL (CUBE MAGASIN)
+# ══════════════════════════════════════════════════════════════
+
+def poids_convention_cube(df_cube_mag: pd.DataFrame, df_vc: pd.DataFrame,
+                          annee: int, mois_sel: list = None) -> dict:
+    """
+    Poids des ventes VC.CONV. dans le CA global des magasins (CUBE MAGASIN).
+
+    Dénominateur = CA TTC ART par magasin/jour du cube ; numérateur = Montant
+    TTC des factures de convention. N-1 tronquée date-à-date sur l'UNION des
+    deux sources via truncate_n1_date_to_date (source unique) : le cube porte
+    tous les jours écoulés, même ceux sans facture de convention.
+
+    Retourne : ca_global, ca_conv, ca_reste, ca_global_n1, ca_conv_n1,
+    poids_pct, poids_n1_pct, ecart_pt, par_enseigne, par_magasin,
+    nb_sans_correspondance. Toutes les valeurs sont NaN si la base manque.
+    """
+    from data.config import LIBELLE_HORS_CONVENTION
+
+    cols_mag = ["Magasin", "CA global", "CA conv", "CA global N-1", "CA conv N-1",
+                "Poids %", "Poids N-1 %", "Écart pt"]
+    cols_ens = ["Enseigne"] + cols_mag[1:]
+    out = {
+        "ca_global": 0.0, "ca_conv": 0.0, "ca_reste": 0.0,
+        "ca_global_n1": 0.0, "ca_conv_n1": 0.0,
+        "poids_pct": float("nan"), "poids_n1_pct": float("nan"),
+        "ecart_pt": float("nan"),
+        "par_enseigne": pd.DataFrame(columns=cols_ens),
+        "par_magasin": pd.DataFrame(columns=cols_mag),
+        "nb_sans_correspondance": 0,
+    }
+    if (df_cube_mag is None or df_vc is None or df_cube_mag.empty or df_vc.empty
+            or "Année" not in df_cube_mag.columns or "Mois" not in df_cube_mag.columns
+            or "Jour" not in df_cube_mag.columns or "CA Magasin" not in df_cube_mag.columns
+            or "Magasin" not in df_cube_mag.columns or "Montant TTC" not in df_vc.columns
+            or "Magasin" not in df_vc.columns):
+        return out
+
+    cube = df_cube_mag.copy()
+    conv = df_vc.copy()
+    if mois_sel:
+        cube = cube[cube["Mois"].isin(mois_sel)]
+        conv = conv[conv["Mois"].isin(mois_sel)]
+    if "Type vente à crédit" in conv.columns:
+        conv = conv[convention_de_facture(conv) != LIBELLE_HORS_CONVENTION]
+    if cube.empty or conv.empty:
+        return out
+
+    both = pd.concat(
+        [cube.assign(_src="cube"), conv.assign(_src="vc")], ignore_index=True
+    )
+    both = truncate_n1_date_to_date(both, annee, annee - 1, mois_sel)
+    cube = both[both["_src"] == "cube"]
+    conv = both[both["_src"] == "vc"]
+    cube_n = cube[cube["Année"] == annee]
+    cube_n1 = cube[cube["Année"] == annee - 1]
+    conv_n = conv[conv["Année"] == annee]
+    conv_n1 = conv[conv["Année"] == annee - 1]
+
+    out["ca_global"] = float(cube_n["CA Magasin"].sum())
+    out["ca_conv"] = float(conv_n["Montant TTC"].sum())
+    out["ca_reste"] = out["ca_global"] - out["ca_conv"]
+    out["ca_global_n1"] = float(cube_n1["CA Magasin"].sum())
+    out["ca_conv_n1"] = float(conv_n1["Montant TTC"].sum())
+
+    def _poids(num, den):
+        return round(num / den * 100, 1) if den > 0 else float("nan")
+
+    out["poids_pct"] = _poids(out["ca_conv"], out["ca_global"])
+    out["poids_n1_pct"] = _poids(out["ca_conv_n1"], out["ca_global_n1"])
+    if pd.notna(out["poids_pct"]) and pd.notna(out["poids_n1_pct"]):
+        out["ecart_pt"] = round(out["poids_pct"] - out["poids_n1_pct"], 1)
+
+    def _by(col, colonnes):
+        if cube_n.empty:
+            return pd.DataFrame(columns=colonnes)
+        d = pd.concat([
+            cube_n.groupby(col)["CA Magasin"].sum().rename("CA global"),
+            conv_n.groupby(col)["Montant TTC"].sum().rename("CA conv"),
+            cube_n1.groupby(col)["CA Magasin"].sum().rename("CA global N-1"),
+            conv_n1.groupby(col)["Montant TTC"].sum().rename("CA conv N-1"),
+        ], axis=1).fillna(0.0).reset_index()
+        d["Poids %"] = [_poids(c, g) for c, g in zip(d["CA conv"], d["CA global"])]
+        d["Poids N-1 %"] = [
+            _poids(c, g) for c, g in zip(d["CA conv N-1"], d["CA global N-1"])
+        ]
+        d["Écart pt"] = [
+            round(p - q, 1) if pd.notna(p) and pd.notna(q) else float("nan")
+            for p, q in zip(d["Poids %"], d["Poids N-1 %"])
+        ]
+        return d[colonnes].sort_values("CA global", ascending=False).reset_index(drop=True)
+
+    out["par_magasin"] = _by("Magasin", cols_mag)
+    _mag_global = set(cube_n["Magasin"].dropna().unique())
+    _orphelins = conv_n[(conv_n["Montant TTC"] > 0)
+                        & (~conv_n["Magasin"].isin(_mag_global))]
+    out["nb_sans_correspondance"] = int(_orphelins["Magasin"].nunique())
+    if "Enseigne" in cube_n.columns and "Enseigne" in conv_n.columns:
+        out["par_enseigne"] = _by("Enseigne", cols_ens)
+    return out
